@@ -1,0 +1,10 @@
+#!/bin/sh
+# A shell for the M1 tests: it marks each command with OSC 133 so the daemon's
+# run verb can wait for it, and it stays a plain POSIX shell otherwise.
+printf '\033]133;A\a'
+while IFS= read -r line; do
+	printf '\033]133;C\a'
+	sh -c "$line"
+	status=$?
+	printf '\033]133;D;%s\a\033]133;A\a' "$status"
+done

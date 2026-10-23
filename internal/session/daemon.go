@@ -319,6 +319,9 @@ type Daemon struct {
 	// with. Run installs them; see logsink.go.
 	foreground bool
 	logFile    string
+	// disableSignalHandling is set when an embedding process owns the
+	// process's signals; Start then leaves SIGINT/SIGTERM/SIGHUP alone.
+	disableSignalHandling bool
 
 	// agentStallTimeout is how long a pane may report working while producing no
 	// output before the stall heuristic demotes it to idle. Zero disables the
@@ -741,6 +744,10 @@ type DaemonConfig struct {
 	// LogFile is the file the daemon appends its log to. Empty, the default,
 	// means DefaultDaemonLogPath.
 	LogFile string
+	// DisableSignalHandling keeps Start from installing the daemon's SIGINT,
+	// SIGTERM and SIGHUP handlers. An embedded daemon sets it: the process
+	// that embeds it owns its signals, and two handlers would race.
+	DisableSignalHandling bool
 	// DisableAutoRestore skips restoring saved sessions on daemon start.
 	DisableAutoRestore bool
 	// ScrollbackLines is how many lines of history every pane the daemon makes
@@ -876,23 +883,24 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
-		manager:            NewManager(),
-		instance:           uuid.NewString(),
-		ctx:                ctx,
-		cancel:             cancel,
-		clients:            make(map[string]*connState),
-		pendingRequests:    make(map[string]*pendingRequest),
-		events:             newEventHub(),
-		agents:             newAgentBus(),
-		version:            cfg.Version,
-		disableAutoRestore: cfg.DisableAutoRestore,
-		foreground:         cfg.Foreground,
-		logFile:            cfg.LogFile,
-		agentStallTimeout:  resolveAgentStallTimeout(cfg.AgentStallTimeout),
-		agentMatcher:       newAgentMatcher(resolveAgentBinaries(cfg.AgentBinaries)),
-		respondFromShell:   cfg.RespondFromShell,
-		resumeAgents:       resolveResumeMode(cfg.ResumeAgents),
-		windowSize:         windowSizePolicy(cfg.WindowSize),
+		manager:               NewManager(),
+		instance:              uuid.NewString(),
+		ctx:                   ctx,
+		cancel:                cancel,
+		clients:               make(map[string]*connState),
+		pendingRequests:       make(map[string]*pendingRequest),
+		events:                newEventHub(),
+		agents:                newAgentBus(),
+		version:               cfg.Version,
+		disableAutoRestore:    cfg.DisableAutoRestore,
+		foreground:            cfg.Foreground,
+		logFile:               cfg.LogFile,
+		disableSignalHandling: cfg.DisableSignalHandling,
+		agentStallTimeout:     resolveAgentStallTimeout(cfg.AgentStallTimeout),
+		agentMatcher:          newAgentMatcher(resolveAgentBinaries(cfg.AgentBinaries)),
+		respondFromShell:      cfg.RespondFromShell,
+		resumeAgents:          resolveResumeMode(cfg.ResumeAgents),
+		windowSize:            windowSizePolicy(cfg.WindowSize),
 	}
 	d.singleClient.Store(cfg.SingleClient)
 	d.SetSSHAgent(cfg.SSHAgent)
@@ -1441,7 +1449,9 @@ func (d *Daemon) Start() error {
 	// their event hooks follow the stream from here on.
 	d.plugins.start()
 
-	go d.handleSignals()
+	if !d.disableSignalHandling {
+		go d.handleSignals()
+	}
 	go d.acceptLoop()
 	if d.linkListener != nil {
 		go d.acceptLinkLoop()
