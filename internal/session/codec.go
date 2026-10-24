@@ -2,6 +2,7 @@ package session
 
 import (
 	"encoding/gob"
+	"reflect"
 
 	"github.com/getan/tuios-mini/internal/wire"
 )
@@ -23,37 +24,38 @@ import (
 func init() {
 	wire.LogFrame = LogMessage
 
-	// Protocol payloads
-	gob.Register(HelloPayload{})
-	gob.Register(WelcomePayload{})
-	gob.Register(AttachPayload{})
-	gob.Register(AttachedPayload{})
-	gob.Register(NewPayload{})
-	gob.Register(SessionInfo{})
-	gob.Register(SessionListPayload{})
-	gob.Register(KillPayload{})
-	gob.Register(SessionEndedPayload{})
-	gob.Register(ResizePayload{})
-	gob.Register(ErrorPayload{})
-	gob.Register(CreatePTYPayload{})
-	gob.Register(PTYCreatedPayload{})
-	gob.Register(ClosePTYPayload{})
-	gob.Register(ResizePTYPayload{})
-	gob.Register(PTYResizedPayload{})
-	gob.Register(SubscribePTYPayload{})
-	gob.Register(GetTerminalStatePayload{})
-	gob.Register(TerminalStatePayload{})
+	// These names predate the fork's module path. Moving Go source must not
+	// change the names sent for values carried through an interface.
+	registerSessionPayload(HelloPayload{})
+	registerSessionPayload(WelcomePayload{})
+	registerSessionPayload(AttachPayload{})
+	registerSessionPayload(AttachedPayload{})
+	registerSessionPayload(NewPayload{})
+	registerSessionPayload(SessionInfo{})
+	registerSessionPayload(SessionListPayload{})
+	registerSessionPayload(KillPayload{})
+	registerSessionPayload(SessionEndedPayload{})
+	registerSessionPayload(ResizePayload{})
+	registerSessionPayload(ErrorPayload{})
+	registerSessionPayload(CreatePTYPayload{})
+	registerSessionPayload(PTYCreatedPayload{})
+	registerSessionPayload(ClosePTYPayload{})
+	registerSessionPayload(ResizePTYPayload{})
+	registerSessionPayload(PTYResizedPayload{})
+	registerSessionPayload(SubscribePTYPayload{})
+	registerSessionPayload(GetTerminalStatePayload{})
+	registerSessionPayload(TerminalStatePayload{})
 
 	// Session state types
-	gob.Register(SessionState{})
-	gob.Register(WindowState{})
+	registerSessionPayload(SessionState{})
+	registerSessionPayload(WindowState{})
 	// Under the name gob.Register gave it while it was declared in this
 	// package: the package path and the type name. gob sends the name of a
 	// value held in an interface, so a peer of an older build and this one
 	// have to agree on it.
 	gob.RegisterName("github.com/Gaurav-Gosain/tuios/internal/session.TerminalState", TerminalState{})
-	gob.Register(SerializedBSPTree{})
-	gob.Register(SerializedBSPNode{})
+	registerSessionPayload(SerializedBSPTree{})
+	registerSessionPayload(SerializedBSPNode{})
 
 	// Map types used in payloads (gob requires explicit registration)
 	gob.Register(map[int]string{})
@@ -66,9 +68,14 @@ func init() {
 	gob.Register([]string{})
 
 	// Remote command payloads
-	gob.Register(ExecuteCommandPayload{})
-	gob.Register(RemoteCommandPayload{})
-	gob.Register(CommandResultPayload{})
-	gob.Register(GetLogsPayload{})
-	gob.Register(LogsDataPayload{})
+	registerSessionPayload(ExecuteCommandPayload{})
+	registerSessionPayload(RemoteCommandPayload{})
+	registerSessionPayload(CommandResultPayload{})
+	registerSessionPayload(GetLogsPayload{})
+	registerSessionPayload(LogsDataPayload{})
+}
+
+func registerSessionPayload(value any) {
+	const originalPackage = "github.com/Gaurav-Gosain/tuios/internal/session."
+	gob.RegisterName(originalPackage+reflect.TypeOf(value).Name(), value)
 }

@@ -57,7 +57,7 @@ type Config struct {
 	// restart under: session state, pane history, the Inbox, the outbox, review
 	// notes, the applied-grants record, push registrations and the transfer
 	// journal. Empty means a private directory beside the socket
-	// (<socket dir>/state), so an embedded daemon never shares the standalone
+	// (<socket path>.state), so an embedded daemon never shares the standalone
 	// tuios state, and two embedded daemons never share each other's.
 	//
 	// Set it explicitly to put the state where a later daemon can find it after
@@ -99,6 +99,9 @@ type Config struct {
 	// marks a pane as running an agent by looking at what it runs. Off by
 	// default: an embedded daemon reports only what its panes tell it.
 	AgentDetection bool
+	// StopWhenEmpty ends this server when its last session is explicitly
+	// deleted. A UI detach does not delete a session and leaves panes alive.
+	StopWhenEmpty bool
 }
 
 // Server owns one daemon and the session Start created.
@@ -141,7 +144,7 @@ func (c Config) withDefaults() Config {
 	// its socket: private to this daemon, and short, since /tmp and the runtime
 	// folder are where an unconfigured caller ends up.
 	if c.StateDir == "" && c.SocketPath != "" {
-		c.StateDir = filepath.Join(filepath.Dir(c.SocketPath), "state")
+		c.StateDir = filepath.Join(filepath.Dir(c.SocketPath), filepath.Base(c.SocketPath)+".state")
 	}
 	c.PermissionsMode = strings.ToLower(strings.TrimSpace(c.PermissionsMode))
 	if c.PermissionsMode == "" {
@@ -249,12 +252,15 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	dc.DisableAutoRestore = true
 	dc.DisableSignalHandling = true
 	dc.PreferredShell = cfg.Shell
+	if cfg.StopWhenEmpty {
+		dc.OnEmpty = func() { go s.Stop() }
+	}
 	// A daemon of the agent-driven product by default; a workspace of panes by
 	// default here. Checkpoints write to the caller's work tree and git, the
 	// detector guesses, and the herdr protocol socket is a file beside the
 	// daemon's that nothing asked for. All three stay off unless asked for.
 	dc.Permissions = cfg.permissions()
-	dc.Checkpoints = config.CheckpointsConfig{Enabled: ptr(false)}
+	dc.Checkpoints = config.CheckpointsConfig{Enabled: ptr(cfg.AgentCheckpoints)}
 	dc.AgentAutoDetect = ptr(cfg.AgentDetection)
 	dc.ResumeAgents = "off"
 	dc.HerdrProtocol = config.HerdrProtocolOff

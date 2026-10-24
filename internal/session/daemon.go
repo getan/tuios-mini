@@ -62,6 +62,7 @@ type Daemon struct {
 	herdrConns herdrConnCount
 	ctx        context.Context
 	cancel     context.CancelFunc
+	onEmpty    func()
 
 	// Connection tracking
 	clients   map[string]*connState
@@ -787,6 +788,10 @@ type DaemonConfig struct {
 	// pane's TTY) are dropped from it: a caller cannot claim to be a pane it is
 	// not. See guestenv.FilterPaneEnv.
 	PaneEnv []string
+	// OnEmpty is called after deleting the last session. The callback must
+	// return promptly; an embedder that stops the daemon does so asynchronously.
+	// Nil preserves the standalone daemon's lifetime when it has no sessions.
+	OnEmpty func()
 	// DisableSignalHandling keeps Start from installing the daemon's SIGINT,
 	// SIGTERM and SIGHUP handlers. An embedded daemon sets it: the process
 	// that embeds it owns its signals, and two handlers would race.
@@ -930,6 +935,7 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 		instance:              uuid.NewString(),
 		ctx:                   ctx,
 		cancel:                cancel,
+		onEmpty:               cfg.OnEmpty,
 		clients:               make(map[string]*connState),
 		pendingRequests:       make(map[string]*pendingRequest),
 		events:                newEventHub(),
@@ -1337,6 +1343,9 @@ func (d *Daemon) onSessionDeleted(s *Session) {
 		SessionName: s.Name(),
 		Reason:      "the session was terminated",
 	}, "")
+	if d.onEmpty != nil && len(d.manager.ListSessions()) == 0 {
+		d.onEmpty()
+	}
 }
 
 // Start starts the daemon.
