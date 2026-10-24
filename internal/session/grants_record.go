@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"maps"
 	"os"
 	"slices"
@@ -69,7 +68,7 @@ func (d *Daemon) checkGrantsSinceLastRun() {
 			was := policyDefaults(config.ResolvedPermissions{Strict: prev.Strict, Grants: prev.Grants})
 			if !was.Covers(policyDefaults(now)) {
 				d.grantsWidenedAtStart.Store(true)
-				log.Printf("%s Before: %s. Now: %s.", grantsWidenedNote, was.String(), policyDefaults(now).String())
+				d.warnf("%s Before: %s. Now: %s.", grantsWidenedNote, was.String(), policyDefaults(now).String())
 				d.attention.noteConfigNotice(configWidenedNotice, grantsWidenedNote)
 			}
 		}
@@ -161,7 +160,7 @@ func (d *Daemon) verbApplyConfig(cs *connState, params json.RawMessage) (any, *v
 		}
 	} else {
 		d.applyUserConfig(cfg, true)
-		log.Printf("config.toml was applied in full by the person")
+		d.warnf("config.toml was applied in full by the person")
 	}
 	after := d.configSnapshot()
 	out := map[string]any{
@@ -205,7 +204,7 @@ func (d *Daemon) applyOneHost(cfg *config.UserConfig, name string) *verbError {
 		hosts = append(hosts, *want)
 	}
 	d.ApplyHosts(hosts)
-	log.Printf("[FEDERATION] Host %s was applied by the person", name)
+	d.warnf("[FEDERATION] Host %s was applied by the person", name)
 	return nil
 }
 

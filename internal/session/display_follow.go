@@ -2,7 +2,6 @@ package session
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -298,7 +297,7 @@ func (d *Daemon) startDisplayFollow() {
 		return
 	}
 	if n := len(DisplayLinkPath(d.manager.SocketPath(), "00000000-0000-0000-0000-000000000000")); n > sockpath.MaxLen() {
-		log.Printf("Warning: the Wayland links are %d characters long, and a Unix socket path can be at most %d. Wayland programs in a pane cannot reach the display. Set XDG_RUNTIME_DIR to a shorter folder.", n, sockpath.MaxLen())
+		d.warnf("Warning: the Wayland links are %d characters long, and a Unix socket path can be at most %d. Wayland programs in a pane cannot reach the display. Set XDG_RUNTIME_DIR to a shorter folder.", n, sockpath.MaxLen())
 	}
 }
 

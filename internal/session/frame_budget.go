@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"log"
 	"net"
 	"sync/atomic"
 	"time"
@@ -192,9 +191,9 @@ func (d *Daemon) admitConnection(conn net.Conn, open *atomic.Int64, limit int64)
 	if now-last >= int64(connRefusedLogEvery) && d.connRefusedLog.CompareAndSwap(last, now) {
 		d.connRefusals.Add(-n)
 		if n == 1 {
-			log.Printf("Refused a new connection. The socket already serves %d connections, which is the maximum.", limit)
+			d.warnf("Refused a new connection. The socket already serves %d connections, which is the maximum.", limit)
 		} else {
-			log.Printf("Refused %d new connections. The socket already serves %d connections, which is the maximum.", n, limit)
+			d.warnf("Refused %d new connections. The socket already serves %d connections, which is the maximum.", n, limit)
 		}
 	}
 	return false

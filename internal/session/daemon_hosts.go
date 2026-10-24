@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -42,7 +41,7 @@ func (d *Daemon) startHostsWatch() {
 	// saved a setting it does not, and that is the machine where the first host
 	// is added.
 	if err := os.MkdirAll(filepath.Dir(d.configPath), 0o750); err != nil {
-		log.Printf("[FEDERATION] The daemon cannot watch the config file. A host change needs a restart: %v", err)
+		d.warnf("[FEDERATION] The daemon cannot watch the config file. A host change needs a restart: %v", err)
 		return
 	}
 	w, err := config.NewWatcherWithOptions(d.configPath, d.onConfigReload, config.WatcherOptions{
@@ -52,7 +51,7 @@ func (d *Daemon) startHostsWatch() {
 		DeliverUnchanged:  true,
 	})
 	if err != nil {
-		log.Printf("[FEDERATION] The daemon cannot watch the config file. A host change needs a restart: %v", err)
+		d.warnf("[FEDERATION] The daemon cannot watch the config file. A host change needs a restart: %v", err)
 		return
 	}
 	d.federationMu.Lock()
@@ -83,7 +82,7 @@ func (d *Daemon) stopHostsWatch() {
 // waits for a restart (reloadPanePermissions).
 func (d *Daemon) onConfigReload(cfg *config.UserConfig, err error) {
 	if err != nil {
-		log.Printf("[FEDERATION] The config file has an error, so the hosts did not change: %v", err)
+		d.warnf("[FEDERATION] The config file has an error, so the hosts did not change: %v", err)
 		return
 	}
 	d.applyUserConfig(cfg, false)
@@ -199,7 +198,7 @@ func (d *Daemon) reloadHosts(hosts []federation.Host) (waits bool) {
 	d.federationMu.Lock()
 	d.federationProblems = append(d.federationProblems, msg)
 	d.federationMu.Unlock()
-	log.Printf("[FEDERATION] %s", msg)
+	d.warnf("[FEDERATION] %s", msg)
 	return true
 }
 
@@ -265,7 +264,7 @@ func (d *Daemon) reloadLinkPolicies(next map[string]config.HostConfig) (waits bo
 		d.transfers.failRevoked()
 	}
 	if widened {
-		log.Printf("[FEDERATION] A link policy in config.toml gives another machine more than before. That part applies after tuios config apply from outside tuios, or a daemon restart.")
+		d.warnf("[FEDERATION] A link policy in config.toml gives another machine more than before. That part applies after tuios config apply from outside tuios, or a daemon restart.")
 	}
 	return widened
 }
@@ -360,10 +359,10 @@ func (d *Daemon) ApplyHosts(hosts []federation.Host) {
 		return
 	}
 	for _, p := range problems {
-		log.Printf("[FEDERATION] %v", p)
+		d.warnf("[FEDERATION] %v", p)
 	}
 	if change.Changed() {
-		log.Printf("[FEDERATION] The host table changed: %s", describeTableChange(change))
+		d.warnf("[FEDERATION] The host table changed: %s", describeTableChange(change))
 		d.broadcastHostsChanged(change, nil)
 	}
 }

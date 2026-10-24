@@ -1,9 +1,15 @@
 // Package mini embeds the tuios daemon core golder needs.
 //
-// It is the M1 slice of the tuios-mini fork: sessions, PTYs, windows and the
-// control verbs golder speaks, without the TUI, the plugin host or the rest of
-// the standalone product. Start returns only after the daemon is listening and
-// the requested session exists, so a caller can dial immediately.
+// It is the retained core of the tuios-mini fork: sessions, PTYs, windows and
+// the control verbs golder speaks. The daemon it starts runs the local-only
+// profile (session.ProfileLocalOnly): one socket, no federation links, no herdr
+// protocol socket, no ssh-agent or display following, and none of the watchers
+// and followers behind them. Start returns only after the daemon is listening
+// and the requested session exists, so a caller can dial immediately.
+//
+// The standalone product's own packages are still linked — the boundary is what
+// the daemon starts, not what the linker includes. docs/M4.md and
+// mini/imports_test.go state which packages are on each side.
 package mini
 
 import (
@@ -52,6 +58,15 @@ type Config struct {
 	// over the process's standard logger, and never writes into the standalone
 	// daemon's log.
 	LogFile string
+
+	// HarnessDir is the one directory this workspace's daemon reads extra
+	// harness manifests from, in place of the machine's tuios configuration.
+	// Empty, the default, means the manifests compiled into the binary and
+	// nothing else: this daemon never reads TUIOS_HARNESS_DIR,
+	// XDG_CONFIG_HOME/tuios/harnesses or any other path a standalone tuios on
+	// the same machine was configured with. A caller that wants its own harness
+	// rules points this at a folder it owns, such as one under StateDir.
+	HarnessDir string
 
 	// StateDir is the directory this daemon saves everything it keeps across a
 	// restart under: session state, pane history, the Inbox, the outbox, review
@@ -242,6 +257,20 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	dc.Version = cfg.Version
 	dc.SocketPath = cfg.SocketPath
 	dc.StateDir = cfg.StateDir
+	// A workspace is panes, sessions and the control socket. The profile is what
+	// keeps the standalone product out of the embedding process: no .link or
+	// .link-human socket beside this one, no herdr socket, no ssh-agent or
+	// display following, and none of the watchers and followers behind them.
+	dc.Profile = session.ProfileLocalOnly
+	// Harness rules are the same kind of thing. The daemon reads the bundled
+	// manifests, and a folder this caller named, but never the user harness
+	// directory a standalone tuios on the machine was configured with: those
+	// rules are about another program's panes.
+	if cfg.HarnessDir != "" {
+		dc.HarnessDir = cfg.HarnessDir
+	} else {
+		dc.BundledHarnessesOnly = true
+	}
 	dc.PaneEnv = cfg.PaneEnv
 	// The embedded daemon owns its log file rather than taking over the
 	// process's: nothing here calls log.SetOutput.

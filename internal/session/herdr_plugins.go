@@ -3,7 +3,6 @@ package session
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -237,7 +236,7 @@ func (d *Daemon) writePlugins(edit func(path string) error, change func(*config.
 	if file, err := config.PluginsInFile(path); err == nil {
 		d.pluginsWaiting.Store(d.plugins.waits(file))
 	}
-	log.Printf("[PLUGINS] the person applied [plugins]: enabled %v", next.Enabled)
+	d.warnf("[PLUGINS] the person applied [plugins]: enabled %v", next.Enabled)
 	return nil
 }
 
@@ -693,7 +692,7 @@ func (d *Daemon) herdrPluginPaneOpen(cs *connState, params json.RawMessage) (any
 	paneID := herdrPaneID(sess.ID, win.ID)
 	if placement == herdrplugin.PlacementZoomed {
 		if _, herr := d.herdrPaneZoom(cs, &herdrIn{PaneID: paneID, Mode: "on"}); herr != nil {
-			log.Printf("[PLUGINS] the pane of %s opened, and zoom failed: %s", e.ID, herr.msg)
+			d.warnf("[PLUGINS] the pane of %s opened, and zoom failed: %s", e.ID, herr.msg)
 		}
 	}
 	if placement == herdrplugin.PlacementPopup {

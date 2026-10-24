@@ -179,6 +179,32 @@ func (d *Daemon) logLine(level DebugLevel, format string, args ...any) {
 	d.logSink(level.String(), message)
 }
 
+// warnf records an unclassified line — the kind the daemon has always written
+// with log.Printf — through the same rule logLine follows: a daemon with a sink
+// of its own writes to that sink, and a daemon without one writes to the
+// standard library logger exactly as before.
+//
+// The distinction matters for an embedding process and only for one. The
+// standalone daemon installs its own logger (InstallDaemonLogging), so its
+// log.Printf calls land in the ring and in its file, which is what a reader of
+// `tuios logs` expects. An embedded daemon installs nothing, because it must not
+// take over its host's logger; its unclassified lines would otherwise land in
+// whatever the host's standard logger points at — a terminal, a host log, or a
+// file the host owns. warnf is how a line about this daemon stays with this
+// daemon.
+//
+// It is Basic rather than an invented level: these lines are diagnostics about
+// the daemon's own life, they were recorded as "warn" by the ring writer, and
+// Basic is the level that always reaches the file. Nothing here can call
+// log.SetOutput, so no per-daemon routing changes the process's logger.
+func (d *Daemon) warnf(format string, args ...any) {
+	if d == nil || d.logSink == nil {
+		log.Printf(format, args...)
+		return
+	}
+	d.logLine(DebugBasic, format, args...)
+}
+
 // writeDaemonLogHeaderLocked marks the start of a run and states what the file
 // can contain. The privacy rule is a property of the level, so the reader is
 // told the rule rather than the current level alone.

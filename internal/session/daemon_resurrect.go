@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"log"
 	"maps"
 	"slices"
 	"time"
@@ -54,13 +53,13 @@ func (d *Daemon) restoreAllSessions() {
 		state, err := loadResurrectionStateIn(d.stateRoot, name)
 		if err != nil {
 			// Corrupt/incompatible files are archived inside LoadResurrectionState.
-			log.Printf("Skipping resurrection of %q: %v", name, err)
+			d.warnf("Skipping resurrection of %q: %v", name, err)
 			continue
 		}
 		if len(state.Windows) == 0 {
 			// It can never restore, so leaving it would keep offering a session
 			// that 'tuios resurrect' lists and cannot bring back.
-			log.Printf("Discarding saved state for %q: it has no windows", name)
+			d.warnf("Discarding saved state for %q: it has no windows", name)
 			removeResurrectionStateIn(d.stateRoot, name)
 			continue
 		}
@@ -71,7 +70,7 @@ func (d *Daemon) restoreAllSessions() {
 		}
 		// Opened by the caller once the Inbox has loaded; see Daemon.Run.
 		d.pendingResumes = append(d.pendingResumes, offers...)
-		log.Printf("Restored session %q (%d windows)", name, len(state.Windows))
+		d.warnf("Restored session %q (%d windows)", name, len(state.Windows))
 	}
 }
 
@@ -169,7 +168,7 @@ func (d *Daemon) restoreSessionOffers(state *SessionState) (*Session, []resumeOf
 	// above the banner. None when the setting is off.
 	var history map[string]*savedHistory
 	if d.manager.HistoryPolicy().Enabled {
-		history = loadHistoryIn(d.stateRoot, state.Name)
+		history = loadHistoryWith(d.stateRoot, state.Name, d.warnf)
 	}
 
 	kept := restored.Windows[:0]

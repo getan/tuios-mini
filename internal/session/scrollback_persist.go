@@ -513,6 +513,14 @@ func loadHistory(sessionName string) map[string]*savedHistory {
 }
 
 func loadHistoryIn(root stateRoot, sessionName string) map[string]*savedHistory {
+	return loadHistoryWith(root, sessionName, log.Printf)
+}
+
+// loadHistoryWith is loadHistoryIn with the line sink named, so a daemon with a
+// log of its own (an embedded one) writes the two diagnostics below into that
+// log rather than into its embedding process's standard logger. See
+// Daemon.warnf.
+func loadHistoryWith(root stateRoot, sessionName string, warnf func(format string, args ...any)) map[string]*savedHistory {
 	dir := root.historyDir(sessionName)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -535,11 +543,11 @@ func loadHistoryIn(root stateRoot, sessionName string) map[string]*savedHistory 
 		if errors.As(err, &other) {
 			// Another build's file, whole as far as this one can tell. It is
 			// skipped rather than deleted: that build may run here again.
-			log.Printf("Skipping saved history %s: %v", path, err)
+			warnf("Skipping saved history %s: %v", path, err)
 			continue
 		}
 		if err != nil {
-			log.Printf("Discarding saved history %s: %v", path, err)
+			warnf("Discarding saved history %s: %v", path, err)
 			_ = os.Remove(path)
 			continue
 		}

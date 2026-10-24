@@ -3,7 +3,6 @@
 package session
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -24,7 +23,7 @@ func (d *Daemon) handleSignals() {
 
 	stopCh, err := stopevent.Watch(d.manager.SocketPath(), d.ctx.Done())
 	if err != nil {
-		log.Printf("Warning: the stop event could not be made: %v. tuios kill-server will terminate this daemon, and sessions are not saved.", err)
+		d.warnf("Warning: the stop event could not be made: %v. tuios kill-server will terminate this daemon, and sessions are not saved.", err)
 	}
 
 	select {

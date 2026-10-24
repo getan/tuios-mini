@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"runtime/debug"
@@ -310,6 +309,12 @@ type Daemon struct {
 
 	// Configuration
 	version string
+	// profile is which of the standalone product's services this daemon runs.
+	// Start reads it to decide whether to bind the link, link-human and herdr
+	// sockets and whether to launch the watchers and followers behind them.
+	// NewDaemon reads it to decide whether to create the transcript watcher and
+	// whether to hold a federation table at all. See Profile.
+	profile Profile
 
 	// disableAutoRestore, when true, skips cold-start resurrection of saved
 	// sessions on daemon start. Sessions can still be brought back on demand
@@ -747,10 +752,78 @@ type connState struct {
 	terminalName   string
 }
 
+// Profile is which of the standalone product's services a daemon runs.
+//
+// The daemon is the core of two different things: the standalone tuios product,
+// which wants federation links, herdr's protocol socket, ssh-agent and display
+// forwarding, hooks and plugins; and an embedded workspace, which wants panes,
+// sessions and the control socket and nothing else beside its own socket. The
+// difference is not a preference about what a daemon may be asked to do. It is
+// about what a daemon does on its own: the standalone daemon opens a second,
+// third and fourth socket and follows several files, and an embedding process
+// that starts one must not find those files beside its socket or those watchers
+// on its host's file descriptors.
+//
+// Making the profile one value rather than a dozen booleans is deliberate. A
+// new product socket or watcher has one obvious place to be gated, and a reader
+// can answer "what does an embedded daemon run?" by reading the one switch
+// rather than by checking whether every feature's default happens to be off.
+type Profile string
+
+const (
+	// ProfileStandalone is the zero value and the standalone product. Every
+	// service the configuration asks for runs.
+	ProfileStandalone Profile = ""
+	// ProfileLocalOnly is the embedded workspace: panes, sessions, windows, the
+	// control socket and the agent reports a pane sends for itself. It binds no
+	// socket but the daemon's own, and starts none of the product's background
+	// services.
+	//
+	// What it keeps is what a workspace is: sessions, windows and panes with
+	// their PTYs and history; the control protocol and every verb that answers
+	// about them; a TUI attached as a client, drawing what the panes produce;
+	// and the agent state a harness reports explicitly with set-agent-state
+	// (so a reported state, its metadata, its prompt and its transcript still
+	// arrive). What it drops is the product around that: federation's .link and
+	// .link-human sockets and the ssh links they carry, herdr's protocol socket
+	// and its link, ssh-agent and display following, the config watcher,
+	// hook events, herdr plugin processes and their event follower, push
+	// notifications, the transfer journal, and the transcript file watcher.
+	//
+	// A local-only daemon still reads its own configuration — the fields of
+	// DaemonConfig — and what that configuration asks for elsewhere is still
+	// honoured: AgentAutoDetect still turns the detector on, Checkpoints still
+	// takes checkpoints, and StateDir still holds the Inbox. The profile gates
+	// services that are not configured but are on in the product; it does not
+	// silently turn off something the caller explicitly asked for.
+	ProfileLocalOnly Profile = "local-only"
+)
+
+// LocalOnly reports whether this is the embedded workspace profile.
+func (p Profile) LocalOnly() bool { return p == ProfileLocalOnly }
+
+// harnessSource is where this configuration's harness manifests come from.
+// HarnessDir wins over BundledHarnessesOnly: a caller that named a directory
+// meant it.
+func (c *DaemonConfig) harnessSource() harnessSource {
+	switch {
+	case c.HarnessDir != "":
+		return harnessSourceDir
+	case c.BundledHarnessesOnly:
+		return harnessSourceBundled
+	default:
+		return harnessSourceUser
+	}
+}
+
 // DaemonConfig holds configuration for starting the daemon.
 type DaemonConfig struct {
 	Version    string
 	SocketPath string
+	// Profile selects which of the standalone product's services this daemon
+	// runs. The zero value is ProfileStandalone; an embedded workspace sets
+	// ProfileLocalOnly. See Profile.
+	Profile Profile
 	// Foreground is true for `tuios daemon`, which owns a terminal. A foreground
 	// daemon echoes its log to stderr; a background one does not, because its
 	// stderr belongs to the process that spawned it.
@@ -842,6 +915,23 @@ type DaemonConfig struct {
 	// built-in defaults. It also picks up the TUIOS_AGENT_BINARIES environment
 	// override (comma-separated).
 	AgentBinaries []string
+	// HarnessDir is the one directory this daemon reads extra harness manifests
+	// from, in place of the standalone user directory. An embedding process that
+	// wants harnesses of its own passes a folder under its own state directory;
+	// that folder and the bundled manifests are then all this daemon reads.
+	//
+	// Empty means the standalone default, harness.UserDir(), unless
+	// BundledHarnessesOnly is set. The user directory follows
+	// TUIOS_HARNESS_DIR and XDG_CONFIG_HOME/tuios/harnesses, which belong to a
+	// standalone tuios: an embedded daemon that left this empty and the flag off
+	// would run someone else's detect, screen and title rules against its own
+	// panes.
+	HarnessDir string
+	// BundledHarnessesOnly loads only the manifests compiled into the binary:
+	// never harness.UserDir(). It is what an embedded daemon that has no harness
+	// folder of its own sets, so the machine's tuios configuration cannot change
+	// how its panes are read. HarnessDir, when set, takes precedence.
+	BundledHarnessesOnly bool
 	// ResumeAgents is daemon.resume_agents: what a restore does with the agent
 	// conversations its panes were running. "ask" and anything unrecognised,
 	// including empty, opens a resume item in the Inbox for each; "auto" types
@@ -941,6 +1031,7 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 		events:                newEventHub(),
 		agents:                newAgentBus(),
 		version:               cfg.Version,
+		profile:               cfg.Profile,
 		disableAutoRestore:    cfg.DisableAutoRestore,
 		foreground:            cfg.Foreground,
 		logFile:               cfg.LogFile,
@@ -948,16 +1039,37 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 		stateRoot:             stateRoot(cfg.StateDir),
 		disableSignalHandling: cfg.DisableSignalHandling,
 		agentStallTimeout:     resolveAgentStallTimeout(cfg.AgentStallTimeout),
-		agentMatcher:          newAgentMatcher(resolveAgentBinaries(cfg.AgentBinaries)),
 		respondFromShell:      cfg.RespondFromShell,
 		resumeAgents:          resolveResumeMode(cfg.ResumeAgents),
 		windowSize:            windowSizePolicy(cfg.WindowSize),
 	}
+	// The matcher is built after the daemon it logs through exists: a manifest
+	// that does not load is a line for this daemon's sink, not for whatever
+	// standard logger the embedding process happens to have.
+	d.agentMatcher = newAgentMatcherFrom(cfg.harnessSource(), cfg.HarnessDir, resolveAgentBinaries(cfg.AgentBinaries), d.warnf)
 	d.singleClient.Store(cfg.SingleClient)
-	d.SetSSHAgent(cfg.SSHAgent)
+	// ssh-agent following is a link per session beside the socket, moved to the
+	// socket of whichever client attached last. A local-only daemon has one host
+	// process with one environment, so it keeps no such link and a pane gets its
+	// SSH_AUTH_SOCK from that environment.
+	sshAgent := cfg.SSHAgent
+	if d.localOnly() {
+		sshAgent = ""
+	}
+	d.SetSSHAgent(sshAgent)
 	displaySource := d.displayVars
 	d.manager.displaySource.Store(&displaySource)
-	d.SetDisplay(cfg.Display)
+	// Display following is the forwarding half of the same product: it keeps a
+	// Wayland link per session beside the socket and points it at the client
+	// that attached last. A local-only daemon follows nothing, whatever its
+	// configuration says — otherwise startDisplayFollow being skipped would only
+	// move the link to the first client's attach, which is worse than either
+	// answer. A workspace host owns the panes of its own process.
+	display := cfg.Display
+	if d.localOnly() {
+		display = config.DisplayOff
+	}
+	d.SetDisplay(display)
 	d.attention = newAttentionStore(d.events.publish, d.events.currentSeq)
 	d.SetApprovalPolicy(cfg.Approvals)
 	d.activity = newActivityStore(d.events.publish)
@@ -979,7 +1091,14 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 	d.manager.SetPaneEnv(cfg.PaneEnv)
 	d.manager.SetNewWindowInheritCwd(cfg.NewWindowInheritCwd)
 	d.manager.SetPreferredShell(cfg.PreferredShell)
-	d.manager.SetHerdrProtocol(cfg.HerdrProtocol)
+	// A local-only daemon speaks no herdr protocol whatever its configuration
+	// says: the socket it reports to is a fourth file beside the daemon's, and
+	// the panes of an embedded workspace are its host's.
+	herdrProtocol := cfg.HerdrProtocol
+	if d.localOnly() {
+		herdrProtocol = config.HerdrProtocolOff
+	}
+	d.manager.SetHerdrProtocol(herdrProtocol)
 	d.manager.SetReturnWhenEmpty(!cfg.StayOnEmptyWorkspace)
 	d.agentDetectInterval = resolveAgentDetectInterval(cfg.AgentAutoDetect, cfg.AgentDetectInterval)
 	d.agentsOff.Store(cfg.AgentsOff)
@@ -991,8 +1110,16 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 	// back to reading on its pane's own output. So the error is dropped rather
 	// than reported, and it is dropped rather than logged because the only thing
 	// fsnotify would say is which path it failed on.
-	if w, err := NewTranscriptWatcher(); err == nil {
-		d.transcriptWatcher = w
+	//
+	// A local-only daemon makes none: the watcher is an inotify descriptor and a
+	// goroutine on the embedding process's account, watching transcript files of
+	// an agent product the workspace does not run. A transcript join reads on the
+	// pane's own output instead, which is what a daemon that could not make a
+	// watcher does anyway.
+	if !d.localOnly() {
+		if w, err := NewTranscriptWatcher(); err == nil {
+			d.transcriptWatcher = w
+		}
 	}
 
 	if cfg.SocketPath != "" {
@@ -1006,13 +1133,27 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 	d.manager.SetRenameHook(d.onSessionRenamed)
 
 	d.configPath = cfg.ConfigPath
-	d.plugins = newPluginHost(d, cfg.Plugins)
+	plugins := cfg.Plugins
+	if d.localOnly() {
+		plugins = config.PluginsConfig{}
+	}
+	d.plugins = newPluginHost(d, plugins)
 	d.hostDial = cfg.HostDial
 	d.fleet = newHostFleet(d)
-	d.setupFederation(cfg.Hosts)
+	hosts := cfg.Hosts
+	if d.localOnly() {
+		// No table, so no host can be reached from a config reload either: an
+		// embedded workspace has no links to the machine's other workspaces.
+		hosts = nil
+	}
+	d.setupFederation(hosts)
 
 	return d
 }
+
+// localOnly reports whether this daemon runs the embedded workspace profile
+// rather than the standalone product. See Profile.
+func (d *Daemon) localOnly() bool { return d != nil && d.profile.LocalOnly() }
 
 // setupFederation builds the host table and the link manager. Nothing is dialed
 // here; Start launches the supervisors.
@@ -1025,7 +1166,7 @@ func (d *Daemon) setupFederation(hosts []federation.Host) {
 	table, problems := federation.NewTable(hosts)
 	for _, p := range problems {
 		d.federationProblems = append(d.federationProblems, p.Error())
-		log.Printf("[FEDERATION] %v", p)
+		d.warnf("[FEDERATION] %v", p)
 	}
 	dial := d.hostDial
 	if dial == nil {
@@ -1044,7 +1185,7 @@ func (d *Daemon) setupFederation(hosts []federation.Host) {
 		// machine from. See link_policy.go.
 		Self: linkSelfName(d.hostedPaneHostName()),
 		Log: func(format string, args ...any) {
-			log.Printf("[FEDERATION] "+format, args...)
+			d.warnf("[FEDERATION] "+format, args...)
 		},
 		OnStatus: d.fleet.onStatus,
 	})
@@ -1401,15 +1542,22 @@ func (d *Daemon) Start() error {
 		return fmt.Errorf("failed to set socket permissions: %w", err)
 	}
 
-	// The link socket. It is optional: a daemon that cannot bind it still
-	// serves, and the proxy falls back to the main socket, at the cost of a
-	// message from another machine not being marked as one. The start lock
-	// is held, so a stale file here is a dead daemon's and is removed.
-	d.linkListener = listenLinkSocket(LinkSocketPath(socketPath), "Mail from other machines is not marked.")
-	// The link-human socket is optional in the same way. Without it a proxy
-	// falls back to the plain link socket, and no attach through a link can
-	// verify a reply from human, which is the safe way to lose it.
-	d.linkHumanListener = listenLinkSocket(LinkHumanSocketPath(socketPath), "A reply from human over a link is not verified.")
+	// The two link sockets are the standalone daemon's, and a local-only daemon
+	// binds neither: an embedded workspace has no other machine to take mail
+	// from, and the two files beside its socket are two files its host did not
+	// ask for. A proxy that finds no link socket dials the main socket, which is
+	// what an older daemon offers it anyway, so nothing on the wire changes.
+	if !d.localOnly() {
+		// The link socket. It is optional: a daemon that cannot bind it still
+		// serves, and the proxy falls back to the main socket, at the cost of a
+		// message from another machine not being marked as one. The start lock
+		// is held, so a stale file here is a dead daemon's and is removed.
+		d.linkListener = d.listenLinkSocket(LinkSocketPath(socketPath), "Mail from other machines is not marked.")
+		// The link-human socket is optional in the same way. Without it a proxy
+		// falls back to the plain link socket, and no attach through a link can
+		// verify a reply from human, which is the safe way to lose it.
+		d.linkHumanListener = d.listenLinkSocket(LinkHumanSocketPath(socketPath), "A reply from human over a link is not verified.")
+	}
 	// The herdr protocol socket is optional in the same way. Without it no
 	// pane is told it may report there, and the screen rules carry those
 	// harnesses as before.
@@ -1420,10 +1568,10 @@ func (d *Daemon) Start() error {
 	// leaves the socket behind while the protocol is off still costs every
 	// pane an environment that says a harness may report to a socket nobody
 	// reads, and an embedding process gets a file it never asked for.
-	if d.manager.HerdrProtocol() == config.HerdrProtocolOff {
+	if d.localOnly() || d.manager.HerdrProtocol() == config.HerdrProtocolOff {
 		d.manager.SetHerdrSocket("")
 		d.manager.SetHerdrBin("")
-	} else if l := listenHerdrSocket(HerdrSocketPath(socketPath)); l != nil {
+	} else if l := d.listenHerdrSocket(HerdrSocketPath(socketPath)); l != nil {
 		d.herdrListener = l
 		d.manager.SetHerdrSocket(HerdrSocketPath(socketPath))
 		// herdr's command line, for a tool that runs "$HERDR_BIN_PATH"
@@ -1436,7 +1584,7 @@ func (d *Daemon) Start() error {
 			if link, err := herdrcli.InstallLink(HerdrLinkDir(socketPath), exe); err == nil {
 				bin = link
 			} else {
-				log.Printf("The herdr link could not be made: %v. Panes get the tuios binary as HERDR_BIN_PATH, which answers herdr's pane and notification commands only.", err)
+				d.warnf("The herdr link could not be made: %v. Panes get the tuios binary as HERDR_BIN_PATH, which answers herdr's pane and notification commands only.", err)
 			}
 			d.manager.SetHerdrBin(bin)
 		}
@@ -1462,9 +1610,14 @@ func (d *Daemon) Start() error {
 	// the same reason it does not get its old mail: its panes are new processes.
 	d.stash.sweep()
 	// ssh agent links a killed daemon left go before a session is restored.
-	// See ssh_agent_follow.go.
-	d.startSSHAgent()
-	d.startDisplayFollow()
+	// See ssh_agent_follow.go. Both followings are forwarding features of the
+	// standalone product: they move a client's agent and display into panes, and
+	// a workspace host is one process with one environment for its own panes.
+	// A local-only daemon neither follows nor sweeps, since it never made a link.
+	if !d.localOnly() {
+		d.startSSHAgent()
+		d.startDisplayFollow()
+	}
 	// Pasted images a killed daemon left behind go once they are past their
 	// TTL. A standalone client may share the directory, so only expired
 	// ones are taken.
@@ -1497,25 +1650,31 @@ func (d *Daemon) Start() error {
 	d.applyResumeOffers(d.pendingResumes)
 	d.pendingResumes = nil
 
-	// The links come up in the background. Start returns at once whatever the
-	// remote machines are doing, so a host that is powered off cannot delay the
-	// daemon's own socket by one millisecond.
-	if d.federation != nil {
-		d.federation.Start(d.ctx)
+	// Everything below is the standalone product around the core, and a
+	// local-only daemon starts none of it. Each one is a supervisor, a follower
+	// or a watch: a goroutine and, in three cases, a file it follows. The
+	// workspace keeps the daemon itself, which is what its host asked for.
+	if !d.localOnly() {
+		// The links come up in the background. Start returns at once whatever
+		// the remote machines are doing, so a host that is powered off cannot
+		// delay the daemon's own socket by one millisecond.
+		if d.federation != nil {
+			d.federation.Start(d.ctx)
+		}
+		// The copies the previous daemon did not finish go on from their parts,
+		// once the links are on their way up. See transfer_journal.go.
+		d.transfers.load()
+		// Each linked host's agents are followed from here on. See host_fleet.go.
+		d.fleet.start(d.ctx)
+		// The config file is followed from here on, so a host added while the
+		// daemon runs reaches the links without a restart.
+		d.startHostsWatch()
+		// The Inbox's push notifications follow the event stream from here on.
+		d.notify.start()
+		// The enabled plugins' startup commands run once the daemon is up, and
+		// their event hooks follow the stream from here on.
+		d.plugins.start()
 	}
-	// The copies the previous daemon did not finish go on from their parts,
-	// once the links are on their way up. See transfer_journal.go.
-	d.transfers.load()
-	// Each linked host's agents are followed from here on. See host_fleet.go.
-	d.fleet.start(d.ctx)
-	// The config file is followed from here on, so a host added while the daemon
-	// runs reaches the links without a restart.
-	d.startHostsWatch()
-	// The Inbox's push notifications follow the event stream from here on.
-	d.notify.start()
-	// The enabled plugins' startup commands run once the daemon is up, and
-	// their event hooks follow the stream from here on.
-	d.plugins.start()
 
 	if !d.disableSignalHandling {
 		go d.handleSignals()
@@ -1737,8 +1896,10 @@ func (d *Daemon) shutdown() error {
 		// The ssh agent links go once every client has dropped, since a
 		// client leaving moves a link, and no pane outlives the daemon to
 		// use one. See ssh_agent_follow.go.
-		d.stopSSHAgent()
-		d.stopDisplayFollow()
+		if !d.localOnly() {
+			d.stopSSHAgent()
+			d.stopDisplayFollow()
+		}
 
 		// Unlinking the socket is deliberately the last thing the daemon does,
 		// after the final resurrection saves and after the pid file. It is the
@@ -1772,7 +1933,7 @@ func (d *Daemon) acceptLoop() {
 			case <-d.ctx.Done():
 				return
 			default:
-				log.Printf("Accept error: %v", err)
+				d.warnf("Accept error: %v", err)
 				continue
 			}
 		}
@@ -1803,7 +1964,7 @@ func (d *Daemon) acceptLinkOn(l net.Listener, human bool) {
 			case <-d.ctx.Done():
 				return
 			default:
-				log.Printf("Accept error on a link socket: %v", err)
+				d.warnf("Accept error on a link socket: %v", err)
 				continue
 			}
 		}
@@ -1844,11 +2005,14 @@ func LinkHumanSocketPath(socketPath string) string {
 // listenLinkSocket opens one of the optional link sockets, owner only, and
 // returns nil after logging what is lost when it cannot. The start lock is
 // held, so a stale file at path is a dead daemon's and is removed.
-func listenLinkSocket(path, lost string) net.Listener {
+//
+// It is a method so the line lands in this daemon's log rather than in the
+// standard logger of whatever process embedded it. See Daemon.warnf.
+func (d *Daemon) listenLinkSocket(path, lost string) net.Listener {
 	_ = os.Remove(path)
 	ll, err := net.Listen("unix", path)
 	if err != nil {
-		log.Printf("The link socket %s could not be opened: %v. %s", path, err, lost)
+		d.warnf("The link socket %s could not be opened: %v. %s", path, err, lost)
 		return nil
 	}
 	if ul, ok := ll.(*net.UnixListener); ok {
@@ -1857,7 +2021,7 @@ func listenLinkSocket(path, lost string) net.Listener {
 	if err := os.Chmod(path, 0700); err != nil { //nolint:gosec // a socket, owner only; the execute bit means nothing on it
 		_ = ll.Close()
 		_ = os.Remove(path)
-		log.Printf("The link socket %s could not be secured: %v. %s", path, err, lost)
+		d.warnf("The link socket %s could not be secured: %v. %s", path, err, lost)
 		return nil
 	}
 	return ll
@@ -1910,7 +2074,7 @@ func (d *Daemon) handleConnectionOn(conn net.Conn, viaLink, linkHuman bool) {
 	// a defensive backstop for a panic before that defer is installed.
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("PANIC in handleConnection: %v\n%s", r, debug.Stack())
+			d.warnf("PANIC in handleConnection: %v\n%s", r, debug.Stack())
 			_ = conn.Close()
 		}
 	}()

@@ -90,6 +90,17 @@ func newPushNotifier(d *Daemon, cfg config.NotifyConfig) *pushNotifier {
 	return n
 }
 
+// warnf is the notifier's line about this daemon. See Daemon.warnf: an
+// embedded daemon's notification lines belong in its own log, and the standalone
+// daemon's keep going to the logger InstallDaemonLogging installed.
+func (n *pushNotifier) warnf(format string, args ...any) {
+	if n == nil {
+		log.Printf(format, args...)
+		return
+	}
+	n.d.warnf(format, args...)
+}
+
 // set installs a [notify] table.
 func (n *pushNotifier) set(cfg config.NotifyConfig) {
 	c := cfg
@@ -119,7 +130,7 @@ func (n *pushNotifier) reload(next config.NotifyConfig, byPerson bool) bool {
 		n.set(off)
 	}
 	n.waiting.Store(true)
-	log.Printf("[NOTIFY] config.toml names a new notification destination. It applies after tuios config apply from outside tuios, or a daemon restart")
+	n.warnf("[NOTIFY] config.toml names a new notification destination. It applies after tuios config apply from outside tuios, or a daemon restart")
 	return true
 }
 
@@ -240,7 +251,7 @@ func (n *pushNotifier) considerLocked(it pushnotify.Item) {
 		}
 		n.hour = n.hour[cut:]
 		if len(n.hour) >= limit {
-			log.Printf("[NOTIFY] item %s not sent: %d notifications in the last hour is the max_per_hour limit", it.ID, limit)
+			n.warnf("[NOTIFY] item %s not sent: %d notifications in the last hour is the max_per_hour limit", it.ID, limit)
 			return
 		}
 	}
@@ -258,7 +269,7 @@ func (n *pushNotifier) considerLocked(it pushnotify.Item) {
 	select {
 	case n.queue <- msg:
 	default:
-		log.Printf("[NOTIFY] item %s not sent: %d notifications are waiting already", it.ID, notifyQueue)
+		n.warnf("[NOTIFY] item %s not sent: %d notifications are waiting already", it.ID, notifyQueue)
 	}
 }
 
@@ -331,7 +342,7 @@ func (n *pushNotifier) sender() {
 			client := n.client.Load()
 			for _, p := range pushnotify.Providers(cfg) {
 				if err := p.Send(ctx, client, msg); err != nil {
-					log.Printf("[NOTIFY] %s failed for item %s: %v", p.Label(), msg.Item.ID, err)
+					n.warnf("[NOTIFY] %s failed for item %s: %v", p.Label(), msg.Item.ID, err)
 					continue
 				}
 				LogBasic("[NOTIFY] %s sent item %s", p.Label(), msg.Item.ID)

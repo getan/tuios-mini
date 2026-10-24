@@ -1,7 +1,6 @@
 package session
 
 import (
-	"log"
 	"runtime/debug"
 	"sync/atomic"
 	"time"
@@ -268,7 +267,7 @@ func (d *Daemon) notifyPTYClosed(sessionID, ptyID string) {
 		d.goTracked(func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("PANIC in notifyPTYClosed send goroutine: %v\n%s", r, debug.Stack())
+					d.warnf("PANIC in notifyPTYClosed send goroutine: %v\n%s", r, debug.Stack())
 				}
 			}()
 			if err := d.sendMessage(client, MsgPTYClosed, &ClosePTYPayload{PTYID: ptyID}); err != nil {
@@ -441,7 +440,7 @@ func (d *Daemon) queueBroadcast(cs *connState, msg *Message, what string) {
 		defer client.finishBroadcast()
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("PANIC in %s send goroutine: %v\n%s", what, r, debug.Stack())
+				d.warnf("PANIC in %s send goroutine: %v\n%s", what, r, debug.Stack())
 			}
 		}()
 		client.awaitBroadcastTurn(ticket)

@@ -61,16 +61,54 @@ type agentMatcher struct {
 	registry *harness.Registry
 }
 
-// newAgentMatcher builds a matcher from the manifest registry plus the built-in
-// defaults and any extra names. Extra names are trimmed and lowercased; blanks
-// are ignored.
+// harnessSource says where a matcher's manifests come from.
+//
+// It is a choice rather than a path because the three answers are different
+// kinds of thing, and the difference is the whole point: the standalone daemon
+// follows the machine's tuios configuration, and an embedded daemon must not.
+// A path alone cannot say "the bundled manifests and nothing else", and an
+// empty string that means "the user's directory" is how an embedded daemon
+// ended up reading TUIOS_HARNESS_DIR behind its host's back.
+type harnessSource int
+
+const (
+	// harnessSourceUser is the standalone default: the manifests compiled into
+	// the binary, then the user's own directory (harness.UserDir, which follows
+	// TUIOS_HARNESS_DIR and XDG_CONFIG_HOME/tuios/harnesses).
+	harnessSourceUser harnessSource = iota
+	// harnessSourceBundled is the embedded default: only the manifests compiled
+	// into the binary. No file a standalone tuios on the same machine was
+	// configured with reaches this daemon.
+	harnessSourceBundled
+	// harnessSourceDir is exactly one directory the caller names, in place of
+	// the user's. It is how a workspace gets harnesses it owns, under its own
+	// state directory.
+	harnessSourceDir
+)
+
+// newAgentMatcher builds the standalone matcher: bundled manifests plus the
+// user's own directory, plus the built-in name list and any extra names.
+func newAgentMatcher(extra []string) agentMatcher {
+	return newAgentMatcherFrom(harnessSourceUser, "", extra, nil)
+}
+
+// newAgentMatcherFrom builds a matcher from the manifest registry plus the
+// built-in defaults and any extra names. Extra names are trimmed and lowercased;
+// blanks are ignored.
 //
 // The registry and the name list are both consulted, and neither replaces the
 // other. The registry is what a user extends without a rebuild and is what can
 // name the harness it matched; the flat name list is what TUIOS_AGENT_BINARIES
 // and daemon.agent_binaries have always fed, and those configs have to keep
 // working exactly as they did.
-func newAgentMatcher(extra []string) agentMatcher {
+//
+// source and dir decide which manifests are read, and that is a per-daemon
+// decision: an embedded daemon passes harnessSourceBundled or its own directory,
+// so it never inherits the harness rules of a standalone tuios on the machine.
+// warnf reports a manifest that did not load; nil is the standard library
+// logger, which is what the standalone daemon uses (and what a caller that
+// builds a matcher outside a daemon gets).
+func newAgentMatcherFrom(source harnessSource, dir string, extra []string, warnf func(format string, args ...any)) agentMatcher {
 	names := make(map[string]struct{}, len(defaultAgentBinaries)+len(extra))
 	for _, n := range defaultAgentBinaries {
 		names[n] = struct{}{}
@@ -80,11 +118,23 @@ func newAgentMatcher(extra []string) agentMatcher {
 			names[n] = struct{}{}
 		}
 	}
-	registry, errs := harness.Load(harness.UserDir())
+	var registry *harness.Registry
+	var errs []harness.LoadError
+	switch source {
+	case harnessSourceBundled:
+		registry, errs = harness.Load()
+	case harnessSourceDir:
+		registry, errs = harness.Load(dir)
+	default:
+		registry, errs = harness.Load(harness.UserDir())
+	}
+	if warnf == nil {
+		warnf = log.Printf
+	}
 	for _, e := range errs {
 		// Named and logged rather than dropped: a manifest a user wrote and that
 		// silently does nothing is the failure mode this registry exists to avoid.
-		log.Printf("harness manifest %s: %v", e.Source, e.Err)
+		warnf("harness manifest %s: %v", e.Source, e.Err)
 	}
 	return agentMatcher{names: names, registry: registry}
 }

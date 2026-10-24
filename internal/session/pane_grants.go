@@ -2,7 +2,6 @@ package session
 
 import (
 	"encoding/json"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -415,7 +414,7 @@ func (d *Daemon) reloadPanePermissions(r config.ResolvedPermissions) {
 	t.setPolicy(config.ResolvedPermissions{Strict: true, Grants: kept.Names()})
 	t.restartNeeded.Store(true)
 	d.recordAppliedGrants(t.inForce())
-	log.Printf("The new [agents.permissions] gives panes more than before. Panes on the default now hold %s. The rest applies after tuios config apply from outside tuios, or a daemon restart.", kept.String())
+	d.warnf("The new [agents.permissions] gives panes more than before. Panes on the default now hold %s. The rest applies after tuios config apply from outside tuios, or a daemon restart.", kept.String())
 }
 
 // PanePermissionsFromConfig reads [agents.permissions].
