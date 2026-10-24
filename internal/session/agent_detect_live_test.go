@@ -58,7 +58,11 @@ func TestTranscriptIdentityReadsTheAgentBehindAWrapper(t *testing.T) {
 	c := dialVerb(t, sp)
 	w := sess.GetState().Windows[0]
 	typeCommand(t, c, w.ID, "sh -c '"+fake+" 60; true'")
-	explainUntil(t, c, w.ID, func(res map[string]any) bool { return res["matched"] == true })
+	res := explainUntil(t, c, w.ID, func(res map[string]any) bool { return res["matched"] == true })
+	if res["matched"] != true {
+		t.Fatalf("the pane was not detected as crush behind a shell: process=%v group=%v evidence=%v",
+			res["process"], res["group"], res["evidence"])
+	}
 
 	_, version := d.paneAgentIdentifier(sess)(w.PTYID)
 	if version != "sleep" {

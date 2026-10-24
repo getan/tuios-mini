@@ -197,7 +197,20 @@ func (m agentMatcher) matchHint(info foregroundInfo) (detection, bool) {
 
 // walkGroup reads the processes behind a wrapper leader for an agent.
 func (m agentMatcher) walkGroup(info foregroundInfo) (detection, bool) {
-	if info.group == nil || !info.proc().Wraps() {
+	if !info.proc().Wraps() {
+		return detection{}, false
+	}
+	group := info.group
+	if group == nil && info.pid > 0 {
+		// The resolver builds the group only when the tty's foreground process
+		// group differs from the pane shell's pid. A shell that exec'd a command
+		// keeps the pid, and a shell without job control keeps its children in
+		// its own group; in both cases the wrapper is the leader and the group
+		// behind it is the thing to read. Build it here rather than leave an
+		// agent behind such a wrapper invisible.
+		group = foregroundGroup(info.pid, agentGroupWalkLimit, agentGroupWalkDepth)
+	}
+	if group == nil {
 		return detection{}, false
 	}
 	// chain holds the base names of the leader and the wrappers above the
@@ -205,7 +218,7 @@ func (m agentMatcher) walkGroup(info foregroundInfo) (detection, bool) {
 	// parent is always in place before its children are read.
 	chain := []string{processLabel(info)}
 	var visited []foregroundInfo
-	for member := range info.group {
+	for member := range group {
 		visited = append(visited, member)
 		depth := max(member.depth, 1)
 		if len(chain) > depth {
