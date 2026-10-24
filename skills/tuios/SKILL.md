@@ -1,6 +1,6 @@
 ---
 name: tuios
-description: "Drive tuios from inside one of its panes. Find out where you are running, read and write other panes, run work and wait on it instead of polling, report your own state so the person sees it, and talk to the other agents and the person safely. `tuios --skill <topic>` prints the rest: fleets of agents, turn checkpoints, shipping a worktree, the Inbox and approvals, push notifications, pairing a phone, mail, other machines, clients, events, MCP, the tmux shim, herdr's command line, pane grants, configuration, agent features off, errors and recipes."
+description: "Drive tuios from inside one of its panes. Find out where you are running, read and write other panes, run work and wait on it instead of polling, report your own state so the person sees it, and talk to the other agents and the person safely. `tuios --skill <topic>` prints the rest: fleets of agents, turn checkpoints, shipping a worktree, the Inbox and approvals, push notifications, pairing a phone, mail, other machines, clients, events, MCP, herdr's command line, pane grants, configuration, agent features off, errors and recipes."
 ---
 
 # Driving tuios from a pane
@@ -47,8 +47,7 @@ and stop it with `tuios --server NAME kill-server`. A pane of a named server
 has `TUIOS_SERVER` set, so tuios run there reaches that server.
 
 `TMUX` and `TMUX_PANE` are not set in a tuios pane, even when tuios runs inside
-tmux, so do not drive panes with `tmux` here: use the tuios verbs. A tool that
-only knows tmux can run under the shim (`tuios --skill tmux`).
+tmux, so do not drive panes with `tmux` here: use the tuios verbs.
 
 A pane restored after a daemon restart has `TUIOS_RESTORED=1`: it is a new shell
 in the old place. A pane whose process runs on another machine has
@@ -311,7 +310,6 @@ Print one with `tuios --skill <topic>`:
 | `stream` | `stream-pane` and `attach-presence`: a pane as bytes for a client that is not tuios, the size lease, the person's presence and its session scope |
 | `clients` | `list-clients`: which client shows which session, `switch-session`, `detach-client`, and the `client-session-changed` event |
 | `mcp` | tuios as an MCP server: setup, tools, scope |
-| `tmux` | The tmux shim for tools that only drive tmux |
 | `herdr` | herdr's command line and socket, for tools built for herdr |
 | `notify` | Push notifications from the Inbox to the person's phone, and `notify test` |
 | `pair` | `tuios pair`: what it changes, what the person must check, and why an agent does not run it |
@@ -319,4 +317,4 @@ Print one with `tuios --skill <topic>`:
 | `grants` | Pane grants: what a pane may do, and giving a helper less |
 | `config` | Options, appearance, themes, glyphs, the dock, hooks and keybindings |
 | `errors` | Every error code and its remedy, and a daemon that is not running |
-| `recipes` | End to end: a sessionizer, a fleet of agents, answering from the Inbox, approvals, agents on another machine, MCP, the tmux shim, scoped grants, a conductor, phone alerts |
+| `recipes` | End to end: a sessionizer, a fleet of agents, answering from the Inbox, approvals, agents on another machine, MCP, scoped grants, a conductor, phone alerts |

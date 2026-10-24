@@ -127,17 +127,6 @@ Restart the harness in a tuios pane. It then has `tuios_list_agents`,
 session and fan group. Use `--mcp-write` only for an agent that must type into
 panes. `tuios --skill mcp` lists every tool.
 
-## Claude Code agent teams in tuios panes
-
-```sh
-tuios tmux-shim -- env CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 claude
-```
-
-Each teammate opens as a named pane on your workspace, with its state on the
-rail. If a teammate does not appear, the pane lacks `admin`
-(`tuios pane-grants`), or the tool used a tmux command the shim does not answer:
-run it with `--log-all` and read the log (`tuios --skill tmux`).
-
 ## Scoped grants for a fleet
 
 For the person: make every pane start with less, and give more only where it is

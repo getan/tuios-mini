@@ -63,11 +63,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Run through the `tmux` link that tuios tmux-shim installs, this binary
-	// is tmux: the shim answers, or hands the call to the real tmux.
-	if isTmuxName(os.Args[0]) {
-		os.Exit(runAsTmux(os.Args[1:]))
-	}
 	// Run through the herdr link the daemon makes, this binary is herdr's
 	// command line, as tools built for herdr call it. See herdr_commands.go.
 	if isHerdrName(os.Args[0]) {
@@ -3128,7 +3123,6 @@ command in authorized_keys to make the policy a boundary:
 	rootCmd.AddCommand(newBufferCommands()...)
 	rootCmd.AddCommand(newWorktreeCommand(), newFanCommand(), newStartAgentCommand(), newXpanesCommand(), newCloseWorkspaceCommand(), newCloseWindowCommand())
 	rootCmd.AddCommand(newAgentHookCommand(), newAgentStatusLineCommand(), newIntegrationCommand(), newDoctorCommand())
-	rootCmd.AddCommand(newTmuxCommand(), newTmuxShimCommand(), newTmuxPaneCommand())
 	rootCmd.AddCommand(newAgentProtoCommand(), newAgentLogCommand(), newNotifyCommand(), newStatusCommand(), newPairCommand())
 	rootCmd.AddCommand(newHerdrGroupCommand("pane"), newHerdrGroupCommand("notification"))
 	rootCmd.AddCommand(newPluginsCommand())

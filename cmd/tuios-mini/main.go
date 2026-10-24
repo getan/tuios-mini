@@ -1,8 +1,9 @@
 // Command tuios-mini runs the embeddable tuios core as a foreground daemon.
 //
-// It is the M1 harness for the mini package: one socket, one session, no TUI.
-// Golder dials the socket with TUIOS_SOCKET / TUIOS_SESSION, exactly as it does
-// against a full tuios daemon.
+// `daemon` is the M1 harness: one socket, one session, no TUI.
+// `workspace` is the M3 entry point: it detects the terminal host, refuses a
+// nested workspace unless asked, and uses golder's own paths. It still has no
+// TUI; the retained TUI moves in during M4.
 package main
 
 import (
@@ -27,15 +28,21 @@ func main() {
 }
 
 func run(args []string) error {
+	mode := "daemon"
+	if len(args) > 0 && (args[0] == "daemon" || args[0] == "workspace") {
+		mode, args = args[0], args[1:]
+	}
+
 	fs := flag.NewFlagSet("tuios-mini", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	socket := fs.String("socket", defaultSocket(), "control socket path")
+	socket := fs.String("socket", "", "control socket path (default: mode-specific)")
 	session := fs.String("session", mini.DefaultSession, "session to create")
 	shell := fs.String("shell", "", "shell for the session's panes (default $SHELL)")
 	cwd := fs.String("cwd", "", "working directory for the session")
 	width := fs.Int("width", mini.DefaultWidth, "nominal columns")
 	height := fs.Int("height", mini.DefaultHeight, "nominal rows")
 	logFile := fs.String("log", "", "daemon log file")
+	nested := fs.Bool("nested", false, "allow a workspace inside tuios/tmux/zellij")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 
 	if err := fs.Parse(args); err != nil {
@@ -45,12 +52,31 @@ func run(args []string) error {
 		fmt.Println(version)
 		return nil
 	}
-	if fs.NArg() == 1 && fs.Arg(0) == "version" {
-		fmt.Println(version)
-		return nil
+	if fs.NArg() > 0 {
+		if fs.NArg() == 1 && fs.Arg(0) == "version" {
+			fmt.Println(version)
+			return nil
+		}
+		return fmt.Errorf("usage: tuios-mini [daemon|workspace] [flags]")
 	}
-	if fs.NArg() > 1 || (fs.NArg() == 1 && fs.Arg(0) != "daemon") {
-		return fmt.Errorf("usage: tuios-mini [daemon] [flags]")
+
+	host := mini.DetectHost(os.Getenv)
+	if mode == "workspace" {
+		if host.Nested() && !*nested {
+			return fmt.Errorf("a golder workspace inside %s would nest two multiplexers; run `tuios-mini` there, or pass --nested", host)
+		}
+		if *socket == "" {
+			*socket = mini.DefaultNamespace().SocketPath
+		}
+		if *logFile == "" {
+			*logFile = mini.DefaultNamespace().LogFile
+		}
+		// Mark the panes this workspace starts as a golder host, not a user's
+		// tuios daemon. The tuios-style socket/session/pane variables still
+		// come from the daemon, as they do in any host.
+		_ = os.Setenv("GOLDER_WORKSPACE", "1")
+	} else if *socket == "" {
+		*socket = defaultDaemonSocket()
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals()...)
@@ -73,13 +99,14 @@ func run(args []string) error {
 
 	// One JSON line on stdout is the readiness signal scripts wait for.
 	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
-		"socket": srv.Socket(), "session": srv.Session(), "pid": os.Getpid(), "version": version,
+		"socket": srv.Socket(), "session": srv.Session(), "pid": os.Getpid(),
+		"version": version, "mode": mode, "host": string(host),
 	})
 	<-ctx.Done()
 	return nil
 }
 
-func defaultSocket() string {
+func defaultDaemonSocket() string {
 	if path := os.Getenv("TUIOS_MINI_SOCKET"); path != "" {
 		return path
 	}
