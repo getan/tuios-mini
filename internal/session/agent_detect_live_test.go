@@ -37,8 +37,12 @@ func TestTranscriptIdentityReadsTheAgentBehindAWrapper(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fake := filepath.Join(binDir, "crush")
-	if err := os.Symlink("/usr/bin/sleep", fake); err != nil {
+	if err := os.Symlink(executable, fake); err != nil {
 		t.Fatal(err)
 	}
 	d, sp := startTestDaemon(t)
@@ -46,14 +50,13 @@ func TestTranscriptIdentityReadsTheAgentBehindAWrapper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Start the wrapper as argv, not type-ahead into a shell that has not
-	// reached its prompt. A successful send-text only acknowledges a PTY write;
-	// the shell can discard queued input while initializing its line editor.
-	// That left CI inspecting an idle /bin/sh rather than an agent behind sh.
-	// Positional arguments also keep the temporary path out of shell syntax.
+	// Start the wrapper as argv rather than relying on interactive shell input.
+	// Positional arguments keep the temporary path out of shell syntax. Unlike
+	// system sleep, our helper supports being invoked through the crush alias.
 	w, err := sess.AddDaemonWindowWith(NewWindowOptions{
 		Title: "Wrapper", Focus: true,
-		Command: []string{"/bin/sh", "-c", `"$1" 60; true`, "agent-wrapper", fake},
+		Command: []string{"/bin/sh", "-c", agentIdentityWrapperCommand, "agent-wrapper", fake},
+		Env:     []string{agentIdentityHelperEnv + "=1"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +72,7 @@ func TestTranscriptIdentityReadsTheAgentBehindAWrapper(t *testing.T) {
 	}
 
 	_, version := d.paneAgentIdentifier(sess)(w.PTYID)
-	if version != "sleep" {
-		t.Fatalf("version = %q, want the agent's own executable name (sleep), not the wrapper's", version)
+	if want := filepath.Base(executable); version != want {
+		t.Fatalf("version = %q, want the agent's own executable name %q, not the wrapper's or the crush alias", version, want)
 	}
 }
