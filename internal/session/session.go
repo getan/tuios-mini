@@ -3391,8 +3391,14 @@ func (s *Session) Stop() {
 	s.ptysMu.Lock()
 	defer s.ptysMu.Unlock()
 
-	for id, pty := range s.ptys {
-		_ = pty.Close()
+	// Every pane is asked to leave before any is waited on, so the grace is paid
+	// once for the session rather than once per pane. See closePTYs.
+	panes := make([]*PTY, 0, len(s.ptys))
+	for _, pty := range s.ptys {
+		panes = append(panes, pty)
+	}
+	closePTYs(panes)
+	for id := range s.ptys {
 		delete(s.ptys, id)
 		s.places.Delete(id)
 	}
@@ -4625,13 +4631,26 @@ func (p *PTY) capturePlainAt(scrollback bool) (string, captureState) {
 	return p.captureContent(scrollback, false), p.captureStateLocked()
 }
 
-// Close terminates the PTY.
 // ptyCloseGrace is how long a pane's process has to exit after SIGTERM before
-// Close kills it. It is a bound, not a guarantee: a program that ignores the
+// the close kills it. It is a bound, not a guarantee: a program that ignores the
 // signal still loses its pane when the grace expires.
 const ptyCloseGrace = 100 * time.Millisecond
 
+// Close terminates the PTY: it asks the process to leave, waits out the grace,
+// and tears the emulator and descriptor down.
+//
+// The three steps are separate methods because Close is not the only way panes
+// go. A daemon shutting down closes all of them at once, and a wait per pane in
+// series is a wait per pane added together — see closePTYs.
 func (p *PTY) Close() error {
+	p.closeRequest()
+	p.closeAwait(time.Now().Add(ptyCloseGrace))
+	return p.closeRelease()
+}
+
+// closeRequest is the first step of Close: the pane is told to go, and
+// everything that could still publish against it is stopped. It does not wait.
+func (p *PTY) closeRequest() {
 	p.cancel()
 
 	// Before anything else, so a settle scan already armed cannot fire against a
@@ -4650,18 +4669,34 @@ func (p *PTY) Close() error {
 	// Ask the pane's process to leave before the terminal goes away. Closing
 	// the PTY first sends SIGHUP to the foreground group and skips a handler
 	// that watches SIGTERM. A program that ignores SIGTERM is killed after the
-	// grace, so a close can never hang the daemon.
+	// grace by closeAwait, so a close can never hang the daemon.
 	if p.cmd != nil && p.cmd.Process != nil && !p.IsExited() {
 		_ = terminateProcess(p.cmd.Process)
-		deadline := time.Now().Add(ptyCloseGrace)
-		for !p.IsExited() && time.Now().Before(deadline) {
-			time.Sleep(10 * time.Millisecond)
-		}
-		if !p.IsExited() {
-			_ = p.cmd.Process.Kill()
-		}
 	}
+}
 
+// closeAwait is the second step of Close: it waits for the process closeRequest
+// asked to leave, and kills it at the deadline. A caller closing several panes
+// passes one deadline to all of them, so the wait is the grace they were given
+// together rather than the grace counted once per pane.
+//
+// A pane whose process has no handle here (one on another machine) has nothing
+// to wait for.
+func (p *PTY) closeAwait(deadline time.Time) {
+	if p.cmd == nil || p.cmd.Process == nil {
+		return
+	}
+	for !p.IsExited() && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !p.IsExited() {
+		_ = p.cmd.Process.Kill()
+	}
+}
+
+// closeRelease is the last step of Close: the emulator, the held window size and
+// the descriptor are given up. Nothing that waits belongs here.
+func (p *PTY) closeRelease() error {
 	// Mark the VT emulator closed so forwardTerminalResponses returns EOF on
 	// its next read. (A read already blocked in the response pipe is only
 	// unblocked once Emulator.Close CloseWrites the pipe.)
@@ -4682,6 +4717,32 @@ func (p *PTY) Close() error {
 		return p.pty.Close()
 	}
 	return nil
+}
+
+// closePTYs closes a set of panes, asking all of them to leave before waiting on
+// any of them. It is what a session's Stop uses.
+//
+// The order is the point. Close's wait is bounded by ptyCloseGrace per pane, so
+// closing a session's panes one after another made shutdown cost one grace per
+// pane: a session with ten panes that ignore SIGTERM took a second, and the
+// daemon's whole shutdown grew with the number of panes it had. Asked together,
+// the same panes share one grace, and the bound is the grace rather than the
+// grace times the pane count.
+//
+// Each pane is still released by its own goroutine's state: the three steps stay
+// per pane and no callback runs here, so nothing re-enters the session while it
+// is closing them.
+func closePTYs(ptys []*PTY) {
+	for _, p := range ptys {
+		p.closeRequest()
+	}
+	deadline := time.Now().Add(ptyCloseGrace)
+	for _, p := range ptys {
+		p.closeAwait(deadline)
+	}
+	for _, p := range ptys {
+		_ = p.closeRelease()
+	}
 }
 
 // ProcessCwd returns the current working directory of the PTY's shell process.
