@@ -2,16 +2,14 @@ package session
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/sync/semaphore"
+	"github.com/getan/tuios-mini/internal/wire"
 )
 
 // Bounding the memory the daemon gives to what clients send.
@@ -24,16 +22,16 @@ import (
 //   - The frame's type is checked before its body is read: the type's own
 //     size limit (daemonFrameLimit), then the link policy and the pane grants.
 //     A refused frame is skipped unread, and the stream stays in step.
-//   - A body over largeFrame is charged to a read budget before any of it is
-//     read: its whole announced size, frameCopies times, in one acquire that
-//     takes all of it or nothing. The budget is a FIFO semaphore, so large
-//     frames are read one after another and never hold part of the budget
-//     while they wait for the rest. A frame that cannot get its charge within
-//     readBudgetWait is skipped and refused with ErrCodeBusy.
+//   - A body over wire.LargeFrame is charged to a read budget before any of it
+//     is read: its whole announced size, wire.FrameCopies times, in one
+//     acquire that takes all of it or nothing. The budget is a FIFO semaphore,
+//     so large frames are read one after another and never hold part of the
+//     budget while they wait for the rest. A frame that cannot get its charge
+//     within wire.ReadBudgetWait is skipped and refused with ErrCodeBusy.
 //   - The body is read into memory that grows as its bytes arrive, never
-//     allocated whole from the header. See readFramePayload.
-//   - The body must arrive within frameBodyDeadline, so a sender that stalls
-//     cannot hold its charge.
+//     allocated whole from the header. See wire.ReadFramePayload.
+//   - The body must arrive within wire.FrameBodyDeadline, so a sender that
+//     stalls cannot hold its charge.
 //
 // There are two budgets (readBudgetFor). The person's clients draw on one,
 // and so does the person working through a hub. Other links, hosted pane
@@ -58,37 +56,6 @@ import (
 // maxLinkConnections on its link sockets. See admitConnection.
 
 const (
-	// largeFrame is the payload size past which a frame is charged to the
-	// budget. Smaller frames are what a client sends for every key and
-	// resize, and the connection cap bounds what they can hold.
-	largeFrame = 64 << 10
-
-	// firstFrameChunk is the most memory a frame body is given before any of
-	// it has arrived.
-	firstFrameChunk = 4 << 10
-
-	// frameGrowStep is the most a frame's buffer grows by at once. Up to it,
-	// the buffer doubles, so a large frame is copied a few times and not
-	// once per chunk.
-	frameGrowStep = 4 << 20
-
-	// personBudgetBytes is the read budget of the person's own clients, and
-	// peerBudgetBytes the budget links and panes without admin share. The
-	// largest charges are a verb request line, maxVerbLine times lineCopies
-	// (36 MiB), and a 16 MiB frame, charged twice. The person's budget holds
-	// two of either at once, and the other budget one.
-	personBudgetBytes = 96 << 20
-	peerBudgetBytes   = 48 << 20
-
-	// readBudgetWait is how long a large frame waits for its charge. The
-	// client gives a write 5 seconds, and a frame that waits is not being
-	// read, so this must stay well under that.
-	readBudgetWait = 2 * time.Second
-
-	// frameBodyDeadline is how long the daemon waits for the rest of a frame
-	// once its length has arrived. 16 MiB in this time is about 560 KiB/s.
-	frameBodyDeadline = 30 * time.Second
-
 	// firstByteDeadline is how long a new connection may stay silent before
 	// it says what it speaks. Every client speaks first.
 	firstByteDeadline = 30 * time.Second
@@ -109,39 +76,6 @@ const (
 	// read goes past it to the connection.
 	connReadBuffer = 4 << 10
 )
-
-// frameCopies is how many times its size a large frame is charged: the
-// payload, and either the copy the gob decoder makes of it or, while the
-// buffer grows, the smaller buffer it grew from.
-const frameCopies = 2
-
-// memBudget is memory the daemon shares among reads that need a lot of it.
-// It is a FIFO semaphore, and a charge is taken whole or not at all.
-type memBudget struct {
-	sem  *semaphore.Weighted
-	size int64
-}
-
-func newMemBudget(size int64) *memBudget {
-	return &memBudget{sem: semaphore.NewWeighted(size), size: size}
-}
-
-// acquire takes n bytes of the budget, waiting up to wait. It returns the
-// function that gives them back, or false when the budget did not free in
-// time, having taken nothing. A charge larger than the budget is cut to the
-// budget, so it waits for all of it and is never refused for its size alone.
-func (b *memBudget) acquire(n int64, wait time.Duration) (func(), bool) {
-	n = min(n, b.size)
-	if n <= 0 {
-		return func() {}, true
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-	if err := b.sem.Acquire(ctx, n); err != nil {
-		return nil, false
-	}
-	return func() { b.sem.Release(n) }, true
-}
 
 // readBudgetFor is the budget a large read on cs draws on: the person's, for
 // the person's own clients and the person working through a hub on the
@@ -169,23 +103,6 @@ func (d *Daemon) readBudgetFor(cs *connState) *memBudget {
 	return d.personBudget
 }
 
-// FrameBusyError is a frame the daemon had no memory for: other large frames
-// held the read budget for longer than it waits, or the pane still has a
-// large input it has not read. The reader has skipped the body, so the
-// stream is still in step, and the sender may send it again.
-type FrameBusyError struct {
-	Type MessageType
-	Size uint32
-	// ReqID is the request id the frame carried, so the refusal can be sent
-	// as the answer to it. Zero for an untagged frame.
-	ReqID uint64
-}
-
-func (e *FrameBusyError) Error() string {
-	return fmt.Sprintf("%s message of %d bytes was not read because the daemon is busy with other large messages",
-		MessageTypeName(e.Type), e.Size)
-}
-
 // FrameForbiddenError is a frame whose type the connection may not send, under
 // its link policy or its pane's grants. The body was skipped unread.
 type FrameForbiddenError struct {
@@ -204,16 +121,16 @@ func (d *Daemon) readClientFrame(cs *connState, br *bufio.Reader) (*Message, fun
 	// No deadline between frames: the wait costs nothing until a frame
 	// arrives or the connection is closed, and both drop and shutdown close
 	// it.
-	totalLen, err := readFrameLength(cs.conn, br, 0, frameBodyDeadline)
+	totalLen, err := wire.ReadLength(cs.conn, br, 0, wire.FrameBodyDeadline)
 	if err != nil {
 		return nil, noop, err
 	}
-	h, err := readFrameHeader(br, totalLen)
+	h, err := wire.ReadFrameHeader(br, totalLen)
 	if err != nil {
 		return nil, noop, err
 	}
 	if typeMax := daemonFrameLimit(h.Type); totalLen > typeMax {
-		if err := skipPayload(br, h); err != nil {
+		if err := h.SkipPayload(br); err != nil {
 			return nil, noop, err
 		}
 		return nil, noop, &FrameTooLargeError{Type: h.Type, Size: totalLen, Limit: typeMax, ReqID: h.ReqID}
@@ -225,23 +142,23 @@ func (d *Daemon) readClientFrame(cs *connState, br *bufio.Reader) (*Message, fun
 		verr = d.checkGrantMessage(cs, h.Type)
 	}
 	if verr != nil {
-		if err := skipPayload(br, h); err != nil {
+		if err := h.SkipPayload(br); err != nil {
 			return nil, noop, err
 		}
 		return nil, noop, &FrameForbiddenError{ReqID: h.ReqID, Err: verr}
 	}
 	release := noop
-	if h.PayloadLen > largeFrame {
+	if h.PayloadLen > wire.LargeFrame {
 		var ok bool
-		release, ok = d.readBudgetFor(cs).acquire(int64(h.PayloadLen)*frameCopies, readBudgetWait)
+		release, ok = d.readBudgetFor(cs).acquire(int64(h.PayloadLen)*wire.FrameCopies, wire.ReadBudgetWait)
 		if !ok {
-			if err := skipPayload(br, h); err != nil {
+			if err := h.SkipPayload(br); err != nil {
 				return nil, noop, err
 			}
 			return nil, noop, &FrameBusyError{Type: h.Type, Size: totalLen, ReqID: h.ReqID}
 		}
 	}
-	msg, err := readFramePayloadOf(br, h)
+	msg, err := h.ReadPayload(br)
 	if err != nil {
 		release()
 		return nil, noop, err

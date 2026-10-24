@@ -1,4 +1,4 @@
-package session
+package wire
 
 import (
 	"errors"
@@ -8,8 +8,9 @@ import (
 // A bound on how deeply any gob payload nests, checked on the raw bytes
 // before encoding/gob sees them.
 //
-// wire_bounds.go keeps a client or linked peer from overflowing the daemon's
-// stack with two message types. The same hazard runs the other way: a client
+// The session package's wire_bounds.go keeps a client or linked peer from
+// overflowing the daemon's stack with two message types. The same hazard runs
+// the other way: a client
 // reads daemon frames of up to 16 MB of any type, and the daemon on the other
 // end may be another machine's (tuios attach through a host). A state sync or
 // an attach reply carrying a layout tree nested a few million deep, or a
@@ -24,28 +25,29 @@ import (
 // definition) in a field the receiver does not have and would skip. So the
 // number of type definitions in one payload is bounded as well.
 //
-// checkGobNesting walks a payload the way the gob decoder reads it, without
+// CheckGobNesting walks a payload the way the gob decoder reads it, without
 // recursion and without building the values, and refuses one that nests values
-// deeper than maxGobNesting or defines more than maxGobTypes types. It follows
+// deeper than MaxGobNesting or defines more than MaxGobTypes types. It follows
 // the decoder rather than the encoder: every byte it reads is one gob would
 // read in the same place, so the shape it checks is the shape gob would
 // decode. A payload it cannot follow is refused, never passed through: a real
 // encoder does not produce one, and gob would fail on it anyway.
 //
-// Every payload goes through decodePayload, so this holds for the client and
+// Every payload goes through DecodePayload, so this holds for the client and
 // the daemon alike. The wire does not change.
 
 const (
-	// maxGobNesting is how many levels of structs, slices, arrays, maps and
+	// MaxGobNesting is how many levels of structs, slices, arrays, maps and
 	// interfaces a payload may nest, counting the payload itself as one. The
-	// deepest real payload is a state carrying a layout tree at maxBSPDepth,
-	// about 262 levels. The worst level measured costs about 2.2 KB of decode
-	// stack, so this bound holds a payload to a few megabytes of stack.
-	maxGobNesting = 1024
+	// deepest real payload is a state carrying a layout tree at the session
+	// package's maxBSPDepth, about 262 levels. The worst level measured costs
+	// about 2.2 KB of decode stack, so this bound holds a payload to a few
+	// megabytes of stack.
+	MaxGobNesting = 1024
 
-	// maxGobTypes is how many type definitions one payload may carry. The
+	// MaxGobTypes is how many type definitions one payload may carry. The
 	// largest real payload defines a few dozen.
-	maxGobTypes = 1024
+	MaxGobTypes = 1024
 
 	// gobFirstUserID is the lowest type id a stream may define. The ids below
 	// it are gob's own.
@@ -57,16 +59,16 @@ const (
 	gobTooBig = 1 << 30
 )
 
-// Errors for what the scan refuses. errGobNested and errGobTypes are the
-// bounds; errGobMalformed is a stream the scan cannot follow.
+// Errors for what the scan refuses. ErrGobNested and ErrGobTypes are the
+// bounds; ErrGobMalformed is a stream the scan cannot follow.
 var (
-	errGobNested    = fmt.Errorf("payload nests deeper than %d levels", maxGobNesting)
-	errGobTypes     = fmt.Errorf("payload defines more than %d types", maxGobTypes)
-	errGobMalformed = errors.New("payload is not a well-formed gob value")
+	ErrGobNested    = fmt.Errorf("payload nests deeper than %d levels", MaxGobNesting)
+	ErrGobTypes     = fmt.Errorf("payload defines more than %d types", MaxGobTypes)
+	ErrGobMalformed = errors.New("payload is not a well-formed gob value")
 )
 
 // The builtin type ids a payload may use in a value. Ids 9 to 63 are gob's
-// own reserved and bootstrap types, which no payload of this package holds.
+// own reserved and bootstrap types, which no payload a session sends holds.
 const (
 	gobBool      = 1
 	gobInt       = 2
@@ -171,10 +173,10 @@ func (s *gobScan) setType(id int, t *gobType) {
 	s.dense[i] = t
 }
 
-// checkGobNesting refuses a payload that nests deeper than maxGobNesting or
-// defines more than maxGobTypes types. It reads the first value in data, as
+// CheckGobNesting refuses a payload that nests deeper than MaxGobNesting or
+// defines more than MaxGobTypes types. It reads the first value in data, as
 // one Decode would.
-func checkGobNesting(data []byte) error {
+func CheckGobNesting(data []byte) error {
 	s := &gobScan{data: data}
 	id, err := s.typeSequence(false)
 	if err != nil {
@@ -190,7 +192,7 @@ func checkGobNesting(data []byte) error {
 }
 
 // boundedByType reports whether every value of type id nests within
-// maxGobNesting whatever its bytes, so the value need not be walked: its type
+// MaxGobNesting whatever its bytes, so the value need not be walked: its type
 // reaches no interface and no type that contains itself, and the longest
 // chain of types below it is short enough. A pane's terminal state is such a
 // type, and the largest payload there is. A type that reaches an interface or
@@ -254,7 +256,7 @@ func (s *gobScan) boundedByType(id int) bool {
 			}
 		}
 		depth[top.id] = most + 1
-		if most+1 > maxGobNesting {
+		if most+1 > MaxGobNesting {
 			return false
 		}
 		path = path[:len(path)-1]
@@ -274,7 +276,7 @@ func (s *gobScan) topValue(id, parentDepth int) error {
 		return err
 	}
 	if delta != 0 {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	return s.value(id, parentDepth)
 }
@@ -300,7 +302,7 @@ func (s *gobScan) run() error {
 				continue
 			}
 			if delta > uint64(len(f.t.fields)-1-f.field) {
-				return errGobMalformed
+				return ErrGobMalformed
 			}
 			f.field += int(delta)
 			next = f.t.fields[f.field]
@@ -350,11 +352,11 @@ func (s *gobScan) value(id, parentDepth int) error {
 	}
 	t := s.typeOf(id)
 	if t == nil {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	depth := parentDepth + 1
-	if depth > maxGobNesting {
-		return errGobNested
+	if depth > MaxGobNesting {
+		return ErrGobNested
 	}
 	switch t.kind {
 	case gobOpaque:
@@ -370,7 +372,7 @@ func (s *gobScan) value(id, parentDepth int) error {
 			return err
 		}
 		if t.kind == gobArray && n != uint64(t.length) {
-			return errGobMalformed
+			return ErrGobMalformed
 		}
 		s.stack = append(s.stack, gobFrame{t: t, depth: depth, left: n})
 	case gobMap:
@@ -396,7 +398,7 @@ func (s *gobScan) flatStruct(t *gobType) error {
 			return nil
 		}
 		if delta > uint64(len(t.fields)-1-field) {
-			return errGobMalformed
+			return ErrGobMalformed
 		}
 		field += int(delta)
 		if err := s.basic(t.fields[field]); err != nil {
@@ -433,12 +435,12 @@ func (s *gobScan) iface(parentDepth int) error {
 		return nil
 	}
 	if n > 1024 || n > uint64(s.lim-s.pos) {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	s.pos += int(n)
 	depth := parentDepth + 1
-	if depth > maxGobNesting {
-		return errGobNested
+	if depth > MaxGobNesting {
+		return ErrGobNested
 	}
 	id, err := s.typeSequence(true)
 	if err != nil {
@@ -473,7 +475,7 @@ func (s *gobScan) typeSequence(inInterface bool) (int, error) {
 		}
 		if s.pos < s.lim {
 			if !inInterface {
-				return 0, errGobMalformed
+				return 0, ErrGobMalformed
 			}
 			if _, err := s.uint(); err != nil {
 				return 0, err
@@ -490,7 +492,7 @@ func (s *gobScan) nextMessage() error {
 		return err
 	}
 	if n >= gobTooBig || n > uint64(len(s.data)-s.pos) {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	s.lim = s.pos + int(n)
 	return nil
@@ -502,16 +504,16 @@ func (s *gobScan) nextMessage() error {
 // refused.
 func (s *gobScan) defineType(id int64) error {
 	if id < gobFirstUserID || id >= 1<<31 || s.typeOf(int(id)) != nil {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	s.ntypes++
-	if s.ntypes > maxGobTypes {
-		return errGobTypes
+	if s.ntypes > MaxGobTypes {
+		return ErrGobTypes
 	}
 	var t *gobType
 	err := s.fields(7, func(field int) error {
 		if t != nil {
-			return errGobMalformed
+			return ErrGobMalformed
 		}
 		switch field {
 		case 0: // ArrayT: CommonType, Elem, Len
@@ -528,7 +530,7 @@ func (s *gobScan) defineType(id int64) error {
 					return err
 				}
 				if n < 0 || n > int64(len(s.data)) {
-					return errGobMalformed
+					return ErrGobMalformed
 				}
 				t.length = int(n)
 				return nil
@@ -584,7 +586,7 @@ func (s *gobScan) defineType(id int64) error {
 		return err
 	}
 	if t == nil {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	s.setType(int(id), t)
 	return nil
@@ -608,7 +610,7 @@ func (s *gobScan) typeID(dst *int) error {
 		return err
 	}
 	if n < 0 || n >= 1<<31 {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	*dst = int(n)
 	return nil
@@ -628,7 +630,7 @@ func (s *gobScan) fields(n int, read func(field int) error) error {
 			return nil
 		}
 		if delta > uint64(n-1-field) {
-			return errGobMalformed
+			return ErrGobMalformed
 		}
 		field += int(delta)
 		if err := read(field); err != nil {
@@ -647,7 +649,7 @@ func (s *gobScan) count(minBytes uint64) (uint64, error) {
 		return 0, err
 	}
 	if n > uint64(s.lim-s.pos)/minBytes {
-		return 0, errGobMalformed
+		return 0, ErrGobMalformed
 	}
 	return n, nil
 }
@@ -660,7 +662,7 @@ func (s *gobScan) skipCounted() error {
 		return err
 	}
 	if n > uint64(s.lim-s.pos) {
-		return errGobMalformed
+		return ErrGobMalformed
 	}
 	s.pos += int(n)
 	return nil
@@ -681,13 +683,13 @@ func (s *gobScan) uint() (uint64, error) {
 // uintLong reads an integer of more than one byte.
 func (s *gobScan) uintLong() (uint64, error) {
 	if s.pos >= s.lim {
-		return 0, errGobMalformed
+		return 0, ErrGobMalformed
 	}
 	b := s.data[s.pos]
 	s.pos++
 	n := -int(int8(b))
 	if n > 8 || n > s.lim-s.pos {
-		return 0, errGobMalformed
+		return 0, ErrGobMalformed
 	}
 	var x uint64
 	for _, c := range s.data[s.pos : s.pos+n] {

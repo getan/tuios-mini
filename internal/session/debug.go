@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/getan/tuios-mini/internal/wire"
 )
 
 // DebugLevel controls the verbosity of protocol logging.
@@ -300,91 +302,10 @@ func LogMessage(direction string, msg *Message) {
 	}
 }
 
-// messageTypeNames names every message type, indexed by its wire value.
-// Reserved types, which nothing sends any more, are labelled as such so a
-// protocol log that shows one points at a peer from another build.
-var messageTypeNames = [...]string{
-	MsgHello:             "Hello",
-	MsgAttach:            "Attach",
-	MsgDetach:            "Detach",
-	MsgNew:               "New",
-	MsgList:              "List",
-	MsgKill:              "Kill",
-	MsgInput:             "Input",
-	MsgResize:            "Resize",
-	MsgPing:              "Ping",
-	MsgCreatePTY:         "CreatePTY",
-	MsgClosePTY:          "ClosePTY",
-	MsgListPTYs:          "Reserved(ListPTYs)",
-	MsgFocusPTY:          "Reserved(FocusPTY)",
-	MsgGetState:          "Reserved(GetState)",
-	MsgUpdateState:       "UpdateState",
-	MsgSubscribePTY:      "SubscribePTY",
-	MsgUnsubscribePTY:    "UnsubscribePTY",
-	MsgGetTerminalState:  "GetTerminalState",
-	MsgExecuteCommand:    "ExecuteCommand",
-	MsgSendKeys:          "Reserved(SendKeys)",
-	MsgSetConfig:         "Reserved(SetConfig)",
-	MsgCapturePane:       "Reserved(CapturePane)",
-	MsgWelcome:           "Welcome",
-	MsgAttached:          "Attached",
-	MsgDetached:          "Detached",
-	MsgSessionList:       "SessionList",
-	MsgOutput:            "Reserved(Output)",
-	MsgError:             "Error",
-	MsgPong:              "Pong",
-	MsgSessionEnded:      "SessionEnded",
-	MsgWindowChanged:     "Reserved(WindowChanged)",
-	MsgPTYList:           "Reserved(PTYList)",
-	MsgPTYCreated:        "PTYCreated",
-	MsgPTYClosed:         "PTYClosed",
-	MsgPTYOutput:         "PTYOutput",
-	MsgStateData:         "Reserved(StateData)",
-	MsgTerminalState:     "TerminalState",
-	MsgCommandResult:     "CommandResult",
-	MsgRemoteCommand:     "RemoteCommand",
-	MsgGetLogs:           "GetLogs",
-	MsgLogsData:          "LogsData",
-	MsgQueryWindows:      "Reserved(QueryWindows)",
-	MsgWindowList:        "Reserved(WindowList)",
-	MsgQuerySession:      "Reserved(QuerySession)",
-	MsgSessionInfo:       "Reserved(SessionInfo)",
-	MsgStateSync:         "StateSync",
-	MsgClientJoined:      "ClientJoined",
-	MsgClientLeft:        "ClientLeft",
-	MsgSessionResize:     "SessionResize",
-	MsgForceRefresh:      "Reserved(ForceRefresh)",
-	MsgRequestFullSync:   "Reserved(RequestFullSync)",
-	MsgResurrect:         "Resurrect",
-	MsgPTYResized:        "PTYResized",
-	MsgAgentMail:         "AgentMail",
-	MsgHostsChanged:      "HostsChanged",
-	MsgReadDir:           "ReadDir",
-	MsgDirListing:        "DirListing",
-	MsgClientFocus:       "ClientFocus",
-	MsgLayoutTree:        "LayoutTree",
-	MsgTypeAtPrompt:      "TypeAtPrompt",
-	MsgPromptTyped:       "PromptTyped",
-	MsgClientGraphics:    "ClientGraphics",
-	MsgMasterLayout:      "MasterLayout",
-	MsgSidebarVisibility: "SidebarVisibility",
-	MsgSessionUsed:       "SessionUsed",
-	MsgClientActivity:    "ClientActivity",
-	MsgWatchDir:          "WatchDir",
-	MsgDirChanged:        "DirChanged",
-	MsgSessionsChanged:   "SessionsChanged",
-	MsgPaneMark:          "PaneMark",
-}
-
-// MessageTypeName returns a human-readable name for a message type.
-func MessageTypeName(t MessageType) string {
-	if int(t) < len(messageTypeNames) {
-		if name := messageTypeNames[t]; name != "" {
-			return name
-		}
-	}
-	return fmt.Sprintf("Unknown(%d)", t)
-}
+// MessageTypeName returns a human-readable name for a message type. The names
+// belong with the numbering, so they live in internal/wire with it: the
+// frames' own errors print them without this package linked.
+func MessageTypeName(t MessageType) string { return wire.MessageTypeName(t) }
 
 // GetLogEntries returns the last n log entries.
 // If n <= 0, returns all entries.

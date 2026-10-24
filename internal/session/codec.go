@@ -1,66 +1,28 @@
 package session
 
 import (
-	"bytes"
 	"encoding/gob"
-	"fmt"
+
+	"github.com/getan/tuios-mini/internal/wire"
 )
 
-// wireCodecGob is the value of the codec byte in every frame header. gob is
-// the only payload encoding. The byte stays on the wire so frames keep their
-// layout: senders write 0 and readers ignore it. The value 1 once meant JSON
-// and stays reserved.
-const wireCodecGob byte = 0
-
-// wireCodecGobTagged marks a frame whose gob payload is preceded by an 8-byte
-// big-endian request id: the id a client put on a request, and the id the
-// daemon puts on its answer to it. See Message.ReqID. The id is never 0: a
-// message with no id goes out untagged, and a reader refuses a tagged 0.
+// The gob codec itself is internal/wire: the codec bytes, the payload encode
+// and decode, and the nesting scan every decode passes through. What is here
+// is this package's half of it, the registration of the payload types, which
+// are this package's own.
 //
-// A reader from before the value existed ignores the codec byte and would take
-// the id for the start of the payload, so neither side writes one to a peer
-// that has not said it reads them. A client writes tagged requests only to a
-// daemon whose welcome set RequestIDs, and the daemon tags only the answer to
-// a request that was itself tagged.
-const wireCodecGobTagged byte = 2
+// The registrations have to stay next to the types. gob sends the name of a
+// value held in an interface — its package path and type name — and that name
+// is on the wire, so a payload type that moved to another package would be
+// renamed for every peer. (One name is already frozen from a package this code
+// no longer lives in: see the TerminalState line in init.)
 
-// reqIDLen is the size of the request id in a tagged frame.
-const reqIDLen = 8
-
-// wireCodecName is what the welcome reports in WelcomePayload.Codec. Older
-// peers inside the same protocol version still read that field.
-const wireCodecName = "gob"
-
-// encodePayload serializes a message payload with gob.
-func encodePayload(v any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(v); err != nil {
-		return nil, fmt.Errorf("gob encode: %w", err)
-	}
-	return buf.Bytes(), nil
-}
-
-// decodePayload deserializes a gob payload into v. An empty payload leaves v
-// untouched. A payload that nests too deeply for gob to decode safely is
-// refused before gob sees it: see wire_gobscan.go.
-func decodePayload(data []byte, v any) error {
-	if len(data) == 0 {
-		return nil
-	}
-	if err := checkGobNesting(data); err != nil {
-		return fmt.Errorf("gob decode: %w", err)
-	}
-	dec := gob.NewDecoder(bytes.NewReader(data))
-	if err := dec.Decode(v); err != nil {
-		return fmt.Errorf("gob decode: %w", err)
-	}
-	return nil
-}
-
-// Register all payload types with gob.
+// Register all payload types with gob, and give internal/wire this package's
+// protocol log.
 // This must be called before any gob encoding/decoding.
 func init() {
+	wire.LogFrame = LogMessage
+
 	// Protocol payloads
 	gob.Register(HelloPayload{})
 	gob.Register(WelcomePayload{})

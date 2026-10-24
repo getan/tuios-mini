@@ -45,8 +45,9 @@ import (
 // and a command result's data is held to a depth no command produces.
 //
 // Under both, every payload either side decodes is scanned first for how
-// deeply it nests (wire_gobscan.go). That is what bounds the other direction,
-// a daemon's frames to a client, which have no small size to cap them at.
+// deeply it nests (internal/wire/gobscan.go). That is what bounds the other
+// direction, a daemon's frames to a client, which have no small size to cap
+// them at.
 //
 // None of this changes the wire. An older client or peer sends the same
 // frames, and only what is over a limit is refused.
@@ -93,9 +94,6 @@ const (
 	// than any bar, sidebar row or list that draws them.
 	maxDisplayTextBytes = 256
 )
-
-// maxFrameBytes is the limit on any frame, whatever its type.
-const maxFrameBytes = 16 * 1024 * 1024
 
 // maxMasterLayoutFrame bounds a MsgMasterLayout frame. The payload is a push
 // origin, two numbers and a short shape, a few hundred bytes of gob at most.
@@ -159,23 +157,6 @@ func clampPushedText(s *SessionState) {
 		s.Windows[i].Title = ClampDisplayText(s.Windows[i].Title)
 		s.Windows[i].CustomName = ClampDisplayText(s.Windows[i].CustomName)
 	}
-}
-
-// FrameTooLargeError is a frame over the limit for its message type. The
-// reader has skipped its body, so the stream is still in step and the
-// connection can go on.
-type FrameTooLargeError struct {
-	Type  MessageType
-	Size  uint32
-	Limit uint32
-	// ReqID is the request id the frame carried, so the refusal can be sent
-	// as the answer to it. Zero for an untagged frame.
-	ReqID uint64
-}
-
-func (e *FrameTooLargeError) Error() string {
-	return fmt.Sprintf("%s message of %d bytes is over the %d byte limit for that type and was not read",
-		MessageTypeName(e.Type), e.Size, e.Limit)
 }
 
 // errLayoutTooDeep, errLayoutTooLarge and errResultTooDeep refuse what no

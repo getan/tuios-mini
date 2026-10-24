@@ -18,7 +18,7 @@ import (
 // 16 MB of any type, and the daemon may be another machine's, so a hostile
 // one could nest a payload deep enough to overflow the client's stack during
 // gob's decode, which is fatal and which no check after the decode can stop.
-// checkGobNesting (wire_gobscan.go) refuses such a payload on its raw bytes
+// CheckGobNesting (internal/wire/gobscan.go) refuses such a payload on its raw bytes
 // first. This test puts a hostile daemon on the socket and drives the real
 // clients against it: the TUI client through attach and its read loop, and
 // the control client through a command result. No payload here can hurt a
