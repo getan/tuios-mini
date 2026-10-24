@@ -106,6 +106,12 @@ jobs:
           done
           exit $status
 
+      - name: Linux wrapper identity regression
+        # This fixture is Linux-only and was not exercised by a green macOS
+        # suite. Repeat it before the full suite so startup regressions fail
+        # quickly and are reported as a named step, not buried in daemon logs.
+        run: go test ./internal/session -run '^(TestTranscriptIdentityReadsTheAgentBehindAWrapper|TestAgentIdentityBehindStartedWrapper)$' -count=20 -timeout 2m
+
       - name: Test
         # No -race here. internal/app takes over ten minutes under the detector
         # on a developer machine and longer on a runner, and a job that times

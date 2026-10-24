@@ -3,23 +3,11 @@
 package session
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
-
-func typeCommand(t *testing.T, c *verbConn, winID, cmd string) {
-	t.Helper()
-	sendText(t, c, winID, cmd+"\n")
-}
-
-func sendText(t *testing.T, c *verbConn, winID, text string) {
-	t.Helper()
-	params, _ := json.Marshal(map[string]any{"session": "work", "window": winID, "text": text})
-	result(t, c.call(t, `{"id":1,"verb":"send-text","params":`+string(params)+`}`))
-}
 
 // explainUntil polls explain-agent-detect until ready accepts the answer or the
 // deadline passes, then returns the last answer for the assertions.
@@ -54,19 +42,34 @@ func TestTranscriptIdentityReadsTheAgentBehindAWrapper(t *testing.T) {
 		t.Fatal(err)
 	}
 	d, sp := startTestDaemon(t)
-	sess := makeSessionWithWindow(t, d, "work")
+	sess, err := d.manager.CreateSession("work", &SessionConfig{}, 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Start the wrapper as argv, not type-ahead into a shell that has not
+	// reached its prompt. A successful send-text only acknowledges a PTY write;
+	// the shell can discard queued input while initializing its line editor.
+	// That left CI inspecting an idle /bin/sh rather than an agent behind sh.
+	// Positional arguments also keep the temporary path out of shell syntax.
+	w, err := sess.AddDaemonWindowWith(NewWindowOptions{
+		Title: "Wrapper", Focus: true,
+		Command: []string{"/bin/sh", "-c", `"$1" 60; true`, "agent-wrapper", fake},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	c := dialVerb(t, sp)
-	w := sess.GetState().Windows[0]
-	typeCommand(t, c, w.ID, "sh -c '"+fake+" 60; true'")
 	res := explainUntil(t, c, w.ID, func(res map[string]any) bool { return res["matched"] == true })
 	if res["matched"] != true {
-		t.Fatalf("the pane was not detected as crush behind a shell: process=%v group=%v evidence=%v",
-			res["process"], res["group"], res["evidence"])
+		t.Fatalf("the pane was not detected as crush behind a shell: diagnostic=%v screen=%q",
+			res, capturePane(t, c, "work", w.ID))
+	}
+	if via, _ := res["matched_via"].([]any); len(via) == 0 {
+		t.Fatalf("the fixture did not exercise detection behind a wrapper: %v", res)
 	}
 
 	_, version := d.paneAgentIdentifier(sess)(w.PTYID)
 	if version != "sleep" {
 		t.Fatalf("version = %q, want the agent's own executable name (sleep), not the wrapper's", version)
 	}
-	sendText(t, c, w.ID, "\x03")
 }
