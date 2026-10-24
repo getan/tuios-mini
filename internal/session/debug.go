@@ -230,6 +230,21 @@ func ProtocolLog(level DebugLevel, format string, args ...any) {
 // not own their text (the standard library logger, an error string) would have
 // their per-cent signs read as verbs.
 func logRaw(level DebugLevel, message string) {
+	logRingAndDebug(level, message)
+
+	// The file keeps errors and basic events whatever the level, and follows the
+	// level for anything above them.
+	if alwaysFile(level) || GetDebugLevel() >= level {
+		writeDaemonLogFile(level.String(), message)
+	}
+}
+
+// logRingAndDebug records one line in the process's ring buffer and, at or
+// above the configured level, on the debug output. Every sink the daemon has is
+// fed from logRaw; this is the half of it that belongs to the process rather
+// than to a file, so a daemon with a log file of its own can take this half
+// without also writing into the process's file.
+func logRingAndDebug(level DebugLevel, message string) {
 	// Always store in buffer (regardless of debug level)
 	if logBuffer != nil {
 		logBuffer.Add(level.String(), message)
@@ -241,12 +256,6 @@ func logRaw(level DebugLevel, message string) {
 		logger := debugLogger
 		debugMu.RUnlock()
 		logger.Print(message)
-	}
-
-	// The file keeps errors and basic events whatever the level, and follows the
-	// level for anything above them.
-	if alwaysFile(level) || GetDebugLevel() >= level {
-		writeDaemonLogFile(level.String(), message)
 	}
 }
 

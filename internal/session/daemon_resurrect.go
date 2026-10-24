@@ -41,7 +41,7 @@ func clearLiveAgent(w *WindowState) {
 // Corrupt or incompatible state files are archived and skipped; a failure to
 // restore one session never blocks the others or the daemon.
 func (d *Daemon) restoreAllSessions() {
-	names, err := ListResurrectableSessions()
+	names, err := listResurrectableSessionsIn(d.stateRoot)
 	if err != nil {
 		LogError("Failed to list resurrectable sessions: %v", err)
 		return
@@ -51,7 +51,7 @@ func (d *Daemon) restoreAllSessions() {
 		if d.manager.GetSession(name) != nil {
 			continue // already live
 		}
-		state, err := LoadResurrectionState(name)
+		state, err := loadResurrectionStateIn(d.stateRoot, name)
 		if err != nil {
 			// Corrupt/incompatible files are archived inside LoadResurrectionState.
 			log.Printf("Skipping resurrection of %q: %v", name, err)
@@ -61,7 +61,7 @@ func (d *Daemon) restoreAllSessions() {
 			// It can never restore, so leaving it would keep offering a session
 			// that 'tuios resurrect' lists and cannot bring back.
 			log.Printf("Discarding saved state for %q: it has no windows", name)
-			RemoveResurrectionState(name)
+			removeResurrectionStateIn(d.stateRoot, name)
 			continue
 		}
 		_, offers, err := d.restoreSessionOffers(state)
@@ -169,7 +169,7 @@ func (d *Daemon) restoreSessionOffers(state *SessionState) (*Session, []resumeOf
 	// above the banner. None when the setting is off.
 	var history map[string]*savedHistory
 	if d.manager.HistoryPolicy().Enabled {
-		history = loadHistory(state.Name)
+		history = loadHistoryIn(d.stateRoot, state.Name)
 	}
 
 	kept := restored.Windows[:0]

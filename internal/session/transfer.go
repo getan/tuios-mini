@@ -331,7 +331,7 @@ type transferManager struct {
 }
 
 func newTransferManager(d *Daemon) *transferManager {
-	return &transferManager{d: d, parts: newPartDirs(), jobs: map[string]*transferJob{}, running: make(chan struct{}, transferMaxRunning)}
+	return &transferManager{d: d, parts: newPartDirsIn(d.stateRoot), jobs: map[string]*transferJob{}, running: make(chan struct{}, transferMaxRunning)}
 }
 
 func newTransferID() string {

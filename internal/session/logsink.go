@@ -155,6 +155,30 @@ func openDaemonLogFile(path string) {
 	writeDaemonLogHeaderLocked()
 }
 
+// logLine records one line of this daemon's own log. It always goes to the
+// process sinks, exactly as logRaw writes them, so a standalone daemon's log
+// is unchanged. When the daemon was given a log sink of its own (an embedded
+// daemon, see DaemonConfig.LogSink), the line also goes there.
+//
+// The sink is per daemon, not per process. Two daemons in one process each own
+// a file, and neither writes a line into the other's: the points that name a
+// daemon's own life (start, shutdown, a goroutine that would not stop) go
+// through here, so the file an embedding caller opened holds that daemon's
+// story and no one else's. Nothing here touches the standard library logger.
+func (d *Daemon) logLine(level DebugLevel, format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	if d == nil || d.logSink == nil {
+		logRaw(level, message)
+		return
+	}
+	// A daemon with a file of its own takes the ring buffer and the debug
+	// output, and leaves the process's log file to whoever installed it: a
+	// workspace's lines belong in the workspace's file, not in the standalone
+	// daemon's.
+	logRingAndDebug(level, message)
+	d.logSink(level.String(), message)
+}
+
 // writeDaemonLogHeaderLocked marks the start of a run and states what the file
 // can contain. The privacy rule is a property of the level, so the reader is
 // told the rule rather than the current level alone.

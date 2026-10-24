@@ -61,10 +61,10 @@ type reviewNoteStore struct {
 // reviewKey is the key of a pane's notes on a worktree.
 func reviewKey(root, window string) string { return root + "\x00" + window }
 
-// reviewNotesPath is where the store is saved.
-func reviewNotesPath() string {
-	return filepath.Join(getResurrectionDir(), "review", "notes.json")
-}
+// reviewNotesPath is where the store is saved. A daemon resolves it through
+// its own state root; this is the default layout's.
+
+func reviewNotesPath() string { return stateRoot("").reviewNotesPath() }
 
 // canonRoot is a worktree root as notes are keyed by it: symbolic links
 // resolved, so a path read from a process and one recorded at creation name

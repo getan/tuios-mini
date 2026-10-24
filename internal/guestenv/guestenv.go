@@ -197,3 +197,59 @@ func isHostMultiplexerVar(kv string) bool {
 	}
 	return false
 }
+
+// paneIdentityVars are the variables the daemon stamps on a pane itself. They
+// say what a process is (which session, window and pane it runs in, on which
+// machine, at which socket) and what it may do there (its pane token and its
+// grants). A caller that could set one for the panes of a session could claim
+// to be a pane it is not, or widen what every pane in the session may do, so
+// they are dropped from any environment a caller supplies. See FilterPaneEnv.
+var paneIdentityVars = []string{
+	"TUIOS_ENV", "TUIOS_SOCKET", "TUIOS_SERVER", "TUIOS_SESSION", "TUIOS_HOST",
+	"TUIOS_WINDOW_ID", "TUIOS_PANE_ID", "TUIOS_PANE_TOKEN", "TUIOS_PANE_GRANTS",
+	"TUIOS_RESTORED", "TUIOS_PANE_TTY",
+}
+
+// IsPaneIdentityVar reports whether name is one of the variables the daemon
+// stamps on a pane itself, and so cannot be supplied by a caller.
+func IsPaneIdentityVar(name string) bool {
+	for _, v := range paneIdentityVars {
+		if v == name {
+			return true
+		}
+	}
+	return false
+}
+
+// FilterPaneEnv splits env, the assignments a caller asked every pane to be
+// started with, into what a pane may be given and what it may not: the
+// variables in paneIdentityVars are refused, and so is every herdr variable,
+// because a pane is told about the herdr protocol socket by the daemon that
+// runs one, never by a caller. An assignment with no '=' (which the kernel
+// would drop anyway) and an empty name are refused too.
+//
+// kept is a new slice; env is not modified. refused is the variable names, in
+// the order they appeared, without repeats.
+func FilterPaneEnv(env []string) (kept, refused []string) {
+	seen := make(map[string]bool, len(env))
+	for _, kv := range env {
+		name, _, ok := strings.Cut(kv, "=")
+		if !ok || name == "" {
+			// No assignment at all: nothing can be exported from it.
+			if kv != "" && !seen[kv] {
+				seen[kv] = true
+				refused = append(refused, kv)
+			}
+			continue
+		}
+		if IsPaneIdentityVar(name) || strings.HasPrefix(name, "HERDR_") {
+			if !seen[name] {
+				seen[name] = true
+				refused = append(refused, name)
+			}
+			continue
+		}
+		kept = append(kept, kv)
+	}
+	return kept, refused
+}

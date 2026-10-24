@@ -8,7 +8,6 @@ import (
 	"log"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -34,10 +33,10 @@ type appliedGrants struct {
 	Grants []string `json:"grants"`
 }
 
-// appliedGrantsPath is where the record lives, under the saved state.
-func appliedGrantsPath() string {
-	return filepath.Join(getResurrectionDir(), "grants", "applied.json")
-}
+// appliedGrantsPath is where the record lives, under the saved state. A daemon
+// resolves it through its own state root; this is the default layout's.
+
+func appliedGrantsPath() string { return stateRoot("").appliedGrantsPath() }
 
 // recordAppliedGrants writes the default now in force.
 func (d *Daemon) recordAppliedGrants(r config.ResolvedPermissions) {
@@ -45,7 +44,7 @@ func (d *Daemon) recordAppliedGrants(r config.ResolvedPermissions) {
 	if err != nil {
 		return
 	}
-	_ = atomicfile.WritePrivate(appliedGrantsPath(), data, false)
+	_ = atomicfile.WritePrivate(d.stateRoot.appliedGrantsPath(), data, false)
 }
 
 // inForce is the default the grant table holds now, as a config value.
@@ -64,7 +63,7 @@ const grantsWidenedNote = "Panes on the default hold more than when tuios last r
 // recorded at the last run, says so when it widened, and records the new one.
 func (d *Daemon) checkGrantsSinceLastRun() {
 	now := d.manager.grants.inForce()
-	if data, err := os.ReadFile(appliedGrantsPath()); err == nil {
+	if data, err := os.ReadFile(d.stateRoot.appliedGrantsPath()); err == nil {
 		var prev appliedGrants
 		if json.Unmarshal(data, &prev) == nil {
 			was := policyDefaults(config.ResolvedPermissions{Strict: prev.Strict, Grants: prev.Grants})

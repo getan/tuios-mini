@@ -319,6 +319,19 @@ type Daemon struct {
 	// with. Run installs them; see logsink.go.
 	foreground bool
 	logFile    string
+	// logSink, when set, is a log file this daemon owns rather than one it
+	// shares with the process. An embedded daemon (mini) passes its own, so
+	// two daemons in one process never write each other's lines into each
+	// other's files, and the process's standard logger is left alone. Nil is
+	// the standalone daemon, whose lines go to the process sink that
+	// InstallDaemonLogging installed. See logsink.go.
+	logSink func(level, message string)
+	// stateRoot is the directory this daemon keeps every file it saves under:
+	// session state, pane history, the Inbox, the outbox, review notes, the
+	// applied-grants record, push registrations and the transfer journal.
+	// Empty is the upstream layout under the user's state home, shared by
+	// every unscoped daemon of the machine. See DaemonConfig.StateDir.
+	stateRoot stateRoot
 	// disableSignalHandling is set when an embedding process owns the
 	// process's signals; Start then leaves SIGINT/SIGTERM/SIGHUP alone.
 	disableSignalHandling bool
@@ -744,6 +757,36 @@ type DaemonConfig struct {
 	// LogFile is the file the daemon appends its log to. Empty, the default,
 	// means DefaultDaemonLogPath.
 	LogFile string
+	// StateDir is the directory this daemon keeps every file it saves under:
+	// session state files, pane history, the Inbox, the outbox, review notes,
+	// the applied-grants record, push registrations and the transfer journal.
+	//
+	// Empty, the default, is the upstream layout: the shared folder under the
+	// user's state home (xdg.StateHome/tuios/sessions), which every daemon of
+	// that user without a directory of its own reads and writes. Two daemons
+	// that leave it empty therefore share saved sessions, history and the
+	// Inbox; two that set it do not, and neither reads the other's. An
+	// embedding process that runs more than one daemon in a process, or
+	// beside a standalone tuios, sets it.
+	StateDir string
+	// LogSink, when set, receives every log line this daemon writes, formatted
+	// as level and message. It is how an embedded daemon owns its log file
+	// instead of taking over the process's standard logger: nothing here calls
+	// log.SetOutput, and a line this daemon logs goes to this sink and to the
+	// process sink only if that one was installed separately.
+	//
+	// Nil, the default, leaves logging exactly as it was: the standalone
+	// daemon's lines go to the ring buffer, the debug output and the file
+	// InstallDaemonLogging opened.
+	LogSink func(level, message string)
+	// PaneEnv is the environment every pane of every session this daemon makes
+	// is started with, applied under the variables the daemon stamps itself.
+	// The daemon's identity and token variables (TUIOS_ENV, TUIOS_SOCKET,
+	// TUIOS_SESSION, TUIOS_WINDOW_ID, TUIOS_PANE_ID, TUIOS_PANE_TOKEN,
+	// TUIOS_PANE_GRANTS, TUIOS_HOST, TUIOS_SERVER, TUIOS_RESTORED and the
+	// pane's TTY) are dropped from it: a caller cannot claim to be a pane it is
+	// not. See guestenv.FilterPaneEnv.
+	PaneEnv []string
 	// DisableSignalHandling keeps Start from installing the daemon's SIGINT,
 	// SIGTERM and SIGHUP handlers. An embedded daemon sets it: the process
 	// that embeds it owns its signals, and two handlers would race.
@@ -895,6 +938,8 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 		disableAutoRestore:    cfg.DisableAutoRestore,
 		foreground:            cfg.Foreground,
 		logFile:               cfg.LogFile,
+		logSink:               cfg.LogSink,
+		stateRoot:             stateRoot(cfg.StateDir),
 		disableSignalHandling: cfg.DisableSignalHandling,
 		agentStallTimeout:     resolveAgentStallTimeout(cfg.AgentStallTimeout),
 		agentMatcher:          newAgentMatcher(resolveAgentBinaries(cfg.AgentBinaries)),
@@ -924,6 +969,8 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 	d.buffers = pastebuf.New(cfg.pasteBufferLimit(), cfg.PasteBufferMaxBytes)
 	d.manager.SetScrollbackLines(cfg.ScrollbackLines)
 	d.manager.SetHistoryPolicy(cfg.History)
+	d.manager.SetStateRoot(cfg.StateDir)
+	d.manager.SetPaneEnv(cfg.PaneEnv)
 	d.manager.SetNewWindowInheritCwd(cfg.NewWindowInheritCwd)
 	d.manager.SetPreferredShell(cfg.PreferredShell)
 	d.manager.SetHerdrProtocol(cfg.HerdrProtocol)
@@ -1357,7 +1404,17 @@ func (d *Daemon) Start() error {
 	// The herdr protocol socket is optional in the same way. Without it no
 	// pane is told it may report there, and the screen rules carry those
 	// harnesses as before.
-	if l := listenHerdrSocket(HerdrSocketPath(socketPath)); l != nil {
+	//
+	// [agents] herdr_protocol = "off" means off all the way down: no socket is
+	// bound beside the daemon's own, no link to this binary is installed for
+	// HERDR_BIN_PATH to name, and no pane is told anything. A daemon that
+	// leaves the socket behind while the protocol is off still costs every
+	// pane an environment that says a harness may report to a socket nobody
+	// reads, and an embedding process gets a file it never asked for.
+	if d.manager.HerdrProtocol() == config.HerdrProtocolOff {
+		d.manager.SetHerdrSocket("")
+		d.manager.SetHerdrBin("")
+	} else if l := listenHerdrSocket(HerdrSocketPath(socketPath)); l != nil {
 		d.herdrListener = l
 		d.manager.SetHerdrSocket(HerdrSocketPath(socketPath))
 		// herdr's command line, for a tool that runs "$HERDR_BIN_PATH"
@@ -1382,11 +1439,13 @@ func (d *Daemon) Start() error {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
 
-	log.Printf("TUIOS daemon started on %s (PID %d)", socketPath, os.Getpid())
+	d.logLine(DebugBasic, "TUIOS daemon started on %s (PID %d)", socketPath, os.Getpid())
 
 	// Sweep the previous daemon's leftovers before reading the directory. Runs
 	// whether or not auto-restore is on, since the residue is there either way.
-	CleanResurrectionDir()
+	// Only this daemon's own state directory is swept: a daemon with one of its
+	// own must never clean another's.
+	cleanResurrectionDirIn(d.stateRoot)
 
 	// The stash root is cleared before anything is served. A daemon that was
 	// killed rather than stopped could not delete its own stashed files, so this
@@ -1412,7 +1471,7 @@ func (d *Daemon) Start() error {
 
 	// The Inbox comes back after the sessions do, since what it keeps is
 	// decided by which sessions and panes came back.
-	d.attention.load(attentionPath(), d.attentionLive)
+	d.attention.load(d.stateRoot.attentionPath(), d.attentionLive)
 	// A default that widened while the daemon was down is said now, when
 	// the Inbox can show it.
 	d.checkGrantsSinceLastRun()
@@ -1420,9 +1479,9 @@ func (d *Daemon) Start() error {
 	d.noteHostProblems(d.configProblems())
 	// Mail still waiting for another machine comes back with its Inbox items,
 	// and goes when that machine's link comes up.
-	d.outbox.load(outboxPath())
+	d.outbox.load(d.stateRoot.outboxPath())
 	// Review notes come back for the panes that came back.
-	d.reviewNotes.load(reviewNotesPath(), func(window string) bool { return d.sessionOfWindow(window) != "" })
+	d.reviewNotes.load(d.stateRoot.reviewNotesPath(), func(window string) bool { return d.sessionOfWindow(window) != "" })
 
 	// The resume offers the restore found are opened only now, after the saved
 	// Inbox items took their ids, so an offer never shares an id with one.
@@ -1562,7 +1621,7 @@ func (cs *connState) drop() {
 
 func (d *Daemon) shutdown() error {
 	d.shutdownOnce.Do(func() {
-		log.Println("Shutting down daemon...")
+		d.logLine(DebugBasic, "Shutting down daemon...")
 
 		// The Inbox is saved first and not again. Everything below closes
 		// panes, and a pane closing on shutdown is not the person dealing
@@ -1650,9 +1709,9 @@ func (d *Daemon) shutdown() error {
 
 		select {
 		case <-done:
-			log.Println("All goroutines exited cleanly")
+			d.logLine(DebugBasic, "All goroutines exited cleanly")
 		case <-time.After(5 * time.Second):
-			log.Println("Warning: goroutine shutdown timed out after 5s, forcing shutdown")
+			d.logLine(DebugErrors, "Warning: goroutine shutdown timed out after 5s, forcing shutdown")
 		}
 
 		// Stopping the manager stops every session, and each session's Stop
@@ -1687,7 +1746,7 @@ func (d *Daemon) shutdown() error {
 		// once there is nothing left of this one to race.
 		d.releaseStartLock()
 
-		log.Println("Daemon shutdown complete")
+		d.logLine(DebugBasic, "Daemon shutdown complete")
 	})
 	return nil
 }

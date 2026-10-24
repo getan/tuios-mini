@@ -153,8 +153,10 @@ func newWebPusher(n *pushNotifier) *webPusher {
 	}
 }
 
-// pushDir is where the phones and the VAPID key are kept.
-func pushDir() string { return filepath.Join(getResurrectionDir(), "push") }
+// pushDir is where the phones and the VAPID key are kept. A daemon resolves it
+// through its own state root; this is the default layout's.
+
+func pushDir() string { return stateRoot("").pushDir() }
 
 // pushChmodWarn makes the warning about a push folder that cannot be narrowed
 // appear once per daemon, not once per save.
@@ -175,8 +177,24 @@ func writePushFile(path string, data []byte) error {
 	return atomicfile.Write(path, data, 0o600, false)
 }
 
-func pushDevicesPath() string { return filepath.Join(pushDir(), "subscriptions.json") }
-func pushKeyPath() string     { return filepath.Join(pushDir(), "vapid.pem") }
+// pushDevicesPath and pushKeyPath are the two files in the daemon's push
+// folder.
+func (w *webPusher) pushDevicesPath() string {
+	return filepath.Join(w.pushRoot(), "subscriptions.json")
+}
+
+func (w *webPusher) pushKeyPath() string {
+	return filepath.Join(w.pushRoot(), "vapid.pem")
+}
+
+// pushRoot is the push folder of the daemon that owns this pusher, or of the
+// default layout for a pusher built without one.
+func (w *webPusher) pushRoot() string {
+	if w == nil || w.n == nil || w.n.d == nil {
+		return stateRoot("").pushDir()
+	}
+	return w.n.d.stateRoot.pushDir()
+}
 
 // loadLocked reads the phones from disk once. The caller holds mu.
 func (w *webPusher) loadLocked() {
@@ -184,7 +202,7 @@ func (w *webPusher) loadLocked() {
 		return
 	}
 	w.loaded = true
-	data, err := os.ReadFile(pushDevicesPath())
+	data, err := os.ReadFile(w.pushDevicesPath())
 	if err != nil {
 		return
 	}
@@ -192,8 +210,8 @@ func (w *webPusher) loadLocked() {
 	if err := json.Unmarshal(data, &list); err != nil {
 		// The next register would write over it with only the new phone.
 		// Keep it beside, so the phones in it can be got back by hand.
-		bad := pushDevicesPath() + ".bad"
-		if rerr := os.Rename(pushDevicesPath(), bad); rerr != nil {
+		bad := w.pushDevicesPath() + ".bad"
+		if rerr := os.Rename(w.pushDevicesPath(), bad); rerr != nil {
 			log.Printf("[NOTIFY] cannot read the registered phones (%v), and cannot move the file aside: %v", err, rerr)
 			return
 		}
@@ -218,7 +236,7 @@ func (w *webPusher) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	return writePushFile(pushDevicesPath(), data)
+	return writePushFile(w.pushDevicesPath(), data)
 }
 
 // keyLocked is the VAPID key, made and saved on first use. The caller holds
@@ -227,7 +245,7 @@ func (w *webPusher) keyLocked() (*pushnotify.VAPIDKey, error) {
 	if w.key != nil {
 		return w.key, nil
 	}
-	if data, err := os.ReadFile(pushKeyPath()); err == nil {
+	if data, err := os.ReadFile(w.pushKeyPath()); err == nil {
 		k, err := pushnotify.ParseVAPIDKey(data)
 		if err != nil {
 			return nil, err
@@ -245,7 +263,7 @@ func (w *webPusher) keyLocked() (*pushnotify.VAPIDKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := writePushFile(pushKeyPath(), data); err != nil {
+	if err := writePushFile(w.pushKeyPath(), data); err != nil {
 		return nil, err
 	}
 	w.key = k

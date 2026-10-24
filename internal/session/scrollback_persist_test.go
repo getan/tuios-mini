@@ -390,7 +390,7 @@ func TestHistoryPaneAndSessionByteBounds(t *testing.T) {
 	defer func() { historySessionBytes = prev }()
 	s2, state2 := historyTestSession(t, "bound", pol, map[string]string{"win": big, "win2": big})
 	s2.saveHistory(state2, true)
-	total := otherHistoryBytes("bound", "")
+	total := otherHistoryBytes(stateRoot(""), "bound", "")
 	if total > historySessionBytes {
 		t.Errorf("session history is %d bytes, over its %d bound", total, historySessionBytes)
 	}

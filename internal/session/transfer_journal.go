@@ -49,9 +49,15 @@ const transferProgressEvery = 250 * time.Millisecond
 // copied again after a restart, which costs its bytes and nothing else.
 const transferSaveFinishedEvery = 2 * time.Second
 
-// transferJournalDir is the folder that holds the journal.
-func transferJournalDir() string {
-	return filepath.Join(getResurrectionDir(), "transfers")
+// journalDir is the folder that holds the journal: the daemon's own transfer
+// folder under its state root, so two daemons never resume each other's copies.
+func transferJournalDir() string { return stateRoot("").transferJournalDir() }
+
+func (m *transferManager) journalDir() string {
+	if m.d == nil {
+		return stateRoot("").transferJournalDir()
+	}
+	return m.d.stateRoot.transferJournalDir()
 }
 
 // transferRecord is one job in the journal.
@@ -131,7 +137,7 @@ func (m *transferManager) save(j *transferJob) {
 	rec := j.recordLocked(m.socket())
 	j.saved = time.Now()
 	j.mu.Unlock()
-	path := filepath.Join(transferJournalDir(), rec.ID+".json")
+	path := filepath.Join(m.journalDir(), rec.ID+".json")
 	if rec.State == transferDone || rec.State == transferCancelled {
 		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			LogError("Transfer %s: the journal entry could not be removed: %v", rec.ID, err)
@@ -152,7 +158,7 @@ func (m *transferManager) save(j *transferJob) {
 
 // forget removes the job's journal entry.
 func (m *transferManager) forget(j *transferJob) {
-	err := os.Remove(filepath.Join(transferJournalDir(), j.id+".json"))
+	err := os.Remove(filepath.Join(m.journalDir(), j.id+".json"))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		LogError("Transfer %s: the journal entry could not be removed: %v", j.id, err)
 	}
@@ -257,7 +263,7 @@ func (m *transferManager) fileEvent(j *transferJob, rel, state, sum, code, msg s
 // its parts. Then it removes the stale parts. It runs once, at start, after
 // the links are started.
 func (m *transferManager) load() {
-	dir := transferJournalDir()
+	dir := m.journalDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		LogError("The transfer journal could not be read: %v", err)
@@ -375,17 +381,22 @@ type partDirs struct {
 	mu   sync.Mutex
 	dirs map[string]int64 // folder: when it was last noted, Unix ms
 	path string
+	// root is the state root the file belongs to, so a daemon with a state
+	// directory of its own keeps its part folders there.
+	root stateRoot
 }
 
-func newPartDirs() *partDirs {
-	return &partDirs{dirs: map[string]int64{}}
+func newPartDirs() *partDirs { return newPartDirsIn(stateRoot("")) }
+
+func newPartDirsIn(root stateRoot) *partDirs {
+	return &partDirs{dirs: map[string]int64{}, root: root}
 }
 
 func (p *partDirs) file() string {
 	if p.path != "" {
 		return p.path
 	}
-	return filepath.Join(transferJournalDir(), transferPartDirsFile)
+	return filepath.Join(p.root.transferJournalDir(), transferPartDirsFile)
 }
 
 // readLocked loads the file once. The caller holds p.mu.

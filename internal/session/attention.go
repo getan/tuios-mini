@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -356,10 +355,11 @@ func newAttentionStore(publish func(streamEvent), currentSeq func() uint64) *att
 }
 
 // attentionPath is where the queue is saved: beside the session state, in a
-// directory of its own so the session listing never reads it as a session.
-func attentionPath() string {
-	return filepath.Join(getResurrectionDir(), "attention", "items.json")
-}
+// directory of its own so the session listing never reads it as a session. A
+// daemon resolves it through its own state root (DaemonConfig.StateDir); this
+// is the default layout's.
+
+func attentionPath() string { return stateRoot("").attentionPath() }
 
 // attentionKey names what an item is about. A pane has at most one blocking
 // item, one errored item and one finished item; a thread has one mail item.

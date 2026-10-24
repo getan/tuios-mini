@@ -1256,6 +1256,11 @@ type Session struct {
 	// discardHistory is set when the session is killed. The history would be
 	// deleted with the state straight after, so the last save skips it.
 	discardHistory atomic.Bool
+	// stateRoot is the directory this session saves its state and its panes'
+	// history under. It is the daemon's, stamped by the manager when the
+	// session is made, and it never changes: an empty root is the shared
+	// upstream layout. See DaemonConfig.StateDir.
+	stateRoot stateRoot
 
 	stateMu sync.RWMutex
 	// snapSeq is the last SnapshotSeq handed out.
@@ -1636,6 +1641,15 @@ type SessionConfig struct {
 	// so a client's ids for it stay valid. Empty, or an id already in use,
 	// mints a new one.
 	restoreID string
+	// stateRoot is the directory the session saves its state and its panes'
+	// history under. The manager stamps it from its own, so a daemon with a
+	// state directory of its own keeps every session inside it. Empty is the
+	// shared upstream layout.
+	stateRoot stateRoot
+	// paneEnv is the environment every pane of this session is started with,
+	// applied under the variables the session stamps itself. The manager
+	// stamps it from DaemonConfig.PaneEnv. See buildEnvFor.
+	paneEnv []string
 }
 
 // SetStartDir sets the directory new local windows start in when nothing
@@ -1838,6 +1852,7 @@ func NewSession(name string, cfg *SessionConfig, width, height int) (*Session, e
 	}
 	if cfg != nil {
 		session.state.Space = cfg.Space
+		session.stateRoot = cfg.stateRoot
 	}
 
 	session.setName(name)
@@ -1880,7 +1895,7 @@ func (s *Session) persist(state *SessionState) error {
 		return nil
 	}
 	state.SessionID = s.ID
-	err := SaveSessionForResurrection(state)
+	err := saveSessionStateIn(s.stateRoot, state)
 	s.saveHistory(state, false)
 	return err
 }
@@ -3612,6 +3627,28 @@ func (s *Session) buildEnvWith(windowID string, restored bool, extra []string) [
 	return s.buildEnvFor(windowID, 0, restored, extra, nil)
 }
 
+// withAssignments returns env with every name in add replaced by the value in
+// add, keeping the order of what was there. A name add does not mention is left
+// alone; a name add holds twice keeps the last, as exec.Cmd does.
+func withAssignments(env, add []string) []string {
+	if len(add) == 0 {
+		return env
+	}
+	replaced := make(map[string]bool, len(add))
+	for _, kv := range add {
+		if k, _, ok := strings.Cut(kv, "="); ok {
+			replaced[k] = true
+		}
+	}
+	out := env[:0:0]
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); !replaced[k] {
+			out = append(out, kv)
+		}
+	}
+	return append(out, add...)
+}
+
 // buildEnvFor is buildEnv with a caller's own variables, for a pane that runs
 // command (nil for the user's shell). The caller's variables replace the
 // daemon's variables of the same name, and every variable set below them,
@@ -3625,6 +3662,15 @@ func (s *Session) buildEnvFor(windowID string, workspace int, restored bool, ext
 	// inside tmux would otherwise hand every pane the variables that make a
 	// program believe it is in a tmux pane. See guestenv.WithoutHostMultiplexer.
 	env := guestenv.WithoutHostMultiplexer(os.Environ())
+	// The session's own variables (DaemonConfig.PaneEnv) come next, so a pane
+	// this session starts carries them under everything the caller named and
+	// under the contract set below. They are filtered on the way in as well as
+	// at the door: an identity or herdr variable that got this far is dropped
+	// rather than allowed to describe a pane that does not exist.
+	if s.config != nil && len(s.config.paneEnv) > 0 {
+		paneEnv, _ := guestenv.FilterPaneEnv(s.config.paneEnv)
+		env = withAssignments(env, paneEnv)
+	}
 	if len(extra) > 0 {
 		replaced := make(map[string]bool, len(extra))
 		for _, kv := range extra {

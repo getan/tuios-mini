@@ -620,7 +620,7 @@ func (d *Daemon) handleResurrect(cs *connState, msg *Message) error {
 		return d.handleList(cs, msg)
 	}
 
-	state, err := LoadResurrectionState(payload.SessionName)
+	state, err := loadResurrectionStateIn(d.stateRoot, payload.SessionName)
 	if err != nil {
 		return d.replyError(cs, msg, ErrCodeSessionNotFound, err.Error())
 	}
