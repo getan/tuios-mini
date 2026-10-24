@@ -1,6 +1,7 @@
 package mini
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -46,8 +47,8 @@ func TestDefaultNamespaceIsNotTuios(t *testing.T) {
 		t.Fatalf("namespace has an empty path: %+v", ns)
 	}
 	for _, path := range []string{ns.ConfigDir, ns.StateDir, ns.RuntimeDir, ns.SocketPath, ns.LogFile} {
-		if strings.Contains(strings.ToLower(path), "tuios") {
-			t.Errorf("workspace path %q belongs to tuios", path)
+		if !strings.Contains(path, filepath.Join("golder", "workspace")) {
+			t.Errorf("workspace path %q is not under golder/workspace", path)
 		}
 	}
 }

@@ -71,12 +71,28 @@ func IsLauncher(base string) bool {
 	return ok
 }
 
+// shells are the login shells a wrapper can be. The comment on Wraps always
+// said a shell stands in for another program; this is the list that makes it
+// true, so a nested shell is walked to the agent it launched.
+var shells = map[string]struct{}{
+	"sh": {}, "bash": {}, "zsh": {}, "fish": {}, "dash": {},
+	"ksh": {}, "csh": {}, "tcsh": {}, "nu": {}, "xonsh": {},
+	"elvish": {}, "pwsh": {}, "powershell": {}, "cmd": {},
+}
+
+// IsShell reports whether a base name is a shell.
+func IsShell(base string) bool {
+	_, ok := shells[base]
+	return ok
+}
+
 // Wraps reports whether this process stands in for another one, so the process
 // group behind it is worth reading: an interpreter, a shell, or a launcher, by
 // either its name or its executable.
 func (p ProcInfo) Wraps() bool {
 	commBase, exeBase := p.CommBase(), p.ExeBase()
 	return IsInterpreter(commBase) || IsLauncher(commBase) ||
+		IsShell(commBase) || IsShell(exeBase) ||
 		IsInterpreter(exeBase) || IsLauncher(exeBase)
 }
 

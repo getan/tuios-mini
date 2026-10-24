@@ -12,9 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Gaurav-Gosain/tuios/internal/testutil"
 	"github.com/Gaurav-Gosain/tuios/mini"
 	"github.com/Gaurav-Gosain/tuios/mini/control"
 )
+
+func TestMain(m *testing.M) {
+	os.Exit(testutil.RunIsolated(m))
+}
 
 func startMini(t *testing.T) (*mini.Server, *control.Client) {
 	t.Helper()
