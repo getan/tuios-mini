@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/Gaurav-Gosain/tuios/mini/control"
 )
 
 const (
@@ -110,7 +111,7 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 }
 
 func (s *Server) createSession(ctx context.Context, cfg Config) error {
-	c, err := dialRetry(ctx, s.socket)
+	c, err := control.DialRetry(ctx, s.socket)
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func (s *Server) createSession(ctx context.Context, cfg Config) error {
 		params["cwd"] = cfg.Cwd
 	}
 	if _, err := c.Call(ctx, "new-session", params); err != nil {
-		var de *Error
+		var de *control.Error
 		if errors.As(err, &de) && de.Code == "session_exists" {
 			return nil
 		}

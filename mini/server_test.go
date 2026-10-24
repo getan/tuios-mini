@@ -6,15 +6,17 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Gaurav-Gosain/tuios/mini"
+	"github.com/Gaurav-Gosain/tuios/mini/control"
 )
 
-func startMini(t *testing.T) (*mini.Server, *mini.Client) {
+func startMini(t *testing.T) (*mini.Server, *control.Client) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("the M1 verb tests need a POSIX shell")
@@ -40,7 +42,7 @@ func startMini(t *testing.T) (*mini.Server, *mini.Client) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := mini.Dial(context.Background(), srv.Socket())
+	c, err := control.Dial(context.Background(), srv.Socket())
 	if err != nil {
 		srv.Stop()
 		t.Fatal(err)
@@ -62,7 +64,7 @@ func shortDir(t *testing.T) string {
 	return dir
 }
 
-func call[T any](t *testing.T, c *mini.Client, verb string, params map[string]any) T {
+func call[T any](t *testing.T, c *control.Client, verb string, params map[string]any) T {
 	t.Helper()
 	raw, err := c.Call(context.Background(), verb, params)
 	if err != nil {
@@ -98,6 +100,11 @@ type newWindow struct {
 	Name     string `json:"name"`
 }
 
+type newSession struct {
+	Session  string `json:"session"`
+	WindowID string `json:"window_id"`
+}
+
 type capture struct {
 	Content string `json:"content"`
 }
@@ -125,7 +132,7 @@ type setResult struct {
 // waitAtPrompt waits until the shell reports its OSC 133 prompt mark through
 // the daemon. run refuses a pane that is not at its prompt, and the mark that
 // follows a finished command is processed asynchronously.
-func waitAtPrompt(t *testing.T, c *mini.Client, window string) {
+func waitAtPrompt(t *testing.T, c *control.Client, window string) {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for {
@@ -234,7 +241,7 @@ func TestMiniDaemonVerbs(t *testing.T) {
 
 	// A second connection proves restrict-connection narrows a live caller:
 	// read_only must refuse the verb that types into a pane.
-	restricted, err := mini.Dial(context.Background(), srv.Socket())
+	restricted, err := control.Dial(context.Background(), srv.Socket())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +251,7 @@ func TestMiniDaemonVerbs(t *testing.T) {
 	_, err = restricted.Call(context.Background(), "send-text", map[string]any{
 		"session": "work", "window": first, "text": "must-not-land",
 	})
-	var de *mini.Error
+	var de *control.Error
 	if !errors.As(err, &de) || de.Code != "forbidden" {
 		t.Fatalf("send-text on a read-only connection = %v, want forbidden", err)
 	}
@@ -271,6 +278,119 @@ func TestMiniStopRemovesSocket(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("socket %s still exists after Stop", socket)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// TestMiniScopeOwnRequiresThePaneToken is the real permission contract: the
+// token printed by a pane, presented with its window id, narrows a connection
+// to that pane's session. Another session is refused, and the pane's own
+// session still accepts input.
+func TestMiniScopeOwnRequiresThePaneToken(t *testing.T) {
+	srv, c := startMini(t)
+	wl := call[windowList](t, c, "list-windows", map[string]any{"session": "work"})
+	if len(wl.Windows) != 1 {
+		t.Fatalf("work has %d windows, want 1", len(wl.Windows))
+	}
+	first := wl.Windows[0].WindowID
+
+	other := call[newSession](t, c, "new-session", map[string]any{"name": "other", "window": true})
+	if other.WindowID == "" {
+		t.Fatal("new-session other returned no window")
+	}
+
+	call[json.RawMessage](t, c, "send-text", map[string]any{
+		"session": "work", "window": first,
+		// The pane echoes the command line. Build the TOKEN= prefix from two
+		// quoted halves so the echo cannot match the pattern below; only the
+		// output line does.
+		"text": `printf '%s%s\n' "TO""KEN=" "$TUIOS_PANE_TOKEN"`, "submit": true,
+	})
+	call[waitResult](t, c, "wait-for", map[string]any{
+		"session": "work", "window": first, "condition": "window-output", "pattern": "TOKEN=", "timeout": 5000,
+	})
+	content := call[capture](t, c, "capture-pane", map[string]any{
+		"session": "work", "window": first, "source": "visible", "lines": 50,
+	}).Content
+	match := regexp.MustCompile(`TOKEN=(\S+)`).FindStringSubmatch(content)
+	if len(match) != 2 {
+		t.Fatalf("capture = %q, want TOKEN=<token>", content)
+	}
+
+	restricted, err := control.Dial(context.Background(), srv.Socket())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restricted.Close()
+	call[json.RawMessage](t, restricted, "restrict-connection", map[string]any{
+		"scope": "own", "pane_id": first, "pane_token": match[1],
+	})
+
+	// The caller's own session is still reachable.
+	call[windowList](t, restricted, "list-windows", map[string]any{"session": "work"})
+
+	for _, call := range []struct {
+		verb   string
+		params map[string]any
+	}{
+		{"list-windows", map[string]any{"session": "other"}},
+		{"send-text", map[string]any{"session": "other", "window": other.WindowID, "text": "must-not-land"}},
+	} {
+		_, err := restricted.Call(context.Background(), call.verb, call.params)
+		var de *control.Error
+		if !errors.As(err, &de) || de.Code != "forbidden" {
+			t.Fatalf("%s on another session = %v, want forbidden", call.verb, err)
+		}
+	}
+
+	call[json.RawMessage](t, restricted, "send-text", map[string]any{
+		"session": "work", "window": first, "text": "printf 'OWN-OK\\n'", "submit": true,
+	})
+	call[waitResult](t, restricted, "wait-for", map[string]any{
+		"session": "work", "window": first, "condition": "window-output", "pattern": "OWN-OK", "timeout": 5000,
+	})
+}
+
+// TestMiniCloseSendsSIGTERMFirst proves the pane close path gives a program
+// that handles SIGTERM a chance to run its cleanup, instead of starting with
+// SIGKILL. The pane is a shell script that writes a file from its trap.
+func TestMiniCloseSendsSIGTERMFirst(t *testing.T) {
+	_, c := startMini(t)
+	dir := shortDir(t)
+	script := filepath.Join(dir, "trap-term.sh")
+	termFile := filepath.Join(dir, "term")
+	readyFile := filepath.Join(dir, "ready")
+	if err := os.WriteFile(script, []byte(`#!/bin/sh
+trap 'printf term > "$1"; exit 0' TERM
+printf ready > "$2"
+while :; do read -r _; done
+`), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	window := call[newWindow](t, c, "new-window", map[string]any{
+		"session": "work", "name": "term", "command": []string{"/bin/sh", script, termFile, readyFile}, "focus": false,
+	}).WindowID
+	// Close only after the trap is installed; a window closed while its
+	// process is still starting has no handler to run yet.
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if _, err := os.Stat(readyFile); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the pane process never installed its SIGTERM trap")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	call[json.RawMessage](t, c, "close-window", map[string]any{"session": "work", "window": window})
+	deadline = time.Now().Add(3 * time.Second)
+	for {
+		if data, err := os.ReadFile(termFile); err == nil && string(data) == "term" {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the pane process did not run its SIGTERM trap before close")
 		}
 		time.Sleep(20 * time.Millisecond)
 	}

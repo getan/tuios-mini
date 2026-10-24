@@ -32,8 +32,6 @@ var emojiSourceAllowed = map[string]string{
 	"internal/fuzz/pools.go": "emulator width input",
 	// The prompt parser skips the icons eza and tree print before a name.
 	"internal/scrollback/parser.go": "matches icons other programs print",
-	// The browser tour's fake Claude Code draws Claude Code's own spinner.
-	"internal/webshell/agent.go": "imitates another program's screen",
 	// macOS Option-key output is what the keyboard sends, not what we show.
 	"internal/config/keynormalizer.go": "macOS Option-key character map",
 }

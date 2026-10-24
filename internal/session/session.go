@@ -4580,6 +4580,11 @@ func (p *PTY) capturePlainAt(scrollback bool) (string, captureState) {
 }
 
 // Close terminates the PTY.
+// ptyCloseGrace is how long a pane's process has to exit after SIGTERM before
+// Close kills it. It is a bound, not a guarantee: a program that ignores the
+// signal still loses its pane when the grace expires.
+const ptyCloseGrace = 100 * time.Millisecond
+
 func (p *PTY) Close() error {
 	p.cancel()
 
@@ -4596,9 +4601,19 @@ func (p *PTY) Close() error {
 	p.subscriberCount.Store(0)
 	p.subscribersMu.Unlock()
 
-	// Kill process
-	if p.cmd != nil && p.cmd.Process != nil {
-		_ = p.cmd.Process.Kill()
+	// Ask the pane's process to leave before the terminal goes away. Closing
+	// the PTY first sends SIGHUP to the foreground group and skips a handler
+	// that watches SIGTERM. A program that ignores SIGTERM is killed after the
+	// grace, so a close can never hang the daemon.
+	if p.cmd != nil && p.cmd.Process != nil && !p.IsExited() {
+		_ = terminateProcess(p.cmd.Process)
+		deadline := time.Now().Add(ptyCloseGrace)
+		for !p.IsExited() && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if !p.IsExited() {
+			_ = p.cmd.Process.Kill()
+		}
 	}
 
 	// Mark the VT emulator closed so forwardTerminalResponses returns EOF on

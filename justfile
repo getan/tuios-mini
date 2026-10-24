@@ -206,12 +206,6 @@ web port="7681" *args: build
     shift
     exec {{ quote(bin / "tuios-web") }} --host 127.0.0.1 --port "$port" "$@"
 
-# Build Learn tuios (wasm) and serve it on 127.0.0.1
-[group('daemon')]
-learn port="8765":
-    {{ quote(root / "cmd/tuios-wasm/build.sh") }} {{ quote(out / "learn") }}
-    node {{ quote(root / "cmd/tuios-wasm/serve.mjs") }} {{ quote(out / "learn") }} "$1"
-
 # Args go to the launcher. Its --live mode uses the live daemon.
 # Launch tuios-gui on its own empty daemon
 [group('daemon')]
@@ -425,12 +419,6 @@ clienttests *args:
         [ -n "$TUIOS_CHROMIUM" ] && export TUIOS_CHROMIUM
     fi
     TUIOS_WEB_BIN={{ quote(bin / "tuios-web") }} {{ NICE }} {{ TASKSET }} npx playwright test "$@"
-
-# Build the wasm build and test its Go side
-[group('check')]
-wasm-check:
-    {{ NICE }} {{ TASKSET }} go test -count=1 ./internal/webshell/ ./internal/learn/
-    {{ NICE }} {{ TASKSET }} {{ quote(root / "cmd/tuios-wasm/build.sh") }} {{ quote(out / "learn") }}
 
 # Run the local part of CI: fmt, tidy, lint, test, size
 [group('check')]

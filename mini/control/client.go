@@ -1,4 +1,8 @@
-package mini
+// Package control is the JSON-line client for a tuios-mini daemon.
+//
+// It is separate from package mini so a caller can speak the protocol without
+// linking the daemon, its PTYs and the terminal emulator.
+package control
 
 import (
 	"bufio"
@@ -11,7 +15,11 @@ import (
 	"time"
 )
 
-const maxResponseBytes = 16 << 20
+const (
+	maxResponseBytes = 16 << 20
+	// Version is what this client reports in the hello handshake.
+	Version = "mini-control"
+)
 
 // Error is a verb failure as the daemon reports it.
 type Error struct {
@@ -51,7 +59,7 @@ func Dial(ctx context.Context, socket string) (*Client, error) {
 	// A failure here is not a failure to connect; the first real verb reports
 	// an incompatible daemon with its own error.
 	_, _ = c.Call(ctx, "hello", map[string]any{
-		"client": "tuios-mini", "version": DefaultVersion, "protocol": 1,
+		"client": "tuios-mini", "version": Version, "protocol": 1,
 	})
 	return c, nil
 }
@@ -114,7 +122,8 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func dialRetry(ctx context.Context, socket string) (*Client, error) {
+// DialRetry waits for a daemon that is still binding its socket.
+func DialRetry(ctx context.Context, socket string) (*Client, error) {
 	deadline := time.Now().Add(5 * time.Second)
 	var last error
 	for {
