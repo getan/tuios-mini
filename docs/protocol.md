@@ -1807,6 +1807,7 @@ What a restricted connection may call:
 | mail and stash | `send-agent-message`, `stash-put` | session in reach, sent as the own pane | allowed |
 | type into a pane | `send-text`, `send-keys`, `ask-agent`, `respond`, `run` | session in reach | `forbidden` |
 | start sessions | `fan`, `start-agent` | needs a pane; `start-agent` opens its pane in a session in reach | `forbidden` |
+| arrange the caller's session | `new-window`, `close-window`, `focus-window`, `move-window`, `set-window`, `resize` | the caller's own session, on a local-only daemon only (see below); `forbidden` on the standalone product | `forbidden` |
 | read the paste buffers | `list-buffers`, `show-buffer` | `forbidden` | allowed |
 | change the paste buffers | `set-buffer`, `delete-buffer` | `forbidden` | `forbidden` |
 | paste a buffer | `paste-buffer` | `forbidden`: it reads the buffers | `forbidden` |
@@ -1831,6 +1832,16 @@ Under `own`:
 - `send-agent-message` and `ask-agent` in the caller's own session get `from`
   set to the caller's pane, and a different `from` is refused.
   `read-agent-messages` may name only the caller's own inbox in `to`.
+- The six verbs that arrange a session — `new-window`, `close-window`,
+  `focus-window`, `move-window`, `set-window`, `resize` — are for a
+  **local-only** daemon: the embedded workspace, which `mini` starts. There
+  they reach the caller's own session and no other, which is narrower than
+  the `own` reach of every other row: not the caller's fan group, and not a
+  session it launched. `move-window`'s `to_session` and `new-window`'s `host`
+  are refused, the pane a `new-window` starts holds no more than the caller,
+  and `close-window` closes only panes that hold nothing the caller does not.
+  A standalone daemon keeps all six for `admin`, as it always has. See
+  [M4.md](M4.md#7-a-workspaces-panes-arrange-their-own-session).
 
 This scopes what goes through a restricted connection. A process in a pane can
 still open a connection of its own with the tuios CLI and not restrict it; a
@@ -1869,6 +1880,15 @@ holds the default of `[agents.permissions]` in config.toml: `admin` under
 `mode = "open"`, which is the default mode, and the `grants` list under
 `mode = "strict"` (default `read`, `write`, `fan`). A mode the daemon does not
 know is read as strict, and an unknown grant name is dropped.
+
+In a **local-only** daemon — the embedded workspace `mini` starts — `write`
+also arranges the pane's own session: `new-window`, `close-window`,
+`focus-window`, `move-window`, `set-window` and `resize`, there and nowhere
+else. `move-window`'s `to_session` is refused, `new-window`'s `host` must be
+this machine, a pane started this way holds no more than the pane that started
+it, and `close-window` closes only panes that hold nothing the caller does
+not. A standalone daemon keeps all six for `admin`. See
+[M4.md](M4.md#7-a-workspaces-panes-arrange-their-own-session).
 
 A pane can never hand out more than it holds. From a pane that does not hold
 `admin`, a launch that names no `grants` gives the new pane the caller's own,

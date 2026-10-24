@@ -881,7 +881,8 @@ func TestMiniStrictPermissionsKeepGolderVerbs(t *testing.T) {
 		"session": "work", "window": first, "condition": "window-output", "pattern": "GRANTS=", "timeout": 1000,
 	})
 	// A window made by the person's own connection, which the pane can then
-	// write to: new-window is not a verb a restricted connection may call.
+	// write to. A pane opens its own windows too, in its own session: see
+	// local_control_test.go.
 	second := call[newWindow](t, c, "new-window", map[string]any{
 		"session": "work", "name": "written", "command": []string{"/bin/sh", "-c", "sleep 20"}, "focus": false,
 	}).WindowID

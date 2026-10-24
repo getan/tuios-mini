@@ -99,6 +99,14 @@ const (
 	// scopeBufferWrite changes the paste buffers. Refused under read_only
 	// and under scope own; a pane needs the write grant.
 	scopeBufferWrite
+	// scopeLayout arranges the panes of one session: which windows exist,
+	// where they sit, which one has the focus and how big it is. No verb in
+	// verbScopes has it. A local-only daemon admits the verbs a workspace
+	// arranges itself with as this kind, and no other daemon does
+	// (local_control.go). It needs the write grant, is refused under
+	// read_only, and reaches no session but the caller's own: not the fan
+	// group, and not one the caller launched.
+	scopeLayout
 )
 
 // verbScopes classifies every verb. A verb missing here is treated as
@@ -507,6 +515,24 @@ func (d *Daemon) callerSession(cs *connState) string {
 	return ""
 }
 
+// sessionIsOwn reports whether target names the session own itself, also under a
+// name the session was renamed from, and false for every other session. It is
+// sessionInScope without the two ways out of it: no session own launched, and no
+// fan group. scopeLayout reaches exactly this much and no more
+// (local_control.go).
+func (d *Daemon) sessionIsOwn(own, target string) bool {
+	if own == "" || target == "" {
+		return false
+	}
+	if o, _ := d.manager.ResolveSession(own); o != nil {
+		own = o.Name()
+	}
+	if t, _ := d.manager.ResolveSession(target); t != nil {
+		target = t.Name()
+	}
+	return target == own
+}
+
 // sessionInScope reports whether a connection whose pane is in session own may
 // reach session target: target is own, or it was launched from own, or it
 // shares own's fan group in the same repository.
@@ -645,18 +671,36 @@ func (d *Daemon) checkScope(cs *connState, verb string, params json.RawMessage) 
 	}
 	kind, ok := verbScopes[verb]
 	if !ok || kind == scopeDeny {
-		return nil, scopeForbidden(verb, "a restricted connection may not call it")
+		// A local-only workspace admits the verbs it arranges its own
+		// session with as scopeLayout (local_control.go). Every other
+		// daemon, the standalone product included, refuses them here as
+		// it always has.
+		layout, isLayout := d.layoutKind(verb)
+		if !isLayout {
+			return nil, scopeForbidden(verb, "a restricted connection may not call it")
+		}
+		kind = layout
 	}
 	if kind == scopeOpen {
 		return params, nil
 	}
-	if sc.readOnly && (kind == scopeWrite || kind == scopeLaunch) {
-		return nil, scopeForbidden(verb, "the connection is read-only, and "+verb+" types into a pane or starts one")
-	}
-	if sc.readOnly && kind == scopeBufferWrite {
-		return nil, scopeForbidden(verb, "the connection is read-only, and "+verb+" changes the paste buffers")
+	if sc.readOnly {
+		switch kind {
+		case scopeWrite, scopeLaunch:
+			return nil, scopeForbidden(verb, "the connection is read-only, and "+verb+" types into a pane or starts one")
+		case scopeBufferWrite:
+			return nil, scopeForbidden(verb, "the connection is read-only, and "+verb+" changes the paste buffers")
+		case scopeLayout:
+			return nil, scopeForbidden(verb, "the connection is read-only, and "+verb+" arranges the panes of a session")
+		}
 	}
 	if !sc.own {
+		if kind == scopeLayout {
+			// The admission is for a connection held to its own
+			// session. One restricted to every session instead is
+			// left with what it had, which is the refusal.
+			return nil, scopeForbidden(verb, "it arranges a session's panes, and the connection is not restricted to its own session")
+		}
 		return params, nil
 	}
 	if kind == scopeGlobal {
@@ -675,7 +719,13 @@ func (d *Daemon) checkScope(cs *connState, verb string, params json.RawMessage) 
 		}
 		return "session " + echoName(target) + " is not the caller's own session or in its fan group"
 	}
+	if kind == scopeLayout {
+		reach = d.layoutReach(own)
+	}
 	deny := func(why string) *verbError { return scopeForbidden(verb, why) }
+	if why := layoutParamsWhy(verb, params); why != "" {
+		return nil, deny(why)
+	}
 	return d.holdToPane(verb, kind, params, own, sc.window, "the connection is restricted to its own", reach, deny)
 }
 
