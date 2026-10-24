@@ -2,8 +2,6 @@ package config
 
 import (
 	"strconv"
-
-	"github.com/adrg/xdg"
 )
 
 // EffectiveDefault returns the value an option has when the user has not set
@@ -17,8 +15,8 @@ func EffectiveDefault(opt Option) string {
 	if opt.Path != "startup.tiled" && opt.Path != "startup.daemon" {
 		return opt.Default
 	}
-	path, err := xdg.SearchConfigFile("tuios/config.toml")
-	if err != nil {
+	path, found, err := configFileToRead()
+	if err != nil || !found {
 		return opt.Default
 	}
 	data, err := ReadConfigFile(path)

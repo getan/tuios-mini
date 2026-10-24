@@ -35,6 +35,9 @@ import (
 // writer, which the local client wraps and the servers serialize, and the
 // input, environment and window size a server takes from its session. A
 // transport supplies those itself, and it appends this list AFTER them. The
+// one native client that is handed its terminal rather than using this
+// process's is the workspace runner (package workspace), which supplies
+// tea.WithInput for the pty it draws to beside the writer. The
 // order matters for one option: WithFilter is a single slot, both wish and sip
 // install a filter of their own, and the last one wins. The filter here does
 // what theirs do (see FilterMouseMotion), so it has to be the last one set.

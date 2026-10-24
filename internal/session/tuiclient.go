@@ -381,10 +381,32 @@ func (c *TUIClient) ConnectWithCapabilities(version string, width, height int, c
 	if err != nil {
 		return fmt.Errorf("failed to get socket path: %w", err)
 	}
+	return c.ConnectSocket(socketPath, version, width, height, caps)
+}
+
+// ConnectSocket connects to the daemon listening on socketPath and performs
+// the handshake there, instead of on the socket this machine's environment
+// names.
+//
+// It exists for a host that embeds the client and owns its daemon: such a host
+// knows the socket it started, and must not be sent to whatever daemon
+// GetSocketPath would pick for the person running it. TUIOS_SOCKET is not the
+// way to say so (see socket_env.go: it reports, it does not select), and
+// setting it for the life of an embedding process would reach every other
+// child it starts. This takes the path directly, so nothing is set and nothing
+// is inherited.
+//
+// An empty socketPath is refused rather than dialled: net.Dial on "" answers
+// with a message about a missing address that names neither the caller nor the
+// path.
+func (c *TUIClient) ConnectSocket(socketPath, version string, width, height int, caps *ClientCapabilities) error {
+	if socketPath == "" {
+		return errors.New("no daemon socket: ConnectSocket needs the path of the socket to dial")
+	}
 
 	conn, err := net.DialTimeout("unix", socketPath, 5*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to connect to daemon: %w", err)
+		return fmt.Errorf("failed to connect to daemon at %s: %w", socketPath, err)
 	}
 	c.conn = conn
 	c.br = nil

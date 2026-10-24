@@ -23,7 +23,12 @@ import (
 //     types its own list is the bug this exists for: the motion filter shipped
 //     on the local client only, and a served client composed a frame for every
 //     pointer move.
-//   - No tea.With* option outside ProgramOptions itself except WithOutput.
+//   - No tea.With* option outside ProgramOptions itself except the two a
+//     transport supplies: WithOutput, and WithInput for a client that was
+//     handed the terminal it draws to and reads from (the workspace runner in
+//     package workspace, whose pty is not this process's standard input).
+//     Those are the transport's, not a client's: everything a client decides
+//     for itself is in ProgramOptions.
 //   - Where a transport's MakeOptions is used, it comes before ProgramOptions.
 //     WithFilter is a single slot and the last one set wins, and both wish and
 //     sip set one.
@@ -85,7 +90,11 @@ func TestEveryProgramTakesTheSharedOptions(t *testing.T) {
 			if !ok || pkg != "tea" || !strings.HasPrefix(name, "With") {
 				return true
 			}
-			if name == "WithOutput" {
+			// The two options a transport supplies: the writer frames go to,
+			// and the input they are typed on when that is not this process's
+			// stdin. Everything else belongs in ProgramOptions, where every
+			// client gets it.
+			if name == "WithOutput" || name == "WithInput" {
 				return true
 			}
 			t.Errorf("%s:%d: tea.%s set outside ProgramOptions; the other clients do not get it",

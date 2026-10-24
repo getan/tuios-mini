@@ -17,7 +17,6 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/Gaurav-Gosain/tuios/internal/sortx"
 	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -1965,11 +1964,15 @@ func clampPercent(v, lo, hi, fallback int) int {
 	return min(max(v, lo), hi)
 }
 
-// LoadUserConfig loads the user configuration from XDG config directory
+// LoadUserConfig loads the user configuration from XDG config directory, or
+// from the path a host scoped this process to. See configscope.go.
 func LoadUserConfig() (*UserConfig, error) {
 	// Try to find existing config file
-	configPath, err := xdg.SearchConfigFile("tuios/config.toml")
+	configPath, found, err := configFileToRead()
 	if err != nil {
+		return nil, err
+	}
+	if !found {
 		// Config doesn't exist, create default
 		return createDefaultConfig()
 	}
@@ -2155,7 +2158,7 @@ func seedDefaults(data []byte, parsed *UserConfig) ([]byte, bool) {
 // config.toml that cannot be written is not an error: the config loads
 // without it.
 func createDefaultConfig() (*UserConfig, error) {
-	configPath, err := xdg.ConfigFile("tuios/config.toml")
+	configPath, err := configFileToWrite()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config path: %w", err)
 	}
@@ -3705,12 +3708,17 @@ func ConfigWarnings(cfg *UserConfig) []string {
 	return lines
 }
 
-// GetConfigPath returns the path to the config file
+// GetConfigPath returns the path to the config file: the one that exists, or
+// where it would be created. A host that scoped this process to its own tree
+// gets that path instead; see configscope.go.
 func GetConfigPath() (string, error) {
-	path, err := xdg.SearchConfigFile("tuios/config.toml")
+	path, found, err := configFileToRead()
 	if err != nil {
-		// Return where it would be created
-		return xdg.ConfigFile("tuios/config.toml")
+		return "", err
 	}
-	return path, nil
+	if found {
+		return path, nil
+	}
+	// Return where it would be created
+	return configFileToWrite()
 }

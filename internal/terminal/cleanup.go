@@ -1,7 +1,7 @@
 package terminal
 
 import (
-	"fmt"
+	"io"
 	"os"
 )
 
@@ -27,9 +27,25 @@ const ResetSequence = "\033[!p" + // DECSTR: soft reset, which clears nothing
 	"\033[0m" + // Reset all text attributes
 	"\r\n" // Clean line ending
 
+// WriteReset writes ResetSequence to w and returns any error from the write.
+//
+// It is the form a host that is not this process's stdout uses. The client
+// always had ResetTerminal, which writes to os.Stdout because that is where a
+// terminal client draws; a client whose terminal is a pty it was handed (an
+// embedded workspace) must reset that pty and nothing else, or it would paint
+// escape sequences onto whatever this process's stdout happens to be, which in
+// a host can be another program's pipe.
+func WriteReset(w io.Writer) error {
+	if w == nil {
+		return nil
+	}
+	_, err := io.WriteString(w, ResetSequence)
+	return err
+}
+
 // ResetTerminal sends escape sequences to reset the terminal to a clean state.
 // This should be called when exiting the application to restore the terminal.
 func ResetTerminal() {
-	fmt.Print(ResetSequence)
+	_ = WriteReset(os.Stdout)
 	_ = os.Stdout.Sync()
 }
