@@ -2,8 +2,6 @@ package app
 
 import (
 	"fmt"
-	"os"
-	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -59,18 +57,14 @@ func ProgramOptions() []tea.ProgramOption {
 	}
 }
 
-// eventDebugLog says whether TUIOS_DEBUG_INTERNAL=1 asked for the event log,
-// read once on the first event rather than per event. The local command sets
-// the variable at startup before the program runs, so the first event sees it.
-var eventDebugLog = sync.OnceValue(func() bool {
-	return os.Getenv("TUIOS_DEBUG_INTERNAL") == "1"
-})
-
-// debugLogEvent logs events to /tmp/tuios-events.log when TUIOS_DEBUG_INTERNAL=1.
+// debugLogEvent logs events to debuglog.EventsLogPath when the diagnostic logs
+// are on: TUIOS_DEBUG_INTERNAL=1 for a standalone client, the host's own answer
+// for the duration of an embedded one. The switch is asked per event, which is
+// one mutex read and a value the package cached at startup.
 // Only logs KeyPressMsg, MouseMotionMsg, and unknown events in TerminalMode
 // to diagnose phantom keypresses.
 func debugLogEvent(m *OS, msg tea.Msg) {
-	if !eventDebugLog() {
+	if !debuglog.Enabled() {
 		return
 	}
 
@@ -101,7 +95,7 @@ func debugLogEvent(m *OS, msg tea.Msg) {
 		return
 	}
 
-	f, err := debuglog.Open(debuglog.EventsPath)
+	f, err := debuglog.Open(debuglog.EventsLogPath())
 	if err != nil {
 		return
 	}

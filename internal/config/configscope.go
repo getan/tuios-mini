@@ -42,6 +42,16 @@ import (
 // the function that ends it: a host must put the globals back before it hands
 // the process to somebody else, or a later standalone client would find its
 // lookups pointed at the embedded tree.
+//
+// The config file is the first of several such scopes and not the only one. A
+// client also reads and writes a state directory (the sidebar, the launcher's
+// history, its tapes and saved layouts — app.ScopeClientState), the custom
+// theme and glyph set directories with the registry and selections that go
+// with them (theme.ScopeAssets), and the process's log stream
+// (debuglog.Scope). A host that scopes one and not the others gets a client
+// that reads the person's config and writes the person's sidebar, which is
+// worse than one that reads both. workspace.Options.open opens them together
+// and is what an embedding host should copy.
 
 // errNoScopedPath is returned when a scope was asked for without a path. It is
 // a programming mistake, not a user-visible failure, so it is refused here

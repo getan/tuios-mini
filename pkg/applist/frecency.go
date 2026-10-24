@@ -53,8 +53,34 @@ type Frecency struct {
 
 // DefaultPath is where tuios keeps the launch history. It is read at call time
 // rather than at init so a test that redirects XDG_STATE_HOME is obeyed.
-func DefaultPath() string {
+func DefaultPath() string { return defaultPath() }
+
+// defaultPath is DefaultPath's answer, a variable so a host that owns its own
+// state tree can point the launcher's history at a file of its own. See
+// ScopeDefaultPath.
+var defaultPath = func() string {
 	return filepath.Join(xdg.StateHome, "tuios", "launcher.json")
+}
+
+// ScopeDefaultPath points DefaultPath at path and returns the function that
+// puts the process's own back. It is how an embedding host keeps a workspace's
+// launch history out of the person's, and one project's out of another's.
+//
+// The history is read once per client, when the launcher's model is built, and
+// written whenever something is launched from it, so the scope has to be open
+// before the client is made and kept until it is gone. Restoring is safe to
+// call more than once and from a defer; nesting is the caller's to prevent,
+// because the file is one process's and the host that scopes it owns the
+// sequencing.
+func ScopeDefaultPath(path string) (restore func()) {
+	previous := defaultPath
+	if path != "" {
+		defaultPath = func() string { return path }
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() { defaultPath = previous })
+	}
 }
 
 // LoadFrecency reads the history at path. A missing file is the ordinary

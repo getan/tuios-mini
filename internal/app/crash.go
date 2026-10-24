@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/adrg/xdg"
 	"github.com/getan/tuios-mini/internal/release"
 	"tuios.dev/vt"
 )
@@ -136,9 +135,12 @@ func orUnknown(s string) string {
 	return s
 }
 
-// CrashLogDir returns the directory for crash logs.
+// CrashLogDir returns the directory for crash logs: the host's own when this
+// process is scoped, else the user's state directory. A report belongs to the
+// tree the client that crashed was running in, because it is read by whoever
+// owns that client.
 func CrashLogDir() string {
-	return filepath.Join(xdg.StateHome, "tuios")
+	return uiStateDir()
 }
 
 // NewCrashReport builds a report from a recovered panic and a set of facts.

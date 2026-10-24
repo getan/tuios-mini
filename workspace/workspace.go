@@ -18,6 +18,14 @@
 // log stream — and two of them in one process would each read the other's.
 // Run therefore refuses a second concurrent call rather than interleaving two
 // sessions in one terminal; see ErrAlreadyRunning.
+//
+// That state is not only the config file. The client reads and writes the
+// person's sidebar, their launcher's history, their custom themes and glyph
+// sets, their saved layouts and tapes, and it logs through the process's
+// logger. Every one of those is scoped to a directory the host owns for the
+// duration of a run — Options.StateDir — and put back when Run returns, so a
+// workspace neither reads nor writes the person's tree and one project cannot
+// inherit another's custom assets. See Options.open.
 package workspace
 
 import (
@@ -32,7 +40,6 @@ import (
 
 	"github.com/getan/tuios-mini/internal/app"
 	"github.com/getan/tuios-mini/internal/config"
-	"github.com/getan/tuios-mini/internal/debuglog"
 	"github.com/getan/tuios-mini/internal/input"
 	"github.com/getan/tuios-mini/internal/session"
 	"github.com/getan/tuios-mini/internal/terminal"
@@ -106,6 +113,21 @@ type Options struct {
 	// it, exactly as a standalone client's first run creates its own.
 	ConfigPath string
 
+	// StateDir is the directory this client keeps the rest of its own files
+	// under: the sidebar's preferences, the launcher's history, its custom
+	// themes and glyph sets, a saved layout, a tape, a crash report and its
+	// debug log. Every one of them is the client's rather than the person's,
+	// and none is read from or written to the user's own tuios directories.
+	//
+	// A host normally passes a directory inside its own tree — golder passes
+	// <daemon StateDir>/client — so that two projects, and a workspace beside
+	// the person's own tuios, share nothing. Empty derives "state" beside
+	// ConfigPath, which keeps the tree private for a host that named one path;
+	// it never falls back to the user's.
+	//
+	// The directory is created when it is missing.
+	StateDir string
+
 	// Cwd is the start directory of a session this client creates. It is sent
 	// with the attach; the process's working directory is not changed.
 	Cwd string
@@ -119,10 +141,18 @@ type Options struct {
 	// is why zero means "ask", not "80x24".
 	Width, Height int
 
-	// Debug turns on the internal debug log (TUIOS_DEBUG_INTERNAL), with the
-	// client's log lines diverted to the debug log file so they cannot land on
-	// the frame. The variable and the log stream are put back as they were when
-	// Run returns.
+	// Debug turns on the diagnostic logs for this run, written under StateDir,
+	// with the client's log lines diverted into them so they cannot land on the
+	// frame. With it off the client's log lines are discarded for the same
+	// reason: the standard library logger is the process's, and an in-process
+	// daemon logging through it while a frame is drawn puts a line of text in
+	// the middle of an escape sequence.
+	//
+	// TUIOS_DEBUG_INTERNAL is neither read nor set here. The switch is the
+	// run's, not the process's: a run must not turn logging on for the host that
+	// embeds it, or leave a workspace's lines in /tmp/tuios-debug.log for the
+	// next workspace to find. The log stream is put back as it was when Run
+	// returns.
 	Debug bool
 
 	// StartInTerminalMode starts the session in terminal mode on the focused
@@ -265,11 +295,15 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 
-	restoreConfigPath, err := config.ScopeConfigPath(opts.ConfigPath)
+	// Everything this client reads and writes apart from the socket: its config
+	// file, its state directory, its custom themes and glyph sets, and the log
+	// stream. Opened here, before anything is loaded, and put back on every way
+	// out of this function.
+	runScope, err := opts.open()
 	if err != nil {
-		return fmt.Errorf("workspace: %w", err)
+		return err
 	}
-	defer restoreConfigPath()
+	defer runScope.close()
 
 	// Written before the attach, so it has reached any pane it is going to
 	// reach by the time the attach arrives. A workspace drawn inside a pane of
@@ -286,9 +320,6 @@ func Run(ctx context.Context, opts Options) error {
 	// gets the ones it had.
 	previousSettings := config.Global
 	defer func() { config.Global = previousSettings }()
-
-	restoreDebug := redirectDebugLog(opts.Debug)
-	defer restoreDebug()
 
 	userConfig := loadAndApply(opts)
 
@@ -489,36 +520,4 @@ func loadAndApply(opts Options) *config.UserConfig {
 	config.ApplyOverrides(opts.overrides(), &config.Global)
 
 	return userConfig
-}
-
-// redirectDebugLog turns on the internal debug log, with this process's log
-// stream diverted into it so the client's log lines cannot land on a frame.
-// It returns the function that puts both back.
-//
-// The standalone client does the same thing when it is started with --debug.
-// The stream is process-wide, so restoring it matters: a host that logs after
-// the client returns must not find its lines in /tmp/tuios-debug.log.
-func redirectDebugLog(on bool) func() {
-	if !on {
-		return func() {}
-	}
-	restore := func() {}
-	// The variable is read by several packages on first use, so it has to be
-	// set before the client runs and put back afterwards.
-	if os.Getenv("TUIOS_DEBUG_INTERNAL") != "1" {
-		if err := os.Setenv("TUIOS_DEBUG_INTERNAL", "1"); err == nil {
-			restore = func() { _ = os.Unsetenv("TUIOS_DEBUG_INTERNAL") }
-		}
-	}
-	lf, err := debuglog.Open(debuglog.Path)
-	if err != nil {
-		return restore
-	}
-	previous := log.Writer()
-	log.SetOutput(lf)
-	return func() {
-		log.SetOutput(previous)
-		_ = lf.Close()
-		restore()
-	}
 }

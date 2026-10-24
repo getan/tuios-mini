@@ -34,14 +34,12 @@ func ThemeSwatch(id string) []color.Color {
 	}
 }
 
-var ensureRegistryOnce sync.Once
-
 // EnsureRegistry populates the tint registry with the built-in tints and any
 // custom themes, without enabling theming or changing the current theme. This
 // lets the settings page list and preview themes even when the session started
 // with no theme selected.
 func EnsureRegistry() {
-	ensureRegistryOnce.Do(func() {
+	ensureRegistry.Do(func() {
 		newBuiltinRegistry()
 		registerCharmToneThemes()
 		registerOmarchyThemes()
@@ -52,6 +50,49 @@ func EnsureRegistry() {
 			}
 		}
 	})
+}
+
+// ensureRegistry is the once behind EnsureRegistry.
+//
+// It is sync.Once with two things added: whether it has run, and a way to say
+// it has not. The registry is built once per process, which is right for a
+// process that is one client and wrong for a host that runs one client after
+// another: a scope that reads a second project's themes directory needs the
+// registry built again from that directory, and the host needs its own back
+// afterwards. See ScopeAssets.
+var ensureRegistry = &resettableOnce{}
+
+type resettableOnce struct {
+	mu  sync.Mutex
+	ran bool
+}
+
+// Do runs f unless it has already run. The flag is set before f runs, so a
+// caller that reaches here from inside f returns rather than waiting on itself.
+func (o *resettableOnce) Do(f func()) {
+	o.mu.Lock()
+	if o.ran {
+		o.mu.Unlock()
+		return
+	}
+	o.ran = true
+	o.mu.Unlock()
+	f()
+}
+
+// done reports whether f has run.
+func (o *resettableOnce) done() bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.ran
+}
+
+// set records whether f has run, which is how a scope puts back the process's
+// own answer.
+func (o *resettableOnce) set(done bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.ran = done
 }
 
 // AvailableThemes returns the sorted list of registered theme IDs (built-in

@@ -90,3 +90,51 @@ func TestFrecencyPrunes(t *testing.T) {
 		t.Error("pruning dropped the most recently used entry")
 	}
 }
+
+// TestDefaultPathIsScoped is the seam an embedding host uses: the launch
+// history is one file under the state directory, and a host that runs a client
+// inside its own tree points it there rather than at the person's.
+//
+// Two scopes one after another hold two histories, which is the case that
+// matters: a workspace launching a program must not teach the next workspace's
+// launcher, nor the person's own, that it was run.
+func TestDefaultPathIsScoped(t *testing.T) {
+	userPath := DefaultPath()
+	if userPath == "" {
+		t.Fatal("DefaultPath is empty")
+	}
+
+	first, second := t.TempDir(), t.TempDir()
+	for _, dir := range []string{first, second} {
+		path := filepath.Join(dir, "launcher.json")
+		restore := ScopeDefaultPath(path)
+		if got := DefaultPath(); got != path {
+			t.Errorf("inside the scope DefaultPath = %q, want %q", got, path)
+		}
+		f := LoadFrecency(DefaultPath())
+		f.Note(filepath.Base(dir))
+		if err := f.Save(); err != nil {
+			t.Fatalf("save into %s: %v", dir, err)
+		}
+		restore()
+		// The same close twice, as a host that also defers it makes.
+		restore()
+		if got := DefaultPath(); got != userPath {
+			t.Errorf("after the scope DefaultPath = %q, want the process's own %q", got, userPath)
+		}
+	}
+
+	for _, dir := range []string{first, second} {
+		f := LoadFrecency(filepath.Join(dir, "launcher.json"))
+		if f.Boost(filepath.Base(dir)) == 0 {
+			t.Errorf("the history in %s does not hold its own launch", dir)
+		}
+		other := first
+		if dir == first {
+			other = second
+		}
+		if f.Boost(filepath.Base(other)) != 0 {
+			t.Errorf("the history in %s holds the other workspace's launch", dir)
+		}
+	}
+}

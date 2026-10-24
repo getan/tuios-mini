@@ -61,6 +61,13 @@ type TapeManagerState struct {
 
 // GetTapeDirectory returns the XDG data directory for tape files
 func GetTapeDirectory() (string, error) {
+	// A client running inside a host's tree records its tapes there: a tape is
+	// this client's, and the data directory is the person's.
+	if dir, ok, err := uiStateSubdir("tapes"); err != nil {
+		return "", err
+	} else if ok {
+		return dir, nil
+	}
 	tapeDir, err := xdg.DataFile("tuios/tapes")
 	if err != nil {
 		return "", fmt.Errorf("failed to get tape directory: %w", err)

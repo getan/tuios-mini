@@ -70,8 +70,16 @@ type LayoutWindow struct {
 	Minimized bool `json:"minimized,omitempty"`
 }
 
-// GetTemplatesDir returns the directory path for layout template files.
+// GetTemplatesDir returns the directory path for layout template files: the
+// host's own when this process is scoped, else the user's config directory.
+//
+// A saved layout describes the windows of one client's session, so a host that
+// runs a client inside its own tree keeps them there rather than in the
+// person's config.
 func GetTemplatesDir() string {
+	if dir, ok := ScopedClientState(); ok {
+		return filepath.Join(dir, "layouts")
+	}
 	return filepath.Join(xdg.ConfigHome, "tuios", "layouts")
 }
 

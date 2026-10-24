@@ -64,8 +64,17 @@ func init() {
 // defaultRenderTracePath puts the trace under the state directory when the
 // environment defines one, and falls back to the temp directory. The pid keeps
 // a daemon and its attached clients in separate files.
+//
+// It asks for the scoped directory too, though a scope opened by a host after
+// this package's init cannot reach a trace that init already opened: see the
+// note on TUIOS_RENDER_TRACE in the package documentation. It is here so a
+// caller that opens the trace later than init — a test, or a host that adds
+// that — lands in the tree it owns rather than in the user's.
 func defaultRenderTracePath() string {
 	name := fmt.Sprintf("tuios-render-trace.%d.log", os.Getpid())
+	if dir, ok := ScopedClientState(); ok {
+		return filepath.Join(dir, name)
+	}
 	// A named server's state home is set on xdg, not in the environment.
 	if serverscope.Name() != "" {
 		return filepath.Join(xdg.StateHome, "tuios", name)

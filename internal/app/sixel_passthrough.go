@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"os"
 	"sync"
 	"time"
 
@@ -15,10 +14,10 @@ import (
 )
 
 func sixelPassthroughLog(format string, args ...any) {
-	if os.Getenv("TUIOS_DEBUG_INTERNAL") != "1" {
+	if !debuglog.Enabled() {
 		return
 	}
-	f, err := debuglog.Open(debuglog.Path)
+	f, err := debuglog.Open(debuglog.DebugPath())
 	if err != nil {
 		return
 	}

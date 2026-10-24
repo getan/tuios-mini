@@ -9,19 +9,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/adrg/xdg"
 	tint "github.com/lrstanley/bubbletint/v2"
 )
 
-// GetThemesDir returns the path to the custom themes directory (~/.config/tuios/themes/).
-// Creates the directory if it doesn't exist.
+// GetThemesDir returns the path to the custom themes directory
+// (~/.config/tuios/themes/). Creates the directory if it doesn't exist.
+//
+// A host that scoped this process to a tree of its own gets its own directory
+// instead, and the user's is neither read nor made: see ScopeAssets.
 func GetThemesDir() (string, error) {
-	// Use xdg.ConfigFile to get the path and ensure parent dirs exist
-	keepFile, err := xdg.ConfigFile("tuios/themes/.keep")
-	if err != nil {
-		return "", fmt.Errorf("failed to get themes directory: %w", err)
-	}
-	return filepath.Dir(keepFile), nil
+	return assetDir("themes")
 }
 
 // LoadCustomThemes reads all *.json files from the themes directory,

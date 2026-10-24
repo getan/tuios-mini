@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/adrg/xdg"
 	"github.com/getan/tuios-mini/internal/config"
 	"github.com/getan/tuios-mini/internal/session"
 )
@@ -18,10 +17,15 @@ import (
 // (which the settings page rewrites) or in the daemon (which serves many
 // clients).
 
-// sidebarStateDir returns the directory the sidebar state file lives in. A
+// sidebarStateDir returns the directory the sidebar state file lives in: the
+// directory a host scoped this process to, else the user's state directory. A
 // variable so tests can point it at a scratch directory.
+//
+// The file holds the person's own arrangement of their rail, so a host that
+// embedded the client inside a tree of its own gets its own copy rather than
+// reading and writing theirs: see ScopeClientState.
 var sidebarStateDir = func() string {
-	return filepath.Join(xdg.StateHome, "tuios")
+	return uiStateDir()
 }
 
 const sidebarStateFileName = "sidebar.json"
