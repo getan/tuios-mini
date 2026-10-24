@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/federation"
 )
 
 // Queueing a reply for an agent on another machine.

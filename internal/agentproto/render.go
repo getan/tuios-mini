@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	"github.com/Gaurav-Gosain/tuios/internal/invisible"
+	"github.com/getan/tuios-mini/internal/integration"
+	"github.com/getan/tuios-mini/internal/invisible"
 )
 
 // The transcript: what the pane shows of the conversation.

@@ -36,7 +36,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Gaurav-Gosain/tuios/internal/transcript"
+	"github.com/getan/tuios-mini/internal/transcript"
 )
 
 // Bounds on what one page carries.

@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/winpath"
+	"github.com/getan/tuios-mini/internal/winpath"
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sortx"
+	"github.com/getan/tuios-mini/internal/sortx"
 )
 
 // HostVersion is the herdr release whose plugin format this package follows.

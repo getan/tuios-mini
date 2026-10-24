@@ -9,7 +9,7 @@ package cliflags
 import (
 	"github.com/spf13/pflag"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // Interface is the values of the interface flags. The zero value applies

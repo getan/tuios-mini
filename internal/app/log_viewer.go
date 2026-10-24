@@ -4,7 +4,7 @@ import (
 	"image/color"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // The log viewer is a list of entries with a cursor, drawn by the shared list

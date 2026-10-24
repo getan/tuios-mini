@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/mini"
+	"github.com/getan/tuios-mini/mini"
 )
 
 var version = "mini-dev"

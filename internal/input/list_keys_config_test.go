@@ -3,7 +3,7 @@ package input
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // A key bound in [keybindings.lists] moves the cursor in a list through the

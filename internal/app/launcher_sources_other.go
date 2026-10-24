@@ -2,7 +2,7 @@
 
 package app
 
-import "github.com/Gaurav-Gosain/tuios/pkg/applist"
+import "github.com/getan/tuios-mini/pkg/applist"
 
 // Desktop entries are a freedesktop concept, so off unix $PATH is the whole of
 // what a launcher can offer. That is not a loss: $PATH is the list a shell

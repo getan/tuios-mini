@@ -12,10 +12,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/pathroot"
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/pathroot"
+	"github.com/getan/tuios-mini/internal/serverscope"
 	"golang.org/x/text/unicode/norm"
 )
 

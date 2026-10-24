@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pastebuf"
+	"github.com/getan/tuios-mini/internal/pastebuf"
 )
 
 // TestBufferUploadsHoldBoundedMemory is a security boundary: any process

@@ -3,7 +3,7 @@ package app
 import (
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 )
 
 // RefreshSessionList populates the session switcher items from the daemon client.

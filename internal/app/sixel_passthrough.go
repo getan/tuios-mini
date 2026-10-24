@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/terminal"
 	"tuios.dev/shot/mosaic"
 	"tuios.dev/vt"
 )

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
-	"github.com/Gaurav-Gosain/tuios/mini"
-	"github.com/Gaurav-Gosain/tuios/mini/control"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/testutil"
+	"github.com/getan/tuios-mini/mini"
+	"github.com/getan/tuios-mini/mini/control"
 )
 
 func TestMain(m *testing.M) {

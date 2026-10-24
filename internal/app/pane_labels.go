@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hints"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/hints"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // Pane labels, after tmux's display-panes.

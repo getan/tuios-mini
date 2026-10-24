@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // keybindsPreset prints the preset in use, or sets one. Setting a preset

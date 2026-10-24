@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // reset ends every piece the view draws, so nothing it set leaks into what

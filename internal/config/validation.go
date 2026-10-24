@@ -8,8 +8,8 @@ import (
 	"unicode"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/theme"
 )
 
 // clockFormatSample renders a layout against a fixed time, so a warning can say

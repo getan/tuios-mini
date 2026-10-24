@@ -6,8 +6,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/Gaurav-Gosain/tuios/internal/review"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/review"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // The checkpoint verbs: list a pane's checkpoints, read what one turn

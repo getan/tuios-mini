@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/skills"
+	"github.com/getan/tuios-mini/skills"
 )
 
 // A skill that documents a command the binary does not have is worse than no

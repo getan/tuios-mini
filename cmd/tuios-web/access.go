@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/Gaurav-Gosain/sip"
-	"github.com/Gaurav-Gosain/tuios/internal/netutil"
+	"github.com/getan/tuios-mini/internal/netutil"
 )
 
 // Who may open a session.

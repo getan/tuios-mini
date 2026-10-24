@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // The render trace is a diagnostic for panes that go blank when focus moves to

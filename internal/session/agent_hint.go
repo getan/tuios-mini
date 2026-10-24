@@ -3,7 +3,7 @@ package session
 import (
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/procinfo"
 )
 
 // AgentHintEnv is the environment variable a wrapper sets to name the harness

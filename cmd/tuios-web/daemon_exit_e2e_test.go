@@ -13,8 +13,8 @@ import (
 	"github.com/Gaurav-Gosain/sip"
 	"github.com/coder/websocket"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // The sip wire protocol, as the browser speaks it. The first byte of every

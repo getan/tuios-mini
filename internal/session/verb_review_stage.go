@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/review"
+	"github.com/getan/tuios-mini/internal/review"
 )
 
 // review-stage: staging and unstaging a pane's changes by file, by hunk and by

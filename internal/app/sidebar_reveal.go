@@ -1,6 +1,6 @@
 package app
 
-import "github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+import "github.com/getan/tuios-mini/internal/sessiontree"
 
 // The rail is a map of what is open, and a map that scrolls the place you just
 // went to off its own edge is a list you lose your place in. Focusing a pane

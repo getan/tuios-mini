@@ -1,7 +1,7 @@
 package terminal
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/debuglog"
 	"tuios.dev/vt"
 )
 

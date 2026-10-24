@@ -3,7 +3,7 @@ package app
 import (
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // Config writes in order.

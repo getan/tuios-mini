@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	modulePath = "github.com/Gaurav-Gosain/tuios"
+	modulePath = "github.com/getan/tuios-mini"
 	allowExec  = "//tuios:allow-exec"
 )
 

@@ -10,9 +10,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	"github.com/Gaurav-Gosain/tuios/internal/risk"
+	"github.com/getan/tuios-mini/internal/harness"
+	"github.com/getan/tuios-mini/internal/integration"
+	"github.com/getan/tuios-mini/internal/risk"
 )
 
 // Risky approvals and plans: the daemon's half.

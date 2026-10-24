@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/procinfo"
 )
 
 // readParentAndOwner returns a process's parent pid and the user that owns it,

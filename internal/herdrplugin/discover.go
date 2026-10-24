@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/winpath"
+	"github.com/getan/tuios-mini/internal/winpath"
 )
 
 // Where a plugin was found.

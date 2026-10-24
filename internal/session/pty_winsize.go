@@ -3,7 +3,7 @@ package session
 import (
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/ptyspawn"
+	"github.com/getan/tuios-mini/internal/ptyspawn"
 )
 
 // Resizes of the real PTY are coalesced. Every write of a new window size is a

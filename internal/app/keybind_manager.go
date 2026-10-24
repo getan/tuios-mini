@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/pkg/fuzzy"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/pkg/fuzzy"
 )
 
 // The keybind manager's tabs. Four surfaces over one analysis: what is bound,

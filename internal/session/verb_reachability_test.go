@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pastebuf"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/pastebuf"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // This file answers for the socket what the reachability table answers for the

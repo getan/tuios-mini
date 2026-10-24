@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/integration"
+	"github.com/getan/tuios-mini/internal/session"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

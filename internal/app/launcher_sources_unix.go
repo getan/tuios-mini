@@ -2,7 +2,7 @@
 
 package app
 
-import "github.com/Gaurav-Gosain/tuios/pkg/applist"
+import "github.com/getan/tuios-mini/pkg/applist"
 
 // scanLauncherSources rescans everything the launcher can start and returns one
 // merged list.

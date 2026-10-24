@@ -76,8 +76,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/integration"
+	"github.com/getan/tuios-mini/internal/procinfo"
 )
 
 // herdrMaxRequest bounds one request line, as herdr's 1 MiB cap does. A

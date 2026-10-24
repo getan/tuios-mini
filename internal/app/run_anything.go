@@ -6,8 +6,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/pkg/applist"
+	"github.com/getan/tuios-mini/internal/terminal"
+	"github.com/getan/tuios-mini/pkg/applist"
 )
 
 // PaletteCategoryRun is the category tag on the palette row that opens the

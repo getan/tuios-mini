@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/Gaurav-Gosain/tuios/internal/stopevent"
+	"github.com/getan/tuios-mini/internal/stopevent"
 	"golang.org/x/sys/windows"
 )
 

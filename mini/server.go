@@ -16,10 +16,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/mini/control"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/guestenv"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/mini/control"
 )
 
 const (

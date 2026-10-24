@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // A link to one server must not reach another server's state: the grants

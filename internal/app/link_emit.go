@@ -8,9 +8,9 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hints"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/getan/tuios-mini/internal/hints"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // tuios draws pane content into its own frame, so the outer terminal sees

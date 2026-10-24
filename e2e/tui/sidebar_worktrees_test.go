@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
 	"github.com/Gaurav-Gosain/tuitest"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // The rail's worktree groups, end to end: a throwaway repository, two

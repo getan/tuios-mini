@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/childproc"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/childproc"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // Staging: the diffs of a worktree's index, and moving changes between the

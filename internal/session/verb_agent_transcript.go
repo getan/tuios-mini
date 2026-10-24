@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
-	"github.com/Gaurav-Gosain/tuios/internal/transcript"
-	"github.com/Gaurav-Gosain/tuios/internal/transcriptview"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/harness"
+	"github.com/getan/tuios-mini/internal/transcript"
+	"github.com/getan/tuios-mini/internal/transcriptview"
 )
 
 // agent-transcript: the agent's conversation, for the person.

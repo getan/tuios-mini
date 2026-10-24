@@ -18,10 +18,10 @@ import (
 	"charm.land/lipgloss/v2"
 	xpty "github.com/charmbracelet/x/xpty"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
-	"github.com/Gaurav-Gosain/tuios/internal/ptyspawn"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/ptyspawn"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 	"tuios.dev/vt"
 )
 

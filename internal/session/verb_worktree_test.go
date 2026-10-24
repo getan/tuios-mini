@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/testutil"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // Every test here works on a repository testutil.GitRepo made under the test's

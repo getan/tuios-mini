@@ -13,7 +13,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/release"
+	"github.com/getan/tuios-mini/internal/release"
 	"tuios.dev/vt"
 )
 

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
 	"github.com/Gaurav-Gosain/tuitest"
+	"github.com/getan/tuios-mini/internal/fuzz"
 )
 
 // The other end of the fuzzer: the same action alphabet, replayed against a real

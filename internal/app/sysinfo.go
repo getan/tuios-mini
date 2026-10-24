@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 	"github.com/shirou/gopsutil/v4/mem"
 )
 

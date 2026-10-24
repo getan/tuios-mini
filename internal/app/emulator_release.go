@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/memtrim"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/memtrim"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // emulatorReleaseEvery is how often the client drops its panes' spare

@@ -15,9 +15,9 @@ import (
 
 	"github.com/charmbracelet/x/xpty"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
-	"github.com/Gaurav-Gosain/tuios/mini"
+	"github.com/getan/tuios-mini/internal/terminal"
+	"github.com/getan/tuios-mini/internal/testutil"
+	"github.com/getan/tuios-mini/mini"
 )
 
 // TestRunDrawsAPaneInAPTY is the whole thing at once, on a real pty: a real

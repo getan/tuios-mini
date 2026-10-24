@@ -17,9 +17,9 @@ import (
 	"github.com/adrg/xdg"
 	"golang.org/x/term"
 
-	"github.com/Gaurav-Gosain/tuios/internal/cellsize"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/cellsize"
+	"github.com/getan/tuios-mini/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // HostCapabilities holds information about the host terminal's capabilities.

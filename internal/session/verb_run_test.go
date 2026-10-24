@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/getan/tuios-mini/internal/hooks"
 )
 
 // fakeIntegratedShell is a shell with OSC 133 prompt integration in a few lines

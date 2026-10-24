@@ -9,10 +9,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/memtrim"
-	"github.com/Gaurav-Gosain/tuios/internal/refreshrate"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/memtrim"
+	"github.com/getan/tuios-mini/internal/refreshrate"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // frameRate is what the model keeps to drive the program's frame ticker and

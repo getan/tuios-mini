@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pastebuf"
+	"github.com/getan/tuios-mini/internal/pastebuf"
 )
 
 // PasteBuffersConfig is the [paste_buffers] table: how many yanks tuios keeps

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
+	"github.com/getan/tuios-mini/internal/atomicfile"
 )
 
 // A look (see config.ParseLook) may carry a theme and a glyph set. A stranger

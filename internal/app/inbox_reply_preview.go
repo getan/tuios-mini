@@ -18,8 +18,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/composer"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/composer"
+	"github.com/getan/tuios-mini/internal/theme"
 	"tuios.dev/shot/mosaic"
 )
 

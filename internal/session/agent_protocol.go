@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/agentproto"
+	"github.com/getan/tuios-mini/internal/agentproto"
 )
 
 // Protocol panes: an agent start-agent runs headless, over ACP or the Codex

@@ -3,8 +3,8 @@ package session
 import (
 	"os"
 
-	"github.com/Gaurav-Gosain/tuios/internal/ghpr"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/ghpr"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // A worktree session is a session whose directory is a linked git worktree.

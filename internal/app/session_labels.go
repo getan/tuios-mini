@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // adoptSessionLabels copies the daemon-owned labels off a state push. They are

@@ -14,8 +14,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/atomicfile"
+	"github.com/getan/tuios-mini/internal/theme"
 )
 
 // Looks.

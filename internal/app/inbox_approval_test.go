@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // heldApproval is an approval item the Inbox is holding for an answer.

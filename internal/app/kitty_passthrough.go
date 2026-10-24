@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/debuglog"
 	"tuios.dev/vt"
 )
 

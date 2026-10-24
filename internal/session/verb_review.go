@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/diffview"
-	"github.com/Gaurav-Gosain/tuios/internal/gitstate"
-	"github.com/Gaurav-Gosain/tuios/internal/review"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/diffview"
+	"github.com/getan/tuios-mini/internal/gitstate"
+	"github.com/getan/tuios-mini/internal/review"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // Review: the diff of what an agent changed, the notes the person leaves on

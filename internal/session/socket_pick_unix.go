@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sockpath"
+	"github.com/getan/tuios-mini/internal/sockpath"
 	"golang.org/x/term"
 )
 

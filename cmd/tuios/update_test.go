@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/release"
+	"github.com/getan/tuios-mini/internal/release"
 )
 
 // Nothing here touches the network. The release lookup is behind

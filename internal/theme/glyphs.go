@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // A glyph set is the other half of a rice. A theme says what colour the chrome

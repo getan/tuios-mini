@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // The verbs that read a shell's commands: run, wait-for command-finished and

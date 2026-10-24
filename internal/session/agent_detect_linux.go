@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/procinfo"
 )
 
 // The Linux half of the foreground-process resolver: everything here is procfs.

@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sortx"
+	"github.com/getan/tuios-mini/internal/sortx"
 )
 
 // Pasting an image into a pane.

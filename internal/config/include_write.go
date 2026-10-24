@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pathroot"
+	"github.com/getan/tuios-mini/internal/pathroot"
 	"github.com/pelletier/go-toml/v2"
 )
 

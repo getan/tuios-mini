@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/herdrplugin"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/herdrplugin"
 )
 
 // herdr's plugin.* socket methods and popup.close, answered by the plugin

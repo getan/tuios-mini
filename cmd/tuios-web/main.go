@@ -17,15 +17,15 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/Gaurav-Gosain/sip"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/cliflags"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/fang"
-	"github.com/Gaurav-Gosain/tuios/internal/netutil"
-	"github.com/Gaurav-Gosain/tuios/internal/served"
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/cliflags"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/fang"
+	"github.com/getan/tuios-mini/internal/netutil"
+	"github.com/getan/tuios-mini/internal/served"
+	"github.com/getan/tuios-mini/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/session"
 	"github.com/spf13/cobra"
 )
 

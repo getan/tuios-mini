@@ -4,9 +4,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/listnav"
-	"github.com/Gaurav-Gosain/tuios/pkg/applist"
-	"github.com/Gaurav-Gosain/tuios/pkg/fuzzy"
+	"github.com/getan/tuios-mini/internal/listnav"
+	"github.com/getan/tuios-mini/pkg/applist"
+	"github.com/getan/tuios-mini/pkg/fuzzy"
 )
 
 // The launcher is its own overlay rather than a tier inside the command

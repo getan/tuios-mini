@@ -3,7 +3,7 @@ package terminal
 import (
 	"image/color"
 
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/theme"
 	"tuios.dev/vt"
 )
 

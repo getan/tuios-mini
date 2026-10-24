@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/Gaurav-Gosain/tuitest"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // dockRowText is the dock's content row, found by the workspace readout the bar

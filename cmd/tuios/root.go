@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/Gaurav-Gosain/tuios/skills"
+	"github.com/getan/tuios-mini/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/theme"
+	"github.com/getan/tuios-mini/skills"
 	tint "github.com/lrstanley/bubbletint/v2"
 	"github.com/spf13/cobra"
 )

@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pastebuf"
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
+	"github.com/getan/tuios-mini/internal/pastebuf"
+	"github.com/getan/tuios-mini/internal/plural"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
