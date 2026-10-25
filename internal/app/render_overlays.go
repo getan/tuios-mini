@@ -93,11 +93,16 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 	}
 
 	if len(m.GetVisibleWindows()) == 0 && m.ViewContentWidth() > 0 && m.ViewUsableHeight() > 0 {
-		asciiArt := ` ████  ███  █     ████  █████ ████
-██    █   █ █     █   █ █     █   █
-██ ██ █   █ █     █   █ ████  ████
-██  █ █   █ █     █   █ █     █  █
- ████  ███  █████ ████  █████ █   █`
+		// The same ANSI Shadow wordmark as golder's agent startup logo. The
+		// shadow strokes make the mark six rows tall and 50 columns wide; it is
+		// not bold, because a bold run can make the terminal substitute a face
+		// that lacks the double-line glyphs.
+		asciiArt := ` ██████╗  ██████╗ ██╗     ██████╗ ███████╗██████╗
+██╔════╝ ██╔═══██╗██║     ██╔══██╗██╔════╝██╔══██╗
+██║  ███╗██║   ██║██║     ██║  ██║█████╗  ██████╔╝
+██║   ██║██║   ██║██║     ██║  ██║██╔══╝  ██╔══██╗
+╚██████╔╝╚██████╔╝███████╗██████╔╝███████╗██║  ██║
+ ╚═════╝  ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝`
 
 		// The splash is the first thing anyone sees, at whatever width. It
 		// carries the product brand, the category, and a quiet credit to the
@@ -105,7 +110,7 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		// each side, so on anything narrower than the wordmark plus that frame
 		// the title drops to plain text instead of running under the border.
 		const (
-			artCols      = 35
+			artCols      = 50
 			subtitleCols = 15
 			creditCols   = 21
 			boxCols      = 6 // both borders, both paddings
@@ -127,10 +132,11 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		if avail < artCols || availRows < 12 {
 			titleText = "GOLDER"
 		}
-		title := lipgloss.NewStyle().
-			Foreground(ui.Accent).
-			Bold(true).
-			Render(titleText)
+		titleStyle := lipgloss.NewStyle().Foreground(ui.Accent)
+		if titleText == "GOLDER" {
+			titleStyle = titleStyle.Bold(true)
+		}
+		title := titleStyle.Render(titleText)
 
 		parts := []string{title}
 

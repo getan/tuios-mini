@@ -25,7 +25,7 @@ func splashLayer(t *testing.T, m *OS) *lipgloss.Layer {
 func TestSplashUsesTheGolderBrand(t *testing.T) {
 	m := newNarrowOS(t, 120, 40)
 	content := splashLayer(t, m).GetContent()
-	for _, want := range []string{"AGENT WORKSPACE", "powered by tuios-mini"} {
+	for _, want := range []string{"AGENT WORKSPACE", "powered by tuios-mini", "╚██████╔╝"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("splash does not carry %q:\n%s", want, content)
 		}
