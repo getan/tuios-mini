@@ -43,6 +43,30 @@ func TestDockWorkspaceAddTabOpensTheNextFreeOne(t *testing.T) {
 	}
 }
 
+// TestDockWorkspaceAddTabSkipsNamedEmptyWorkspaces keeps a name as a claim on
+// the workspace. A named workspace with no panes is reachable from the switcher
+// and must not be handed to the unrelated tab the "+" creates.
+func TestDockWorkspaceAddTabSkipsNamedEmptyWorkspaces(t *testing.T) {
+	m := dockTabTestOS(t, 1, 1)
+	m.NumWorkspaces = 3
+	m.WorkspaceNames = map[int]string{2: "mole"}
+
+	if got := m.nextFreeWorkspace(); got != 3 {
+		t.Fatalf("the + tab chose named workspace 2, got %d", got)
+	}
+
+	m.WorkspaceNames[3] = "trader"
+	if got := m.nextFreeWorkspace(); got != 0 {
+		t.Fatalf("the + tab chose a reserved workspace, got %d", got)
+	}
+	m.renderDockString()
+	for _, h := range m.dockWorkspaceHits {
+		if h.Workspace == 0 {
+			t.Fatal("the add tab is drawn while every free workspace is named")
+		}
+	}
+}
+
 // TestDockWorkspaceAddTabHidesWhenFull keeps the strip honest: with every
 // workspace in use there is nothing to add.
 func TestDockWorkspaceAddTabHidesWhenFull(t *testing.T) {

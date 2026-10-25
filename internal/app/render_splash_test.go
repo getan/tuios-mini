@@ -20,6 +20,34 @@ func splashLayer(t *testing.T, m *OS) *lipgloss.Layer {
 	return nil
 }
 
+// TestSplashUsesTheGolderBrand pins the hierarchy: golder is the product, the
+// subtitle describes the workspace, and tuios-mini is only the engine credit.
+func TestSplashUsesTheGolderBrand(t *testing.T) {
+	m := newNarrowOS(t, 120, 40)
+	content := splashLayer(t, m).GetContent()
+	for _, want := range []string{"AGENT WORKSPACE", "powered by tuios-mini"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("splash does not carry %q:\n%s", want, content)
+		}
+	}
+	if strings.Contains(content, "Terminal UI Operating System") {
+		t.Error("splash still speaks the engine's old product tagline")
+	}
+}
+
+// The narrow layout drops the block wordmark before the hints. The plain text
+// fallback must still be the product, not the engine.
+func TestSplashFallbackKeepsTheGolderBrand(t *testing.T) {
+	m := newNarrowOS(t, 80, 14)
+	content := splashLayer(t, m).GetContent()
+	if !strings.Contains(content, "GOLDER") {
+		t.Fatalf("narrow splash lost the golder wordmark:\n%s", content)
+	}
+	if strings.Contains(content, "TUIOS") {
+		t.Fatalf("narrow splash still shows the engine as the title:\n%s", content)
+	}
+}
+
 // TestSplashCentersInContentRegion pins the splash to the region the panes get,
 // not the whole screen. Centering on the screen drew the box across the rail's
 // reserved columns and left it visibly off-centre in the part of the desktop

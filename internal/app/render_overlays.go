@@ -93,22 +93,21 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 	}
 
 	if len(m.GetVisibleWindows()) == 0 && m.ViewContentWidth() > 0 && m.ViewUsableHeight() > 0 {
-		asciiArt := `████████╗██╗   ██╗██╗ ██████╗ ███████╗
-╚══██╔══╝██║   ██║██║██╔═══██╗██╔════╝
-   ██║   ██║   ██║██║██║   ██║███████╗
-   ██║   ██║   ██║██║██║   ██║╚════██║
-   ██║   ╚██████╔╝██║╚██████╔╝███████║
-   ╚═╝    ╚═════╝ ╚═╝ ╚═════╝ ╚══════╝`
+		asciiArt := ` ████  ███  █     ████  █████ ████
+██    █   █ █     █   █ █     █   █
+██ ██ █   █ █     █   █ ████  ████
+██  █ █   █ █     █   █ █     █  █
+ ████  ███  █████ ████  █████ █   █`
 
-		// The splash is the first thing anyone sees, at whatever width. Its
-		// three parts have fixed widths (38 columns of block letters, a 28
-		// column subtitle and a 44 column hint line), and the box adds a border
-		// and two columns of padding on each side. All of it needs 74 columns,
-		// so on anything narrower it would run off the right edge with the
-		// border cut away. Drop to what fits instead.
+		// The splash is the first thing anyone sees, at whatever width. It
+		// carries the product brand, the category, and a quiet credit to the
+		// terminal engine. The box adds a border and two columns of padding on
+		// each side, so on anything narrower than the wordmark plus that frame
+		// the title drops to plain text instead of running under the border.
 		const (
-			artCols      = 38
-			subtitleCols = 28
+			artCols      = 35
+			subtitleCols = 15
+			creditCols   = 21
 			boxCols      = 6 // both borders, both paddings
 			boxRows      = 4 // border and padding, top and bottom
 		)
@@ -126,7 +125,7 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		ui := theme.UI()
 		titleText := asciiArt
 		if avail < artCols || availRows < 12 {
-			titleText = "TUIOS"
+			titleText = "GOLDER"
 		}
 		title := lipgloss.NewStyle().
 			Foreground(ui.Accent).
@@ -138,7 +137,13 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		if avail >= subtitleCols && availRows >= 8 {
 			parts = append(parts, "", lipgloss.NewStyle().
 				Foreground(ui.AccentBright).
-				Render("Terminal UI Operating System"))
+				Render("AGENT WORKSPACE"))
+		}
+
+		if avail >= creditCols && availRows >= 10 {
+			parts = append(parts, "", lipgloss.NewStyle().
+				Foreground(ui.FgDim).
+				Render("powered by tuios-mini"))
 		}
 
 		// The hints are packed into as many rows as the width needs, so no

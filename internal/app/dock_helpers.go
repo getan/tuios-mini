@@ -288,11 +288,13 @@ func (m *OS) buildDockWorkspaceTabs() []dockWorkspaceTab {
 	return tabs
 }
 
-// nextFreeWorkspace is the lowest-numbered workspace holding no windows, or 0
-// when every one is in use.
+// nextFreeWorkspace is the lowest-numbered workspace holding no windows and no
+// name, or 0 when every one is in use. A named but empty workspace is listed in
+// the switcher because naming it is what says it is wanted; it must not be
+// silently taken by the trailing "+" tab.
 func (m *OS) nextFreeWorkspace() int {
 	for i := 1; i <= m.NumWorkspaces; i++ {
-		if i != m.dockWorkspace() && m.GetWorkspaceWindowCount(i) == 0 {
+		if i != m.dockWorkspace() && m.GetWorkspaceWindowCount(i) == 0 && m.WorkspaceNames[i] == "" {
 			return i
 		}
 	}
