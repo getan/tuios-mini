@@ -49,9 +49,10 @@ func TestSidebarBandClickNeverReachesPane(t *testing.T) {
 			o.Dragging, o.Resizing, o.InteractionMode)
 	}
 
-	// The same click just past the band is the pane's and starts a drag.
+	// The same click just past the band focuses the pane, without moving it.
+	o.FocusedWindow = -1
 	handleMouseClick(tea.MouseClickMsg(tea.Mouse{X: config.SidebarDefaultWidth + 2, Y: 10, Button: tea.MouseLeft}), o)
-	if !o.Dragging {
+	if o.FocusedWindow != 0 || o.PointerGestureActive() {
 		t.Errorf("click outside the band did not reach the pane")
 	}
 }

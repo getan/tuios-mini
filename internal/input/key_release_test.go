@@ -87,7 +87,7 @@ func TestForwardKeyReleaseToPane(t *testing.T) {
 		// Window management owns the keyboard, so the press never reached the
 		// pane; delivering the release alone would report a key coming up that
 		// the pane was never told went down.
-		{"window mode", pushEventTypes, app.WindowManagementMode, false, tea.KeyReleaseMsg{Code: 'a', Text: "a"}, ""},
+		{"legacy mode does not gate input", pushEventTypes, app.WindowManagementMode, false, tea.KeyReleaseMsg{Code: 'a', Text: "a"}, "\x1b[97;1:3u"},
 	}
 
 	for _, tt := range tests {

@@ -99,7 +99,7 @@ func twoWorkspaceOS(t *testing.T, shared bool) *OS {
 func separatorCarriesFocusColor(t *testing.T, m *OS) bool {
 	t.Helper()
 	focusColor := theme.BorderFocusedWindow()
-	if m.Mode == TerminalMode {
+	if m.FocusedPaneOwnsInput() {
 		focusColor = theme.BorderFocusedTerminal()
 	}
 	want := sgrForeground(focusColor)

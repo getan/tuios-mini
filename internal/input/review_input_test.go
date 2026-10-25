@@ -70,7 +70,7 @@ func TestReviewKeyOnAnOlderDaemonReachesThePane(t *testing.T) {
 	if len(verbs) != 1 {
 		t.Fatalf("ctrl+b v asked an older daemon again: %v", verbs)
 	}
-	if string(*typed) != "v" {
-		t.Fatalf("ctrl+b v on an older daemon typed %q into the pane, want v", *typed)
+	if string(*typed) != "" {
+		t.Fatalf("unsupported workspace command leaked into the pane: %q", *typed)
 	}
 }

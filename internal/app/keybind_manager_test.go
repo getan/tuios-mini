@@ -21,6 +21,7 @@ func keybindOS(t *testing.T) *OS {
 // before it.
 func TestBindingTakesEffectWithoutARestart(t *testing.T) {
 	m := keybindOS(t)
+	m.UserConfig.Keybindings.TerminalMode["terminal_next_window"] = []string{"ctrl+alt+f8"}
 	m.KeybindArmFor(config.SectionTerminalMode, "terminal_next_window")
 	m.KeybindCapture("ctrl+alt+f9")
 	m.KeybindCommitBinding()

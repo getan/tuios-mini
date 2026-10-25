@@ -223,7 +223,7 @@ func (r *KeybindRegistry) Fate(key string, facts PaneFacts) KeyFate {
 	fate := KeyFate{Key: key, ReadAs: readAs(key)}
 
 	for _, b := range r.Bindings() {
-		if !b.Unbound && lookupForm(b.Key) == want {
+		if !b.Unbound && !b.Inactive && lookupForm(b.Key) == want {
 			fate.Acts = append(fate.Acts, b)
 		}
 	}

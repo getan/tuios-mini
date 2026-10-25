@@ -719,28 +719,29 @@ func (m *OS) buildDockLeftText() (modeLabel, trail, tape string, width int, mode
 		// too. See renderOverlays.
 		modeInfo.Color = theme.UI().Warning
 		modeLabel = m.Settings.GetDockModeIconPrefix()
+	case m.hints != nil:
+		modeInfo.Color = theme.DockColorCopy()
+		modeLabel = "HINTS"
+	case m.InputOverlayOpen():
+		modeInfo.Color = theme.UI().Accent
+		modeLabel = "DIALOG"
 	case m.SidebarFocused:
 		// The rail owns the keyboard: the mode pill is the authoritative "who has
 		// input" indicator, so it says so in accent, outranking the pane mode.
 		modeInfo.Color = theme.UI().Accent
 		modeLabel = "SIDEBAR"
-	case m.HoldModeActive():
-		// A momentary mode has to read differently from the mode it borrows.
-		// Window mode entered by holding a key ends the moment the key is let
-		// go, and the pill is the only place that says so.
-		modeInfo.Color = theme.DockColorWindow()
-		modeLabel = m.Settings.GetDockModeIconWindow() + " HOLD"
-	case m.hints != nil:
-		// Hints mode owns the keyboard, so the pill names it. The legend at
-		// the dock's other end says what its keys do.
-		modeInfo.Color = theme.DockColorCopy()
-		modeLabel = "HINTS"
+	case m.paneInputPending():
+		modeInfo.Color = theme.UI().Warning
+		modeLabel = "OPENING"
+	case m.PointerGestureActive():
+		modeInfo.Color = theme.UI().Accent
+		modeLabel = "MOVE"
 	case focusedWindow != nil && m.MultiCopy.Has(focusedWindow.ID):
 		// Multi copy mode is held from either mode, so it names itself in
 		// both: how many panes it drives, and after a search how many matched.
 		modeInfo.Color = theme.DockColorMultifocus()
 		modeLabel, _ = m.multiCopyPill()
-	case m.Mode == TerminalMode:
+	case focusedWindow != nil:
 		if focusedWindow.CopyModeVisible() {
 			// Copy mode
 			modeInfo.Color = theme.DockColorCopy()
@@ -748,24 +749,15 @@ func (m *OS) buildDockLeftText() (modeLabel, trail, tape string, width int, mode
 			modeLabel = " " + modeInfo.CursorPos + " "
 
 		} else {
-			// Terminal mode
+			// A focused pane is ready for typing, without a mode transition.
 			modeInfo.Color = theme.DockColorTerminal()
 			// Add tiling indicator for terminal mode (with split direction)
-			if m.AutoTiling {
-				modeLabel = m.Settings.GetDockModeIconTiling() + modeInfo.NextSplit
-			} else {
-				modeLabel = m.Settings.GetDockModeIconTerminal()
-			}
+			modeLabel = "PANE"
 		}
 	default:
-		// Window mode
+		// No pane owns the keyboard on an empty workspace.
 		modeInfo.Color = theme.DockColorWindow()
-		// Add tiling indicator for window mode (with split direction)
-		if m.AutoTiling {
-			modeLabel = m.Settings.GetDockModeIconTiling() + modeInfo.NextSplit
-		} else {
-			modeLabel = m.Settings.GetDockModeIconWindow()
-		}
+		modeLabel = "HOME"
 	}
 
 	// Add zoom indicator. The workspace's zoomed pane, not the focused one: the

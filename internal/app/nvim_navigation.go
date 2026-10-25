@@ -77,7 +77,7 @@ func (m *OS) onNvimNavigation(msg NvimNavigationMsg) {
 		return
 	}
 	focused := m.GetFocusedWindow()
-	if m.Mode != TerminalMode || focused == nil || focused.ID != msg.WindowID ||
+	if !m.FocusedPaneOwnsInput() || focused == nil || focused.ID != msg.WindowID ||
 		!m.NvimNavigatorActive() || !m.matchesPendingNvimNavigation(msg) {
 		return
 	}

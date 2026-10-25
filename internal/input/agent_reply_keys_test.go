@@ -61,7 +61,9 @@ func (q *queueRecorder) lastText() string {
 func pressRun(t *testing.T, o *app.OS, spec string) *app.OS {
 	t.Helper()
 	o, cmd := HandleKeyPress(keyEventFor(t, spec), o)
-	if cmd != nil {
+	// A leader now returns its expiry timer. A real program runs it
+	// concurrently; do not wait out that timer before pressing the next key.
+	if cmd != nil && !o.PrefixActive {
 		if msg := cmd(); msg != nil {
 			o.Update(msg)
 		}

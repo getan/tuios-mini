@@ -73,6 +73,12 @@ func TestKeybindsListCoversEveryActionAndDefault(t *testing.T) {
 					scopeOf[sec] = s
 				}
 			}
+			inactive := map[[3]string]bool{}
+			for _, b := range config.NewKeybindRegistry(cfg).Bindings() {
+				if b.Inactive {
+					inactive[[3]string{b.Section, b.Action, b.Key}] = true
+				}
+			}
 			for _, sec := range keybindingSectionTags(t) {
 				scope, ok := scopeOf[sec]
 				if !ok {
@@ -89,6 +95,12 @@ func TestKeybindsListCoversEveryActionAndDefault(t *testing.T) {
 							press = scope.Chord + " " + key
 						}
 						k := [2]string{scope.Name, action}
+						if inactive[[3]string{sec, action, key}] {
+							if cellsHold(textCells[k], press) || cellsHold(jsonCells[k], press) {
+								t.Errorf("retired window-mode key %s is still advertised as active", press)
+							}
+							continue
+						}
 						if !cellsHold(textCells[k], press) {
 							t.Errorf("text list: %s %s lacks default key %q (cells %q)", scope.Name, action, press, textCells[k])
 						}

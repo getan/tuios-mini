@@ -94,14 +94,14 @@ func TestAltDragGivesTypingBackWhenThePaneLands(t *testing.T) {
 	o.Mode = app.TerminalMode
 
 	handleMouseClick(altClickMsg(cx, cy), o)
-	if o.Mode != app.WindowManagementMode {
-		t.Fatalf("mode = %v during the drag, want window management", o.Mode)
+	if o.InputTarget() != app.InputPointer {
+		t.Fatalf("input target = %v during the drag, want pointer", o.InputTarget())
 	}
 	handleMouseMotion(altMotionMsg(cx+15, cy+4), o)
 	handleMouseRelease(altReleaseMsg(cx+15, cy+4), o)
 
-	if o.Mode != app.TerminalMode {
-		t.Errorf("mode = %v after the drop, want the terminal mode the gesture interrupted", o.Mode)
+	if o.InputTarget() != app.InputPane {
+		t.Errorf("input target = %v after the drop, want pane", o.InputTarget())
 	}
 }
 
@@ -274,7 +274,7 @@ func TestAltDragLeavesAZoomedPaneAlone(t *testing.T) {
 
 	handleMouseClick(altClickMsg(cx, cy), o)
 
-	if o.Dragging {
+	if left.IsBeingManipulated || o.PointerGestureActive() {
 		t.Error("alt+left grabbed a zoomed pane")
 	}
 }

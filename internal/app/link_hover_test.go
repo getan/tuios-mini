@@ -110,8 +110,8 @@ func TestLinkHoverYieldsToAMouseTrackingGuest(t *testing.T) {
 	// Window management mode is tuios's own, so the pane does not own the
 	// pointer there even with reporting on.
 	m.Mode = WindowManagementMode
-	if !m.LinkHoverAt(sx, sy) {
-		t.Error("window management mode handed the pointer to the guest")
+	if m.LinkHoverAt(sx, sy) {
+		t.Error("a legacy mode value took the pointer away from the guest")
 	}
 
 	// link_hover = "always" hands the call to the user: the same setup that

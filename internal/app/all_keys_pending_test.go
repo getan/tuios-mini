@@ -44,7 +44,10 @@ func TestAllKeysPending(t *testing.T) {
 
 // TestPaneKeysDown pins the press record key releases are matched against.
 func TestPaneKeysDown(t *testing.T) {
-	o := &OS{}
+	o := inputTargetOS(t)
+	o.Windows[0].ID = "w1"
+	o.Windows[0].Terminal.Write([]byte("\x1b[>11u"))
+	o.KeyboardFlags = 31
 	if _, ok := o.TakePaneKeyDown('a'); ok {
 		t.Fatal("a key no pane saw pressed counts as down")
 	}

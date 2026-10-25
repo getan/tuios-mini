@@ -31,7 +31,12 @@ func altArrow(dir string) tea.KeyPressMsg {
 //	+--------+--------+
 func focusLayout(t *testing.T, override func(*config.KeybindingsConfig)) *app.OS {
 	t.Helper()
-	o := osWithBindings(t, override)
+	o := osWithBindings(t, func(k *config.KeybindingsConfig) {
+		for _, dir := range []string{"left", "right", "up", "down"} {
+			k.TerminalMode["terminal_focus_"+dir] = []string{"alt+" + dir}
+		}
+		override(k)
+	})
 	o.Width, o.Height = 120, 40
 	ws := o.CurrentWorkspace
 	o.Windows = []*terminal.Window{
@@ -137,7 +142,9 @@ func TestEachAltArrowIsDisabledIndependently(t *testing.T) {
 			}
 
 			// The bound key is intercepted and types nothing.
-			o2, pty2 := osWithFocusedPane(t, config.DefaultConfig(), app.TerminalMode)
+			bound := config.DefaultConfig()
+			bound.Keybindings.TerminalMode[action] = []string{"alt+" + dir}
+			o2, pty2 := osWithFocusedPane(t, bound, app.TerminalMode)
 			o2, _ = HandleKeyPress(altArrow(dir), o2)
 			if len(pty2.got) != 0 {
 				t.Errorf("bound alt+%s typed %q into the shell", dir, pty2.got)
@@ -148,7 +155,10 @@ func TestEachAltArrowIsDisabledIndependently(t *testing.T) {
 }
 
 func TestNvimNavigatorDoesNotBypassVisualModeFocus(t *testing.T) {
-	o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.WindowManagementMode)
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_focus_right"] = []string{"alt+right"}
+	o, pty := osWithFocusedPane(t, cfg, app.WindowManagementMode)
+	o.Settings.NvimNavigation = false
 	o.Windows = append(o.Windows, &terminal.Window{
 		ID: "other", X: 90, Y: 0, Width: 60, Height: 24, Workspace: o.CurrentWorkspace,
 	})
@@ -165,7 +175,9 @@ func TestNvimNavigatorDoesNotBypassVisualModeFocus(t *testing.T) {
 }
 
 func TestNvimNavigatorFocusRequestMustFollowForwardedKey(t *testing.T) {
-	o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.TerminalMode)
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_focus_right"] = []string{"alt+right"}
+	o, pty := osWithFocusedPane(t, cfg, app.TerminalMode)
 	o.Settings.NvimNavigation = true
 	o.Windows = append(o.Windows, &terminal.Window{
 		ID: "other", X: 90, Y: 0, Width: 60, Height: 24, Workspace: o.CurrentWorkspace,
@@ -192,6 +204,7 @@ func TestNvimNavigatorFocusRequestMustFollowForwardedKey(t *testing.T) {
 
 func TestDisabledNvimNavigationKeepsFocusKeysForTuios(t *testing.T) {
 	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_focus_right"] = []string{"alt+right"}
 	*cfg.Appearance.NvimNavigation = false
 	o, pty := osWithFocusedPane(t, cfg, app.TerminalMode)
 	o.Settings.NvimNavigation = false
@@ -246,13 +259,16 @@ func TestAltArrowsResolveInAConfigPredatingThem(t *testing.T) {
 		"up":    "terminal_focus_up",
 		"down":  "terminal_focus_down",
 	} {
-		if got := r.GetTerminalModeAction("alt+" + dir); got != want {
-			t.Errorf("alt+%s resolved to %q, want %q", dir, got, want)
+		if got := r.GetTerminalModeAction("alt+" + dir); got != "" {
+			t.Errorf("alt+%s was not handed back to the pane: %q", dir, got)
+		}
+		if got := r.GetPrefixAction(dir); got != want {
+			t.Errorf("leader %s resolved to %q, want %q", dir, got, want)
 		}
 	}
 	// The user's own binding survives the fill.
-	if got := r.GetTerminalModeAction("alt+n"); got != "terminal_next_window" {
-		t.Errorf("alt+n resolved to %q, want terminal_next_window", got)
+	if got := r.GetTerminalModeAction("alt+n"); got != "" {
+		t.Errorf("old default alt+n is still intercepted: %q", got)
 	}
 }
 

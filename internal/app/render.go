@@ -227,7 +227,7 @@ func (m *OS) GetCanvas(render bool) *frameCanvas {
 			// Copy mode or an agent that waits, in a colour the theme names
 			// for it, outranks the mode and the session.
 			borderColorObj = stateColor
-		case isFocused && m.Mode == TerminalMode:
+		case isFocused && m.FocusedPaneOwnsInput():
 			// The mode colour outranks the session's. This border says the keys
 			// are going into the guest, which is the more urgent fact and the
 			// one a person checks before typing.
@@ -581,7 +581,7 @@ func rendersBorderless(window *terminal.Window) bool {
 // window is borderless. Shared by the compositor path and the fullscreen fast
 // path so both produce identical output.
 func (m *OS) renderWindowBox(window *terminal.Window, index int, isFocused bool, borderColorObj color.Color) string {
-	content := m.renderTerminal(window, isFocused, m.Mode == TerminalMode)
+	content := m.renderTerminal(window, isFocused, m.FocusedPaneOwnsInput())
 	preShaped := !preShapedDisabled &&
 		window.RenderedCols == window.ContentWidth() &&
 		window.RenderedRows == window.ContentHeight()
@@ -1020,7 +1020,7 @@ func (m *OS) buildFullscreenFrame(window *terminal.Window) string {
 	switch {
 	case stateColor != nil:
 		borderColorObj = stateColor
-	case isFocused && m.Mode == TerminalMode:
+	case isFocused && m.FocusedPaneOwnsInput():
 		borderColorObj = theme.BorderFocusedTerminalOn(m.host.bg)
 	case isFocused:
 		borderColorObj = theme.BorderFocusedWindowOn(m.host.bg)

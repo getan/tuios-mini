@@ -144,14 +144,14 @@ func TestResizeBorrowsWindowMode(t *testing.T) {
 	t.Run("started in terminal mode", func(t *testing.T) {
 		o, win := floatingResizeOS(t)
 		armBottomBorderResize(t, o, win)
-		if o.Mode != app.WindowManagementMode {
-			t.Fatalf("mode during resize = %v, want window management", o.Mode)
+		if o.InputTarget() != app.InputPointer {
+			t.Fatalf("input target during resize = %v, want pointer", o.InputTarget())
 		}
 
 		midX := win.X + win.Width/2
 		handleMouseRelease(tea.MouseReleaseMsg{Button: tea.MouseLeft, X: midX, Y: win.Y + win.Height - 3}, o)
-		if o.Mode != app.TerminalMode {
-			t.Errorf("mode after resize = %v, want the terminal mode it started in", o.Mode)
+		if o.InputTarget() != app.InputPane {
+			t.Errorf("input target after resize = %v, want pane", o.InputTarget())
 		}
 	})
 

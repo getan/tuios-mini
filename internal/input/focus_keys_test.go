@@ -124,11 +124,11 @@ func TestJKInAScrollingColumn(t *testing.T) {
 func TestAltUpDownInAScrollingColumn(t *testing.T) {
 	o := scrollingColumn(t)
 	o.Mode = app.TerminalMode
-	o, _ = HandleKeyPress(altArrow("down"), o)
+	o = leader(o, press("down"))
 	if o.FocusedWindow != 1 {
 		t.Fatalf("alt+down focused window %d, want the lower window 1", o.FocusedWindow)
 	}
-	o, _ = HandleKeyPress(altArrow("up"), o)
+	o = leader(o, press("up"))
 	if o.FocusedWindow != 0 {
 		t.Fatalf("alt+up focused window %d, want the upper window 0", o.FocusedWindow)
 	}

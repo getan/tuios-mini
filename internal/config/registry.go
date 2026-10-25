@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -515,7 +516,7 @@ func buildPressesByAction(r *KeybindRegistry) map[string][]string {
 		// took is the lie in its most direct form. An action whose every
 		// binding is dead drops out entirely, which is what the keybind
 		// manager's Conflicts tab is for.
-		if b.Unbound || b.Shadowed || b.Press == "" {
+		if b.Unbound || b.Inactive || b.Shadowed || b.Press == "" {
 			continue
 		}
 		// The rail's keymaps and the playback keymap are live only while
@@ -531,6 +532,24 @@ func buildPressesByAction(r *KeybindRegistry) map[string][]string {
 		}
 		seen[id] = true
 		out[b.Action] = append(out[b.Action], b.Press)
+	}
+	// The palette's command bodies share the implementations of their
+	// leader actions. Show the live chord, never the old bare WM key.
+	for action, prefix := range map[string]string{
+		"new_window": "prefix_new_window", "close_window": "prefix_close_window",
+		"rename_window": "prefix_rename_window", "next_window": "prefix_next_window",
+		"prev_window": "prefix_prev_window", "toggle_help": "prefix_help",
+		"open_settings": "prefix_settings", "quit": "prefix_quit",
+		"toggle_zoom": "prefix_fullscreen", "toggle_tiling": "prefix_toggle_tiling",
+		"split_horizontal": "prefix_split_horizontal", "split_vertical": "prefix_split_vertical",
+		"rotate_split": "prefix_rotate_split", "equalize_splits": "prefix_equalize_splits",
+		"focus_sidebar": "prefix_explore", "toggle_spotlight": "prefix_toggle_spotlight",
+	} {
+		out[action] = append(out[action], out[prefix]...)
+	}
+	for i := 1; i <= 9; i++ {
+		n := strconv.Itoa(i)
+		out["select_window_"+n] = append(out["select_window_"+n], out["prefix_select_"+n]...)
 	}
 	for action, presses := range out {
 		out[action] = slices.Clip(presses)
@@ -796,9 +815,9 @@ var ActionDescriptions = map[string]string{
 	"focus_master":               "Focus the master pane",
 
 	// Mode Control
-	"enter_terminal_mode": "Enter terminal mode",
-	"enter_window_mode":   "Enter window management mode",
-	"hold_window_mode":    "Hold for window management mode",
+	"enter_terminal_mode": "Legacy tape action (focus now owns input)",
+	"enter_window_mode":   "Legacy tape action (cancel workspace command)",
+	"hold_window_mode":    "Retired: use the leader for workspace commands",
 	"toggle_help":         "Toggle help",
 	"open_settings":       "Open settings",
 	"quit":                "Quit",
@@ -870,7 +889,7 @@ var ActionDescriptions = map[string]string{
 	"prefix_window":             "Enter window prefix",
 	"prefix_detach":             "Detach, leave running",
 	"prefix_close_session":      "Close session and panes",
-	"prefix_exit_mode":          "Leave terminal mode",
+	"prefix_exit_mode":          "Cancel workspace command",
 	"prefix_selection":          "Enter copy/scrollback mode",
 	"prefix_help":               "Toggle help",
 	"prefix_debug":              "Enter debug prefix",
@@ -954,9 +973,9 @@ var ActionDescriptions = map[string]string{
 	"debug_prefix_cancel":     "Cancel debug prefix",
 
 	// Terminal Mode (direct keybinds, no prefix required)
-	"terminal_next_window":      "Next window (terminal mode)",
-	"terminal_prev_window":      "Previous window (terminal mode)",
-	"terminal_exit_mode":        "Exit terminal mode (to window mode)",
+	"terminal_next_window":      "Focus next pane",
+	"terminal_prev_window":      "Focus previous pane",
+	"terminal_exit_mode":        "Legacy tape action (cancel workspace command)",
 	"terminal_focus_left":       "Focus the pane to the left",
 	"terminal_focus_right":      "Focus the pane to the right",
 	"terminal_focus_up":         "Focus the pane above",

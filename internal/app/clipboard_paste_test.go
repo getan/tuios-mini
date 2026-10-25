@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 func lastMessage(m *OS) string {
@@ -92,7 +93,8 @@ func TestBrowserPaneMenuDimsPaste(t *testing.T) {
 	}
 
 	local := &OS{Settings: config.DefaultSettings(), Mode: TerminalMode, KeybindRegistry: config.NewKeybindRegistry(config.DefaultConfig())}
-	_, items := local.paneMenu(-1)
+	local.Windows = []*terminal.Window{{ID: "paste-target"}}
+	_, items := local.paneMenu(0)
 	row, ok := find(items, "paste_clipboard")
 	if !ok {
 		t.Fatalf("the pane menu has no paste row")

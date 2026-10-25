@@ -114,12 +114,12 @@ func TestCaptureEntryRestoresTheMode(t *testing.T) {
 	m := shotOS(t)
 	m.Mode = TerminalMode
 	m.BeginCapture(false)
-	if m.Mode != WindowManagementMode {
+	if m.InputTarget() != InputOverlay {
 		t.Error("capture mode did not take the keyboard off the pane")
 	}
 	m.EndCapture()
-	if m.Mode != TerminalMode {
-		t.Errorf("mode came back as %v, want terminal mode", m.Mode)
+	if m.InputTarget() == InputOverlay || m.PointerGestureActive() {
+		t.Errorf("capture kept input after ending: %v", m.InputTarget())
 	}
 }
 

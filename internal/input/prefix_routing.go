@@ -35,14 +35,15 @@ func runPrefix(msg tea.KeyPressMsg, o *app.OS, lookup sectionLookup) (*app.OS, t
 		return o, nil
 	}
 	action := lookupAction(o, msg, func(key string) string { return lookup(o.KeybindRegistry, key) })
-	m, cmd, _ := dispatchAction(action, msg, o)
+	m, cmd, handled := dispatchAction(action, msg, o)
+	if !handled {
+		o.ShowNotification("Unbound workspace command: "+commandKey(msg), "info", o.Settings.NotificationDuration)
+	}
 	return m, cmd
 }
 
-// HandlePrefixCommand handles the key pressed after the leader key, in either
-// mode. An unbound key falls through to the terminal in terminal mode (so the
-// leader key does not swallow shell input) and is ignored in window-management
-// mode.
+// HandlePrefixCommand handles a key explicitly addressed to the workspace.
+// An unknown command never becomes shell input.
 func HandlePrefixCommand(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	o.PrefixActive = false
 
@@ -70,18 +71,13 @@ func HandlePrefixCommand(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 
-	if o.Mode == app.TerminalMode {
-		// The leader asked the host for every key as an escape code. A
-		// non-ASCII key that still came as bare text beat that switch, so its
-		// base-layout key is missing and the key it was meant as is unknown.
-		// It was typed after the leader, so it is dropped, not typed into the
-		// pane, and the prefix stays pending so the key can be typed again.
-		if o.AllKeysPending() && isLayoutTextWithoutBase(msg) {
-			o.PrefixActive = true
-			return o, nil
-		}
-		forwardKeyToFocusedWindow(msg, o)
+	// A non-Latin key may beat the host's report-all-keys negotiation. Keep
+	// the chord pending in that case so it can be retried, never replayed.
+	if o.AllKeysPending() && isLayoutTextWithoutBase(msg) {
+		o.PrefixActive = true
+		return o, nil
 	}
+	o.ShowNotification("Unbound workspace command: "+commandKey(msg), "info", o.Settings.NotificationDuration)
 	return o, nil
 }
 
@@ -153,7 +149,7 @@ func handleTerminalModeBinds(msg tea.KeyPressMsg, o *app.OS) bool {
 		return false
 	}
 	action := lookupAction(o, msg, o.KeybindRegistry.GetTerminalModeAction)
-	if o.Mode == app.TerminalMode && isTerminalFocusAction(action) && o.ArmNvimNavigation(nvimNavigationDirection(action)) {
+	if o.KeyboardPane() != nil && isTerminalFocusAction(action) && o.ArmNvimNavigation(nvimNavigationDirection(action)) {
 		return false
 	}
 	if _, _, ok := dispatchAction(action, msg, o); ok {
@@ -213,7 +209,7 @@ func isTerminalSafeAction(action string) bool {
 // forwardKeyToFocusedWindow sends a key to the focused window's PTY, using CSI u
 // encoding when the client has the kitty keyboard protocol enabled.
 func forwardKeyToFocusedWindow(msg tea.KeyPressMsg, o *app.OS) {
-	focused := o.GetFocusedWindow()
+	focused := o.KeyboardPane()
 	if focused == nil {
 		return
 	}

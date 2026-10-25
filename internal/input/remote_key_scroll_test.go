@@ -64,8 +64,8 @@ func TestARemoteKeyLeavesAScrolledPaneScrolled(t *testing.T) {
 		wantGuest    string
 	}{
 		{"remote key, explicit copy mode", app.TerminalMode, true, true, true, "j"},
-		{"remote key, window mode", app.WindowManagementMode, false, true, true, ""},
-		{"the person's key, window mode", app.WindowManagementMode, false, false, false, ""},
+		{"remote key, legacy mode", app.WindowManagementMode, false, true, true, "j"},
+		{"the person's key, legacy mode", app.WindowManagementMode, false, false, false, "j"},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {

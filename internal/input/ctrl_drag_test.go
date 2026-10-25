@@ -137,14 +137,13 @@ func TestCtrlDragFromTerminalModeGivesTypingBack(t *testing.T) {
 	if !o.CtrlDragging {
 		t.Fatal("the drag did not commit")
 	}
-	// Window management is correct while the pane is in hand.
-	if o.Mode != app.WindowManagementMode {
-		t.Fatalf("mid-drag mode = %v, want window management", o.Mode)
+	if o.InputTarget() != app.InputPointer {
+		t.Fatalf("mid-drag input target = %v, want pointer", o.InputTarget())
 	}
 
 	handleMouseRelease(ctrlReleaseMsg(cx+10, cy), o)
 
-	if o.Mode != app.TerminalMode {
-		t.Fatalf("after the drop mode = %v, want terminal mode back", o.Mode)
+	if o.InputTarget() != app.InputPane {
+		t.Fatalf("after the drop input target = %v, want pane", o.InputTarget())
 	}
 }

@@ -147,7 +147,7 @@ func handleMouseWheel(msg tea.MouseWheelMsg, o *app.OS) (*app.OS, tea.Cmd) {
 
 	// Forward mouse wheel to terminal if in terminal mode and window has mouse tracking
 	// This allows applications like vim, less, htop to handle their own scrolling
-	if o.Mode == app.TerminalMode {
+	if !o.PointerGestureActive() && !o.InputOverlayOpen() {
 		focusedWindow := o.GetFocusedWindow()
 		if focusedWindow != nil && focusedWindow.Terminal != nil && focusedWindow.Terminal.HasMouseMode() {
 			mouse := msg.Mouse()
@@ -176,7 +176,7 @@ func handleMouseWheel(msg tea.MouseWheelMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	}
 
 	// Handle scrollback in terminal mode
-	if o.Mode == app.TerminalMode {
+	if !o.PointerGestureActive() && !o.InputOverlayOpen() {
 		focusedWindow := o.GetFocusedWindow()
 		if focusedWindow != nil {
 			switch msg.Button {
@@ -184,7 +184,7 @@ func handleMouseWheel(msg tea.MouseWheelMsg, o *app.OS) (*app.OS, tea.Cmd) {
 				if focusedWindow.InCopyMode() {
 					// Already in copy mode: scroll up
 					scrollCopyModeUp(focusedWindow, &o.Settings)
-				} else if o.Mode == app.TerminalMode && focusedWindow.Terminal != nil && !focusedWindow.Terminal.HasMouseMode() && !focusedWindow.IsAltScreen() && focusedWindow.ScrollbackLen() > 0 {
+				} else if focusedWindow.Terminal != nil && !focusedWindow.Terminal.HasMouseMode() && !focusedWindow.IsAltScreen() && focusedWindow.ScrollbackLen() > 0 {
 					// No mouse tracking, not alt screen, and there is history to
 					// show: turn the wheel and the view scrolls. Copy mode is the
 					// only thing that can render scrollback, so it is switched on
@@ -202,29 +202,6 @@ func handleMouseWheel(msg tea.MouseWheelMsg, o *app.OS) (*app.OS, tea.Cmd) {
 					leaveCopyModeAtBottom(focusedWindow)
 				}
 				return o, nil
-			}
-		}
-	}
-
-	// Handle scrollback in window management mode too
-	if o.Mode == app.WindowManagementMode {
-		focusedWindow := o.GetFocusedWindow()
-		if focusedWindow != nil && focusedWindow.Terminal != nil && !focusedWindow.IsAltScreen() {
-			switch msg.Button {
-			case tea.MouseWheelUp:
-				if focusedWindow.InCopyMode() {
-					scrollCopyModeUp(focusedWindow, &o.Settings)
-				} else if focusedWindow.ScrollbackLen() > 0 {
-					// Same silent entry as terminal mode: the wheel scrolls, it
-					// does not put the pane into a mode and teach keys for it.
-					focusedWindow.EnterCopyModeImplicit()
-					scrollCopyModeUp(focusedWindow, &o.Settings)
-				}
-			case tea.MouseWheelDown:
-				if focusedWindow.InCopyMode() {
-					scrollCopyModeDown(focusedWindow, &o.Settings)
-					leaveCopyModeAtBottom(focusedWindow)
-				}
 			}
 		}
 	}

@@ -29,12 +29,7 @@ func forwardKeyReleaseToFocused(msg tea.KeyReleaseMsg, o *app.OS) bool {
 	if !pressed {
 		return false
 	}
-	window := o.GetFocusedWindow()
-	if o.SidebarSessionFocused() && !o.AnyOverlayOpen() {
-		window = o.SidebarSessionWindow()
-	} else if o.Mode != app.TerminalMode {
-		return false
-	}
+	window := o.InputPaneByID(pressedIn)
 	if window == nil || window.Terminal == nil || window.ID != pressedIn {
 		return false
 	}

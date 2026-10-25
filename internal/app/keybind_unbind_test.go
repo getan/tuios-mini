@@ -33,7 +33,10 @@ func selectKeybindRow(t *testing.T, m *OS, query string, match func(config.Bindi
 // UnbindKey and this fails on the surviving-key check.
 func TestUnbindSelectedTakesOneKeyFromOneAction(t *testing.T) {
 	m := keybindOS(t)
-	before := slices.Clone(m.UserConfig.Keybindings.WindowManagement["close_window"])
+	m.UserConfig.Keybindings.TerminalMode["close_window"] = []string{"ctrl+alt+w", "ctrl+alt+x"}
+	m.KeybindRegistry.Reload(m.UserConfig)
+	m.OpenKeybindManager()
+	before := slices.Clone(m.UserConfig.Keybindings.TerminalMode["close_window"])
 	if len(before) < 2 {
 		t.Skip("close_window no longer has two default keys")
 	}
@@ -43,7 +46,7 @@ func TestUnbindSelectedTakesOneKeyFromOneAction(t *testing.T) {
 	})
 	m.KeybindUnbindSelected()
 
-	got := m.UserConfig.Keybindings.WindowManagement["close_window"]
+	got := m.UserConfig.Keybindings.TerminalMode["close_window"]
 	if slices.Contains(got, row.Key) {
 		t.Errorf("close_window still holds %q", row.Key)
 	}
@@ -61,7 +64,10 @@ func TestUnbindSelectedTakesOneKeyFromOneAction(t *testing.T) {
 // row is gone from FilteredKeybindRows and there is nothing left to arm.
 func TestUnbindingTheLastKeyLeavesTheActionRebindable(t *testing.T) {
 	m := keybindOS(t)
-	for _, key := range slices.Clone(m.UserConfig.Keybindings.WindowManagement["close_window"]) {
+	m.UserConfig.Keybindings.TerminalMode["close_window"] = []string{"ctrl+alt+w", "ctrl+alt+x"}
+	m.KeybindRegistry.Reload(m.UserConfig)
+	m.OpenKeybindManager()
+	for _, key := range slices.Clone(m.UserConfig.Keybindings.TerminalMode["close_window"]) {
 		row := selectKeybindRow(t, m, "close_window", func(b config.Binding) bool {
 			return b.Action == "close_window" && b.Key == key
 		})
@@ -80,7 +86,7 @@ func TestUnbindingTheLastKeyLeavesTheActionRebindable(t *testing.T) {
 	m.KeybindArmFor(row.Section, row.Action)
 	m.KeybindCapture("ctrl+alt+w")
 	m.KeybindCommitBinding()
-	if got := m.UserConfig.Keybindings.WindowManagement["close_window"]; !slices.Contains(got, "ctrl+alt+w") {
+	if got := m.UserConfig.Keybindings.TerminalMode["close_window"]; !slices.Contains(got, "ctrl+alt+w") {
 		t.Errorf("close_window = %v after rebinding from its unbound row", got)
 	}
 }

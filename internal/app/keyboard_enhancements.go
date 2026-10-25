@@ -30,6 +30,11 @@ func (m *OS) keyboardEnhancements() tea.KeyboardEnhancements {
 	// xkb repeat it until a release arrives, and it is why the request tracks the
 	// focused pane rather than being fixed at startup.
 	paneFlags := m.PaneKeyboardFlags()
+	if len(m.paneKeysDown) != 0 {
+		// A key pressed in the previous pane still needs its release after a
+		// focus change. Keep requesting releases until the last one comes up.
+		paneFlags |= ansi.KittyReportEventTypes | ansi.KittyReportAllKeysAsEscapeCodes
+	}
 	if paneFlags&ansi.KittyReportEventTypes != 0 {
 		enhancements.ReportEventTypes = true
 		// A terminal only reports the release of a key it sends as an escape
@@ -55,19 +60,6 @@ func (m *OS) keyboardEnhancements() tea.KeyboardEnhancements {
 		enhancements.ReportAllKeysAsEscapeCodes = true
 		enhancements.ReportAssociatedText = true
 	}
-	if !m.HoldModeAvailable() {
-		return enhancements
-	}
-	// Release events are the only honest way to know a key is still down.
-	enhancements.ReportEventTypes = true
-	if m.HoldModeNeedsAllKeys() {
-		// A modifier key is only reported as a key of its own in this mode. It
-		// also stops text being sent as text, so associated-text reporting comes
-		// with it: without that pair, composed and IME input would be lost on
-		// its way to a pane.
-		enhancements.ReportAllKeysAsEscapeCodes = true
-		enhancements.ReportAssociatedText = true
-	}
 	return enhancements
 }
 
@@ -76,28 +68,13 @@ func (m *OS) keyboardEnhancements() tea.KeyboardEnhancements {
 // terminal mode with nothing in front of the pane: no prefix pending or about to
 // repeat, no rail focus, no overlay and no copy mode.
 func (m *OS) KeysGoToBindings() bool {
-	if m.Mode != TerminalMode {
-		return true
-	}
-	if m.PrefixActive || m.WorkspacePrefixActive || m.MinimizePrefixActive ||
-		m.TilingPrefixActive || m.DebugPrefixActive || m.TapePrefixActive ||
-		m.LayoutPrefixActive || m.TuiosPrefixActive || m.PrefixRepeatLive() {
-		return true
-	}
-	if m.SidebarFocused || m.AnyOverlayOpen() || m.ContextMenuActive() ||
-		m.ReviewOpen() || m.Renaming() || m.CaptureActive() ||
-		m.ShowScrollbackBrowser || m.ShowTapeReview || m.ShowTapeManager ||
-		m.ShowLogs || m.ShowCacheStats {
-		return true
-	}
-	window := m.GetFocusedWindow()
-	return window == nil || window.InCopyMode()
+	return m.InputTarget() != InputPane || m.PrefixRepeatLive()
 }
 
 // PaneKeyboardFlags returns the kitty keyboard protocol flags the focused pane
 // has in effect, or zero when no pane is focused or none were pushed.
 func (m *OS) PaneKeyboardFlags() int {
-	window := m.GetFocusedWindow()
+	window := m.FocusedInputPane()
 	if window == nil || window.Terminal == nil {
 		return 0
 	}

@@ -202,7 +202,8 @@ func TestWindowModeWheelIsSilentAndYieldsToBindings(t *testing.T) {
 
 	// toggle_help rather than new_window: both prove the key reached the
 	// dispatcher, and this one does not need a full OS to open a pane on.
-	HandleWindowManagementModeKey(tea.KeyPressMsg{Code: '?', Text: "?"}, o)
+	o.KeybindRegistry = config.NewKeybindRegistry(config.DefaultConfig())
+	leader(o, tea.KeyPressMsg{Code: '?', Text: "?"})
 	if !o.ShowHelp {
 		t.Error("a window-manager binding was swallowed by the scrolled view")
 	}

@@ -893,6 +893,9 @@ type HooksConfig map[string]any
 
 // KeybindingsConfig holds all keybinding configurations
 type KeybindingsConfig struct {
+	// InputVersion marks the focus-input keymap migration. It is not a mode
+	// switch: 1 keeps explicitly rebound former default chords on later loads.
+	InputVersion int `toml:"input_version,omitempty"`
 	// Preset is the keys of another multiplexer, applied over the tuios
 	// defaults: "tuios" (or empty), "tmux". See preset.go.
 	Preset    string `toml:"preset,omitempty"`
@@ -1117,7 +1120,8 @@ func DefaultConfig() *UserConfig {
 		Panes:        defaultPanesConfig(),
 		PasteBuffers: defaultPasteBuffersConfig(),
 		Keybindings: KeybindingsConfig{
-			LeaderKey: "ctrl+b",
+			InputVersion: 1,
+			LeaderKey:    "ctrl+b",
 			WindowManagement: map[string][]string{
 				"new_window": {"n"},
 				// Capital N, one shift away from the n that makes a window.
@@ -1166,10 +1170,8 @@ func DefaultConfig() *UserConfig {
 			Workspaces: getDefaultWorkspaceKeybinds(),
 			Layout:     getDefaultLayoutKeybinds(),
 			ModeControl: map[string][]string{
-				"enter_terminal_mode": {"i", "enter"},
-				"enter_window_mode":   {"esc"},
-				"toggle_help":         {"?"},
-				"quit":                {"q"},
+				"toggle_help": {"?"},
+				"quit":        {"q"},
 				// "," is resize_master_shrink_left by default too. mode_control is
 				// consulted after layout, so settings wins and the doctor reports
 				// the resize bind as dead, which is the honest description of what
@@ -1456,13 +1458,11 @@ func DefaultConfig() *UserConfig {
 			CopyMode:      getDefaultCopyModeKeybinds(),
 			GUI:           getDefaultGUIKeybinds(),
 			Global: map[string][]string{
-				// ctrl+p is fish's history-back and vim's keyword completion, and
-				// alt+space is readline's set-mark. Both are taken on purpose and
-				// both live here rather than in the input path so a user who wants
-				// them back can have them: set the action to [] and the key is
-				// forwarded again.
-				"command_palette": {"ctrl+p"},
-				"launcher":        {"alt+space"},
+				// A focused program owns its ordinary terminal shortcuts. The
+				// palette and launcher remain on leader P and leader a; direct
+				// shortcuts are opt-in rather than stealing Ctrl+P / Alt+Space.
+				"command_palette": {},
+				"launcher":        {},
 			},
 			Script: map[string][]string{
 				"script_pause": {"ctrl+p"},
@@ -1778,13 +1778,12 @@ func getDefaultSidebarFilesKeybinds() map[string][]string {
 func getDefaultTerminalModeKeybinds() map[string][]string {
 	if isMacOS() {
 		return map[string][]string{
-			"terminal_next_window":      {"opt+tab", "alt+n"},
-			"terminal_prev_window":      {"opt+shift+tab", "alt+p"},
-			"terminal_exit_mode":        {"opt+esc"},
-			"terminal_focus_left":       {"alt+left"},
-			"terminal_focus_right":      {"alt+right"},
-			"terminal_focus_up":         {"alt+up"},
-			"terminal_focus_down":       {"alt+down"},
+			"terminal_next_window":      {},
+			"terminal_prev_window":      {},
+			"terminal_focus_left":       {},
+			"terminal_focus_right":      {},
+			"terminal_focus_up":         {},
+			"terminal_focus_down":       {},
 			"terminal_scroll_up":        {"shift+up"},
 			"terminal_scroll_down":      {"shift+down"},
 			"terminal_scroll_page_up":   {"shift+pgup"},
@@ -1793,18 +1792,17 @@ func getDefaultTerminalModeKeybinds() map[string][]string {
 		}
 	}
 	return map[string][]string{
-		"terminal_next_window": {"alt+n"},
-		"terminal_prev_window": {"alt+p"},
-		"terminal_exit_mode":   {"alt+esc"},
+		"terminal_next_window": {},
+		"terminal_prev_window": {},
 		// alt+left and alt+right are word-wise cursor movement in readline, fish
 		// and zsh, and taking them costs a user that. They are bound because
 		// directional focus on the arrows is what zellij and most tiling window
 		// managers do, and because each of the four is a separate action a user
 		// can set to [] to hand back. See docs/KEYBINDINGS.md.
-		"terminal_focus_left":       {"alt+left"},
-		"terminal_focus_right":      {"alt+right"},
-		"terminal_focus_up":         {"alt+up"},
-		"terminal_focus_down":       {"alt+down"},
+		"terminal_focus_left":       {},
+		"terminal_focus_right":      {},
+		"terminal_focus_up":         {},
+		"terminal_focus_down":       {},
 		"terminal_scroll_up":        {"shift+up"},
 		"terminal_scroll_down":      {"shift+down"},
 		"terminal_scroll_page_up":   {"shift+pgup"},
@@ -3344,6 +3342,7 @@ func fillMissingKeybinds(cfg, defaultCfg *UserConfig) {
 	migrateLegacyKeybinds(cfg)
 	migrateSettingsComma(cfg)
 	migrateCornerSnapDigits(cfg)
+	migrateFocusInput(cfg)
 
 	// Set default leader key if not specified
 	if cfg.Keybindings.LeaderKey == "" {

@@ -1212,20 +1212,6 @@ func GetCommandPaletteItems(s *config.Settings) []CommandPaletteItem {
 			},
 		},
 		{
-			Name:     "Window management mode",
-			Shortcut: "prefix+esc",
-			Bind:     "prefix_exit_mode",
-			Category: "Session",
-			Action: func(m *OS) (*OS, tea.Cmd) {
-				m.Mode = WindowManagementMode
-				m.ShowNotification("Window management mode", "info", s.NotificationDuration)
-				if focusedWindow := m.GetFocusedWindow(); focusedWindow != nil {
-					focusedWindow.InvalidateCache()
-				}
-				return m, nil
-			},
-		},
-		{
 			Name:     "Tape: review the project tape",
 			Shortcut: "prefix+T t",
 			Bind:     "tape_prefix_review",

@@ -61,6 +61,9 @@ func TestRailCtrlPOpensThePalette(t *testing.T) {
 
 	o := twoPaneOS(t)
 	o.SidebarFocused = true
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.Global["command_palette"] = []string{"ctrl+p"}
+	o.KeybindRegistry = config.NewKeybindRegistry(cfg)
 
 	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}, o)
 	if !o.ShowCommandPalette {

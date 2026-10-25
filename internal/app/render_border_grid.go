@@ -399,7 +399,7 @@ func (m *OS) renderSeparatorOverlay() []*lipgloss.Layer {
 	// carried by hue alone.
 	unfocusedStr := sgrForeground(theme.BorderUnfocusedOn(m.host.bg))
 	focusColor := theme.BorderFocusedWindowOn(m.host.bg)
-	if m.Mode == TerminalMode {
+	if m.FocusedPaneOwnsInput() {
 		focusColor = theme.BorderFocusedTerminalOn(m.host.bg)
 	}
 	if c := m.focusedStateBorder(m.GetFocusedWindow()); c != nil {

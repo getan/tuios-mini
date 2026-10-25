@@ -149,6 +149,23 @@ func TestRunDrawsAPaneInAPTY(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 
+	// The client starts with the legacy StartInTerminalMode option unset.
+	// Focus alone must be sufficient: do not send i/Enter to unlock input.
+	// A file created by the pane proves execution, not merely echoed input.
+	if _, err := pty.Write([]byte("touch focus-input-ready\r")); err != nil {
+		t.Fatalf("type into the focused pane: %v", err)
+	}
+	inputDeadline := time.Now().Add(10 * time.Second)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "focus-input-ready")); err == nil {
+			break
+		}
+		if time.Now().After(inputDeadline) {
+			t.Fatal("typing without a mode switch did not reach the shell")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
 	// A cancelled context is the host asking the client to stop. It has to
 	// come back, and with the cancellation, not with a plain nil.
 	cancel()

@@ -79,6 +79,9 @@ func TestSettingsPanelReachesEveryOption(t *testing.T) {
 // option belongs here only when a person has a better way to reach it than a
 // row, never because writing the row was inconvenient.
 var settingsUIExcluded = map[string]string{
+	"appearance.click_to_type":                "deprecated: a focused pane always owns input",
+	"appearance.auto_enter_terminal_on_focus": "deprecated: a focused pane always owns input",
+	"startup.start_in_terminal_mode":          "deprecated: a focused pane always owns input",
 	// The deprecated flat spellings. Each is an alias of a nested path that has
 	// a row of its own, so a row here would be a second control for one value,
 	// disagreeing with the first whenever the file used the other spelling.

@@ -117,7 +117,9 @@ func TestMultifocusIMECommitBroadcast(t *testing.T) {
 func TestMultifocusDoesNotBroadcastNvimNavigationKey(t *testing.T) {
 	o, sent := multifocusHarness(t)
 	o.Settings.NvimNavigation = true
-	o.KeybindRegistry = config.NewKeybindRegistry(config.DefaultConfig())
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_focus_right"] = []string{"alt+right"}
+	o.KeybindRegistry = config.NewKeybindRegistry(cfg)
 	active := true
 	o.Update(app.NvimNavigationMsg{WindowID: "a", State: &active})
 

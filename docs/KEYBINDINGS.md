@@ -1,5 +1,15 @@
 # Keybindings
 
+## tuios-mini: focus is input
+
+The focused pane accepts typing immediately. There is no window/terminal mode
+switch. Use `Ctrl+B` for workspace commands, `Ctrl+B P` for the command palette,
+and `Ctrl+B ?` for help. Plain Escape, Tab, letters and Ctrl+C belong to the
+program in the pane. See [Focus input and migration](FOCUS_INPUT.md).
+
+The upstream reference below describes the inherited keymaps. Its window-mode
+bindings and mode-switching advice do **not** apply to current tuios-mini.
+
 The keybinding reference lives on the docs site: https://tuios.dev/docs/keybindings
 
 Every binding lives in one of the 24 sections under `[keybindings]` in `config.toml` and is rebindable; the site page lists each section's defaults, the prefix chords, copy mode, and the key syntax.

@@ -301,13 +301,16 @@ func TestContextMenuDimsUnavailableActions(t *testing.T) {
 			dim[it.Action] = it.Dim
 		}
 	}
-	for _, action := range []string{"copy_selection", "split_vertical", "split_horizontal", "paste_clipboard"} {
+	for _, action := range []string{"copy_selection", "split_vertical", "split_horizontal"} {
 		if !dim[action] {
 			t.Errorf("%s should be dimmed: no selection, no tiling, and not in terminal mode", action)
 		}
 	}
 	if dim["toggle_zoom"] || dim["close_window"] {
 		t.Error("zoom and close always apply to a pane and must not be dimmed")
+	}
+	if dim["paste_clipboard"] {
+		t.Error("a pane accepts paste without switching modes")
 	}
 
 	// With a selection and tiling on, the same rows come alive. The selection is

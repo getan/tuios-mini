@@ -236,6 +236,9 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 
 	// Fast hit testing: find which window was clicked without expensive canvas generation
 	clickedWindowIndex := findClickedWindow(X, Y, o)
+	if clickedWindowIndex >= 0 {
+		o.CancelPrefix()
+	}
 
 	// While the scratch terminal is shown, a press is either on it or a
 	// request to leave it. See scratchPress.
@@ -355,7 +358,7 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// active text selection to act on (copy, paste, clear). Without one the
 	// click belongs to the pane, so it falls through to the forwarding below
 	// and mouse-mode apps still get it.
-	if clickedWindowIndex != -1 && o.Mode == app.TerminalMode &&
+	if clickedWindowIndex != -1 &&
 		msg.Button == tea.MouseRight && msg.Mod == 0 {
 		if o.Windows[clickedWindowIndex].HasSelection() {
 			o.OpenSelectionMenu(X, Y, clickedWindowIndex)
@@ -386,8 +389,8 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		}
 	}
 
-	// Forward mouse events to terminal if in terminal mode and window has mouse tracking
-	if clickedWindowIndex != -1 && o.Mode == app.TerminalMode {
+	// Content clicks focus and reach a mouse-tracking program on the same press.
+	if clickedWindowIndex != -1 {
 		clickedWindow := o.Windows[clickedWindowIndex]
 		// Forward mouse only when app explicitly requested mouse tracking (DECSET 1000-1003)
 		if clickedWindow.Terminal != nil && clickedWindow.Terminal.HasMouseMode() {
@@ -423,7 +426,7 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// the mouse never gets here (the forwarding above returns first), so that
 	// app keeps the right button either way. Consumed either way as well, so it
 	// cannot fall through and start a window resize underneath the user's shell.
-	if clickedWindowIndex != -1 && o.Mode == app.TerminalMode &&
+	if clickedWindowIndex != -1 &&
 		msg.Button == tea.MouseRight && msg.Mod == 0 {
 		if o.TouchClient || o.Settings.RightClickOpensMenu {
 			o.OpenContextMenu(X, Y)
@@ -434,7 +437,7 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	if clickedWindowIndex == -1 {
 		// A plain right-click on empty desktop opens the desktop menu; there is
 		// no desktop drag on the right button, so it opens on the press itself.
-		if msg.Button == tea.MouseRight && msg.Mod == 0 && o.Mode == app.WindowManagementMode {
+		if msg.Button == tea.MouseRight && msg.Mod == 0 {
 			o.OpenContextMenu(X, Y)
 		}
 		// Consume the event even if no window is hit to prevent leaking
@@ -480,20 +483,18 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 
 	// Text selection with the mouse, AFTER the button checks.
 	//
-	// A left press inside a pane's content selects text, in terminal mode as
-	// well as in copy mode. It used to only select in copy mode: in terminal
-	// mode the same press grabbed the window, dragged it, and dropped the user
-	// into window management mode, so click-dragging over output moved the pane
-	// instead of selecting the line. The title bar and the borders are still
-	// the window's drag handle, and window management mode still drags from
-	// anywhere, so nothing lost a way to move a window.
+	// Content always selects text. The title bar and borders manage the frame;
+	// Alt-drag and Ctrl-drag above keep the content-area move gestures available.
 	//
 	// Panes running an application with mouse tracking never reach here; their
 	// press was forwarded to the application further up, exactly as the wheel is.
-	if mouse.Button == tea.MouseLeft && (clickedWindow.InCopyMode() || o.Mode == app.TerminalMode) {
+	if mouse.Button == tea.MouseLeft {
 		terminalX, terminalY, inContent := clickedWindow.ScreenToTerminal(X, Y)
 		if inContent {
 			o.FocusWindowFromClick(clickedWindowIndex, X, Y)
+			if clickedWindow.Terminal == nil {
+				return o, nil
+			}
 			if !clickedWindow.InCopyMode() {
 				// Selection reads through copy mode's machinery, so a
 				// selection in terminal mode has to turn it on. Implicitly:
@@ -529,44 +530,6 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		o.BeginPointerGesture()
 	}
 	o.FocusWindowFromClick(clickedWindowIndex, X, Y)
-	if o.Mode == app.TerminalMode {
-		o.Mode = app.WindowManagementMode
-	}
-
-	// A left press on the content area in window-management mode arms
-	// click-to-type: released without a drag it enters terminal mode
-	// (handleMouseRelease), so clicking a pane is enough to start typing.
-	// Title bar and border presses never arm it, so they stay pure drag
-	// handles, and the press itself still sets up the drag below.
-	//
-	// How many clicks that takes, or whether a click changes mode at all, is
-	// appearance.click_to_type. Only the arming moves: the drag threshold, the
-	// release and the mode switch itself are the same for every policy, so a
-	// click that does not arm is an ordinary window-management click.
-	//
-	// "double" reads its second click from the counter word and line selection
-	// already keep, so a double click means one thing everywhere. Arming spends
-	// the count, leaving the first press in the terminal mode it opened to
-	// start a fresh selection instead of landing as a third click on a line.
-	// The clicks that changed mode select nothing themselves: entering a mode
-	// is not a request to put a word on the clipboard.
-	if mouse.Button == tea.MouseLeft && o.Mode == app.WindowManagementMode &&
-		o.Settings.ClickToType != config.ClickToTypeOff {
-		if termX, termY, inContent := clickedWindow.ScreenToTerminal(X, Y); inContent {
-			arm := true
-			if o.Settings.ClickToType == config.ClickToTypeDouble {
-				arm = registerClick(clickedWindow, termX, termY) >= 2
-				if arm {
-					clickedWindow.ClickCount = 0
-				}
-			}
-			if arm {
-				o.ClickToTypePending = true
-				o.DragStartX = mouse.X
-				o.DragStartY = mouse.Y
-			}
-		}
-	}
 
 	// A plain right press arms the click-vs-drag decision: the resize state set
 	// up below makes a drag resize, and the release opens the context menu
@@ -652,9 +615,7 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 func beginWindowDrag(o *app.OS, idx, x, y int) {
 	win := o.Windows[idx]
 	o.FocusWindowFromClick(idx, x, y)
-	if o.Mode == app.TerminalMode {
-		o.Mode = app.WindowManagementMode
-	}
+	o.BeginPointerGesture()
 	o.SetPointerShape(app.PointerGrabbing)
 	o.InteractionMode = true
 	o.Dragging = true

@@ -457,22 +457,16 @@ func handlePrefixWorkspaceSwitcher(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.C
 // leaveTerminalMode returns to window-management mode and says so. No-op when
 // already there.
 func leaveTerminalMode(o *app.OS) {
-	if o.Mode != app.TerminalMode {
-		return
-	}
-	o.Mode = app.WindowManagementMode
-	o.ShowNotification("Window management mode", "info", o.Settings.NotificationDuration)
-	refreshFocusedWindow(o)
+	o.CancelPrefix()
 }
 
 func handlePrefixDetach(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	if m, cmd, detached := detachSession(o); detached {
 		return m, cmd
 	}
-	// Outside a daemon session there is nothing to detach from, so the closest
-	// useful thing is to step back out to window-management mode.
-	leaveTerminalMode(o)
-	return o, nil
+	// A local client has no detached session to keep; offer the normal quit
+	// confirmation instead of silently leaving the user in a different mode.
+	return requestQuit(o)
 }
 
 // handlePrefixCloseSession is the keyboard twin of the dock's recessed control.

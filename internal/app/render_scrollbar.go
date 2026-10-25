@@ -302,7 +302,7 @@ func (m *OS) scrollbarInk(window *terminal.Window, focused bool, ground color.Co
 		return theme.BorderUnfocusedOn(m.host.bg), track
 	}
 	focus := theme.BorderFocusedWindowOn(m.host.bg)
-	if m.Mode == TerminalMode {
+	if m.FocusedPaneOwnsInput() {
 		focus = theme.BorderFocusedTerminalOn(m.host.bg)
 	}
 	if c := m.focusedStateBorder(window); c != nil {

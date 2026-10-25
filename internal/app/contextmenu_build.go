@@ -263,7 +263,7 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 	// A browser tab never sends the clipboard at all, so the row is dimmed there
 	// in every mode. It read as fully live and did nothing when clicked, which
 	// is the inert control this project forbids. See ClipboardReadUnsupportedReason.
-	canPaste := m.Mode == TerminalMode && m.ClipboardReadUnsupportedReason() == ""
+	canPaste := win != nil && !win.Minimized && !win.ProcessExited() && m.ClipboardReadUnsupportedReason() == ""
 	canSplit := m.AutoTiling
 	// A scratch pane splits and zooms inside its group. It is not minimized:
 	// the scratch key hides the whole group.

@@ -25,7 +25,10 @@ func TestAltShiftKeysSpellWhatTheTerminalSends(t *testing.T) {
 	// is the wire spellings of one chord, which is the same question on both
 	// platforms.
 	t.Cleanup(config.ForceMacOSHost(false))
-	registry := config.NewKeybindRegistry(config.DefaultConfig())
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_next_window"] = []string{"alt+n"}
+	cfg.Keybindings.TerminalMode["terminal_prev_window"] = []string{"alt+p"}
+	registry := config.NewKeybindRegistry(cfg)
 
 	for _, tc := range []struct {
 		what string

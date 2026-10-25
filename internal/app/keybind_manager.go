@@ -198,7 +198,12 @@ func (m *OS) FilteredKeybindRows() []config.Binding {
 // chord without the user having to know which field they are searching. Fuzzy
 // rather than substring, so it behaves like the palette and the theme picker.
 func (m *OS) filterKeybindRows(q string) []config.Binding {
-	all := m.keybinds.report.Bindings
+	all := make([]config.Binding, 0, len(m.keybinds.report.Bindings))
+	for _, b := range m.keybinds.report.Bindings {
+		if !b.Inactive {
+			all = append(all, b)
+		}
+	}
 	if q == "" {
 		return all
 	}

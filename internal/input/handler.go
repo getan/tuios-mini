@@ -42,19 +42,8 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		result, cmd = HandleKeyPress(msg, o)
 	case tea.KeyReleaseMsg:
-		// Releases only arrive once the host has been asked for event types, and
-		// tuios itself does one thing with one: end a hold. No binding acts on a
-		// release, because acting on a release as well as a press would run every
-		// binding twice. What is left goes to a pane that asked for releases.
-		if o.ReleaseHoldKey(readKey(tea.KeyPressMsg(msg.Key()))) {
-			result, cmd = o, nil
-			break
-		}
-		// Hints mode owns the keyboard, releases included: the release of a
-		// label letter is not the pane's to see.
-		if o.HintsOpen() || o.PaneLabelsOpen() {
-			return o, nil
-		}
+		// Releases follow their recorded key-down owner, even if a dialog or
+		// another pane acquired focus in between. Unmatched releases are dropped.
 		forwardKeyReleaseToFocused(msg, o)
 		return o, nil
 	case tea.PasteStartMsg:
@@ -157,13 +146,13 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		if pasteTakenByOverlay(o, msg.Content) {
 			return o, nil
 		}
-		if o.SidebarSessionFocused() {
+		if o.SidebarSessionFocused() && o.KeyboardPane() != nil {
 			if msg.Content != "" {
 				o.PasteSidebarSession(msg.Content)
 			}
 			return o, nil
 		}
-		if o.Mode == app.TerminalMode {
+		if o.KeyboardPane() != nil {
 			o.NotePaneKey()
 			// An empty paste carries nothing. Some terminals send one when
 			// the clipboard holds only an image, so tuios looks for one.
@@ -210,7 +199,7 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		if pasteTakenByOverlay(o, msg.Content) {
 			return o, nil
 		}
-		if o.Mode == app.TerminalMode {
+		if o.KeyboardPane() != nil {
 			o.ClipboardContent = msg.Content
 			handleClipboardPaste(o)
 		}
@@ -386,6 +375,7 @@ func detachSession(o *app.OS) (*app.OS, tea.Cmd, bool) {
 
 // HandleKeyPress handles all keyboard input and routes to mode-specific handlers
 func HandleKeyPress(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	o.CheckPrefixExpiry()
 	// Keep the key as the host sent it for the pane, and read it the rest of
 	// the way by the key the layout produced (see readKey).
 	o.NoteHostKey(msg)
@@ -398,15 +388,6 @@ func HandleKeyPress(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	if o.ShowKeys {
 		o.CaptureKeyEvent(msg)
 	}
-
-	// Hold-to-window-mode. The trigger is consumed here, before any mode routing,
-	// so holding it cannot type anything into a pane; every other key struck
-	// while it is held loses the trigger's own modifier, so holding Option and
-	// tapping n runs the window-mode action bound to n.
-	if o.PressHoldKey(msg) {
-		return o, nil
-	}
-	msg = o.StripHoldModifier(msg)
 
 	// A modifier pressed on its own arrives as a key while tuios asks for every
 	// key as an escape code. Holding Shift for the key after the leader must
@@ -586,7 +567,7 @@ func routeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// its keys must reach it.
 	// The message view and the log viewer are the last two: ctrl+b N opens the
 	// view over the rail, and its scroll and close keys must reach it.
-	if o.SidebarSessionFocused() && !o.AnyOverlayOpen() {
+	if o.SidebarSessionFocused() && !o.InputOverlayOpen() {
 		if msg.String() == "alt+esc" {
 			o.BlurSidebarSession()
 			return o, nil
@@ -605,8 +586,7 @@ func routeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			return o, nil
 		}
 	}
-	if o.SidebarFocused && !o.ShowHelp && !o.ShowCommandPalette && !o.ShowAgentMail && !o.ShowInbox &&
-		!o.MessageViewOpen() && !o.ShowLogs && !o.PrefixActive && !isLeaderKey(msg, &o.Settings, o.HostBaseCode(msg)) {
+	if o.InputTarget() == app.InputSidebar && !isLeaderKey(msg, &o.Settings, o.HostBaseCode(msg)) {
 		return HandleSidebarKey(msg, o)
 	}
 
@@ -672,58 +652,10 @@ func routeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		}
 	}
 
-	// Terminal mode handling
-	if o.Mode == app.TerminalMode {
-		return HandleTerminalModeKey(msg, o)
-	}
-
-	// Check for prefix key activation in window management mode
-	if isLeaderKey(msg, &o.Settings, o.HostBaseCode(msg)) {
-		return handlePrefixKey(msg, o)
-	}
-
-	// Handle workspace prefix commands (Ctrl+B, w, ...)
-	if o.WorkspacePrefixActive {
-		return HandleWorkspacePrefixCommand(msg, o)
-	}
-
-	// Handle minimize prefix commands (Ctrl+B, m, ...)
-	if o.MinimizePrefixActive {
-		return HandleMinimizePrefixCommand(msg, o)
-	}
-
-	// Handle tiling prefix commands (Ctrl+B, t, ...)
-	if o.TilingPrefixActive {
-		return HandleTilingPrefixCommand(msg, o)
-	}
-
-	// Handle debug prefix commands (Ctrl+B, D, ...)
-	if o.DebugPrefixActive {
-		return HandleDebugPrefixCommand(msg, o)
-	}
-
-	// Handle layout prefix commands (Ctrl+B, L, ...)
-	if o.LayoutPrefixActive {
-		return handleTerminalLayoutPrefix(msg, o)
-	}
-
-	// The tuios menu: the tuios keys a preset moved.
-	if o.TuiosPrefixActive {
-		return HandleTuiosPrefixCommand(msg, o)
-	}
-
-	// Handle tape prefix commands (Ctrl+B, T, ...)
-	if o.TapePrefixActive {
-		return HandleTapePrefixCommand(msg, o)
-	}
-
-	// Handle prefix commands in window management mode
-	if o.PrefixActive {
-		return HandlePrefixCommand(msg, o)
-	}
-
-	// Handle window management mode keys
-	return HandleWindowManagementModeKey(msg, o)
+	// One keyboard path for every focused pane and for the empty desktop.
+	// Dialogs and the sidebar above temporarily own input; no persistent mode
+	// can leave a visibly focused pane unable to type.
+	return HandleTerminalModeKey(msg, o)
 }
 
 // handleRenameMode handles keyboard input while the rename editor is open, for

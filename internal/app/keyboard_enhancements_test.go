@@ -35,7 +35,7 @@ func TestAllKeysAreAskedForWhileBindingsReadKeys(t *testing.T) {
 	}
 
 	o.Mode = WindowManagementMode
-	check("window mode", true)
+	check("legacy mode bit does not take the keyboard from a focused pane", false)
 
 	o.Mode = TerminalMode
 	check("terminal mode, typing into the pane", false)

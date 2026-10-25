@@ -78,7 +78,7 @@ func handleTerminalMouseBinding(msg tea.MouseClickMsg, o *app.OS, clicked int) (
 		// this press's release disappear.
 		o.MiddleBindingPressed = false
 	}
-	if o.Mode != app.TerminalMode || msg.Button != tea.MouseMiddle ||
+	if o.PointerGestureActive() || msg.Button != tea.MouseMiddle ||
 		o.KeybindRegistry == nil || clicked < 0 || clicked >= len(o.Windows) {
 		return o, nil, false
 	}

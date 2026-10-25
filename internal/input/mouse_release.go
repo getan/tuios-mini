@@ -119,13 +119,6 @@ func handleMouseRelease(msg tea.MouseReleaseMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 	o.CtrlDragging = false
-	// A ctrl-drag that started in terminal mode gives typing back when the pane
-	// lands: moving a window is not a request to stop typing. Deferred because
-	// the drop leaves through several returns, all of which retile first.
-	if o.CtrlDragWasTerminal {
-		o.CtrlDragWasTerminal = false
-		defer func() { o.Mode = app.TerminalMode }()
-	}
 
 	// A plain right press on a pane arms a resize. Below the drag threshold it
 	// was a click: cancel the resize (restoring the few cells of jitter it may
@@ -151,27 +144,14 @@ func handleMouseRelease(msg tea.MouseReleaseMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		}
 	}
 
-	// A left press on a pane's content in window-management mode armed
-	// click-to-type. Decide now, while the press coordinates are still intact;
-	// the drag-completion branches below zero them. The mode switch itself
-	// happens at the end so a sub-threshold tiling drag still snaps back first.
-	enterTerminalOnRelease := false
-	if o.ClickToTypePending {
-		o.ClickToTypePending = false
-		mouse := msg.Mouse()
-		if mouse.Button == tea.MouseLeft && o.Mode == app.WindowManagementMode &&
-			abs(mouse.X-o.DragStartX)+abs(mouse.Y-o.DragStartY) < clickToTypeDragThreshold {
-			enterTerminalOnRelease = true
-		}
-	}
 	// A terminal-mode middle-button binding consumed the press, so its release
 	// is tuios's too. In particular, never send a mouse-tracking program an
 	// unmatched release after the paste binding took the press.
 	if terminalMouseBindingConsumesRelease(msg, o) {
 		return o, nil
 	}
-	// Forward mouse release to terminal if in terminal mode and window has mouse tracking
-	if o.Mode == app.TerminalMode {
+	// Frame gestures own their release, even over a mouse-tracking pane.
+	if !o.PointerGestureActive() && !o.InputOverlayOpen() && !o.ScrollbarDragging {
 		focusedWindow := o.GetFocusedWindow()
 		if focusedWindow != nil && focusedWindow.Terminal != nil && focusedWindow.Terminal.HasMouseMode() {
 			mouse := msg.Mouse()
@@ -426,14 +406,6 @@ func handleMouseRelease(msg tea.MouseReleaseMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	}
 
 	// Mouse edge snapping disabled: use keyboard shortcuts for snapping
-
-	// Click-to-type: the press was on a pane's content and never became a drag,
-	// so finish what a newcomer expects a click to do. The dispatcher runs the
-	// same handler the Enter keybinding runs, notification included.
-	if enterTerminalOnRelease {
-		next, cmd := GetDispatcher().Dispatch("enter_terminal_mode", tea.KeyPressMsg{}, o)
-		return next, tea.Batch(settleCmd, cmd)
-	}
 
 	return o, settleCmd
 }

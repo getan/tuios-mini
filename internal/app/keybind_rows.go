@@ -65,6 +65,9 @@ func KeybindRows(cfg *config.UserConfig) []KeybindRow {
 	index := map[string]int{}
 	seen := map[string]bool{}
 	for _, b := range registry.Bindings() {
+		if b.Inactive {
+			continue
+		}
 		seen[b.Action] = true
 		id := b.Scope + "\x00" + b.Section + "\x00" + b.Action
 		i, ok := index[id]

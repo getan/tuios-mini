@@ -1,15 +1,14 @@
 package input
 
 import (
-	"time"
-
 	tea "charm.land/bubbletea/v2"
 	"github.com/getan/tuios-mini/internal/app"
 	"github.com/getan/tuios-mini/internal/config"
 	"github.com/getan/tuios-mini/internal/terminal"
 )
 
-// HandleTerminalModeKey handles keyboard input in terminal mode
+// HandleTerminalModeKey is the common pane/desktop keyboard path. Its historic
+// name is kept for callers; OS.Mode is not an input gate.
 func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// There used to be a guard here that dropped every unmodified printable
 	// key for 150 ms after entering terminal mode, against mouse-sequence
@@ -93,6 +92,10 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	if o.ShowCacheStats {
 		return handleCacheStatsKey(msg, o)
 	}
+	// A keyboard-only surface not handled above still owns unbound keys.
+	if o.InputOverlayOpen() && !o.ShowScrollbackBrowser {
+		return o, nil
+	}
 
 	// The configured line/page scroll actions are handled BEFORE the copy mode
 	// check so subsequent presses also scroll instead of being consumed by the
@@ -147,7 +150,7 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		// kitty pane, legacy bytes otherwise. A leader with no legacy encoding
 		// is dropped rather than replaced with some other key.
 		if o.PrefixActive {
-			o.PrefixActive = false
+			o.CancelPrefix()
 			if o.KeybindRegistry != nil && o.KeybindRegistry.LeaderTwiceGoesBack() {
 				// screen's C-a C-a. send_prefix still sends the leader.
 				o.LastWorkspace()
@@ -156,9 +159,30 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			forwardKeyToFocusedWindow(msg, o)
 			return o, nil
 		}
-		// Activate prefix mode
-		o.PrefixActive = true
-		o.LastPrefixTime = time.Now()
+		return o, o.BeginPrefix()
+	}
+	if o.InputTarget() == app.InputCommands && (msg.String() == "esc" || msg.String() == "ctrl+c") {
+		if msg.String() == "esc" {
+			action := "prefix_exit_mode"
+			switch {
+			case o.WorkspacePrefixActive:
+				action = "workspace_prefix_cancel"
+			case o.MinimizePrefixActive:
+				action = "minimize_prefix_cancel"
+			case o.TilingPrefixActive:
+				action = "window_prefix_cancel"
+			case o.DebugPrefixActive:
+				action = "debug_prefix_cancel"
+			case o.TapePrefixActive:
+				action = "tape_prefix_cancel"
+			case o.LayoutPrefixActive:
+				action = "layout_prefix_cancel"
+			}
+			_, cmd, _ := dispatchAction(action, msg, o)
+			o.CancelPrefix()
+			return o, cmd
+		}
+		o.CancelPrefix()
 		return o, nil
 	}
 
@@ -227,6 +251,9 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	if m, cmd, ok := handleGlobalBinds(msg, o); ok {
 		return m, cmd
 	}
+	if o.InputTarget() == app.InputDesktop {
+		return handleDesktopKey(msg, o)
+	}
 
 	// Handle paste shortcuts: intercept and request clipboard via OSC 52.
 	// Plain ctrl+v is deliberately not bound to terminal_paste_host so it falls
@@ -246,7 +273,11 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		}
 		return o, nil
 	}
-	// Normal terminal mode: pass through all keys
+	// Focus, not the old mode bit, decides whether this key can reach a pane.
+	focusedWindow = o.KeyboardPane()
+	if o.InputTarget() == app.InputSelection && remoteKeyBypassesCopyMode(o) {
+		focusedWindow = o.FocusedInputPane()
+	}
 	if focusedWindow != nil {
 		// The pane gets the key as the host sent it, on either encoding.
 		host := paneMsg(msg, o)
@@ -263,8 +294,7 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 				o.NotePaneKeyDown(msg.Code, focusedWindow.ID)
 			}
 			if err := focusedWindow.SendInput(rawInput); err != nil {
-				// Terminal unavailable, switch back to window mode
-				o.Mode = app.WindowManagementMode
+				o.ShowNotification("Cannot type into this pane: "+err.Error(), "error", o.Settings.NotificationDuration)
 				focusedWindow.InvalidateCache()
 			}
 			// Forward keystrokes to the multifocus set's panes on screen.
@@ -279,9 +309,6 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 				}
 			}
 		}
-	} else {
-		// No focused window, switch back to window mode
-		o.Mode = app.WindowManagementMode
 	}
 	return o, nil
 }

@@ -83,6 +83,13 @@ snap_corner_2 = ["2"]
 // of moving corner snapping, and this fails.
 func TestDefaultConfigLeavesNoActionUnbound(t *testing.T) {
 	for _, b := range NewKeybindRegistry(DefaultConfig()).Bindings() {
+		// Focus input deliberately leaves direct pane/launcher shortcuts
+		// opt-in; their actions remain reachable under the leader.
+		if b.Section == "terminal_mode" && (strings.HasPrefix(b.Action, "terminal_focus_") ||
+			b.Action == "terminal_next_window" || b.Action == "terminal_prev_window") ||
+			b.Section == "global" && (b.Action == "command_palette" || b.Action == "launcher") {
+			continue
+		}
 		if b.Unbound {
 			t.Errorf("the defaults ship %s [%s] with no key", b.Action, b.Section)
 		}

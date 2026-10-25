@@ -26,10 +26,10 @@ func ukrShift(produced, shifted, base rune) tea.KeyPressMsg {
 }
 
 func TestBaseLayoutKeyRunsWindowModeBinding(t *testing.T) {
-	o, _ := osWithFocusedPane(t, config.DefaultConfig(), app.WindowManagementMode)
+	o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.WindowManagementMode)
 	o, _ = HandleKeyPress(ukr('ш', 'i'), o)
-	if o.Mode != app.TerminalMode {
-		t.Fatalf("ш on the I key did not run enter_terminal_mode (mode %v)", o.Mode)
+	if string(pty.got) != "ш" {
+		t.Fatalf("focused pane received %q, want the layout's text", pty.got)
 	}
 }
 
@@ -208,8 +208,8 @@ func TestLeaderForwardsLayoutKeyWhenHostNeverSwitches(t *testing.T) {
 	o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.TerminalMode)
 	o.NoteKeyboardEnhancements(tea.KeyboardEnhancementsMsg{Flags: 5})
 	_ = leader(o, tea.KeyPressMsg{Code: 'ш', Text: "ш"})
-	if got := string(pty.got); got != "ш" {
-		t.Fatalf("the pane got %q, want %q", got, "ш")
+	if got := string(pty.got); got != "" {
+		t.Fatalf("an unbound command leaked into the pane: %q", got)
 	}
 }
 

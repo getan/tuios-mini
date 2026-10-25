@@ -237,8 +237,8 @@ func TestSeparatorOverlayMemoFollowsItsInputs(t *testing.T) {
 	}{
 		{"focus moves", func() { m.FocusedWindow = 2 }},
 		{"focus moves again", func() { m.FocusedWindow = 3 }},
-		{"terminal mode", func() { m.Mode = TerminalMode }},
-		{"window management mode", func() { m.Mode = WindowManagementMode }},
+		{"sidebar owns input", func() { m.SidebarFocused = true }},
+		{"pane owns input again", func() { m.SidebarFocused = false }},
 		{"border style", func() { m.Settings.BorderStyle = "thick" }},
 		{"theme", func() { withTheme(t, "nord") }},
 		{"dock moves to the top", func() { m.Settings.DockbarPosition = "top" }},

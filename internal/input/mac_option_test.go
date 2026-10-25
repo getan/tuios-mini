@@ -30,7 +30,10 @@ func onDarwin(t *testing.T) {
 // all, which macOptionChord must refuse.
 func TestMacOptionChordsReachTheirBinding(t *testing.T) {
 	onDarwin(t)
-	registry := config.NewKeybindRegistry(config.DefaultConfig())
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_next_window"] = []string{"alt+n"}
+	cfg.Keybindings.TerminalMode["terminal_prev_window"] = []string{"alt+p"}
+	registry := config.NewKeybindRegistry(cfg)
 
 	for _, tc := range []struct {
 		what string
@@ -120,6 +123,8 @@ func TestBareOptionGlyphsFollowTheConfig(t *testing.T) {
 		cfg := config.DefaultConfig()
 		cfg.Keybindings.KeyboardLayout = tc.layout
 		cfg.Keybindings.OptionGlyphs = tc.glyphs
+		cfg.Keybindings.TerminalMode["terminal_next_window"] = []string{"alt+n"}
+		cfg.Keybindings.TerminalMode["terminal_prev_window"] = []string{"alt+p"}
 		registry := config.NewKeybindRegistry(cfg)
 		for _, k := range keys {
 			runs := tc.alt
@@ -196,6 +201,9 @@ func TestMacOptionChordSwitchesPaneInTerminalMode(t *testing.T) {
 		{Code: 'n', Mod: tea.ModAlt},
 	} {
 		o := twoWindowOS(t)
+		cfg := config.DefaultConfig()
+		cfg.Keybindings.TerminalMode["terminal_next_window"] = []string{"alt+n"}
+		o.KeybindRegistry = config.NewKeybindRegistry(cfg)
 		if _, _ = HandleTerminalModeKey(msg, o); o.FocusedWindow != 1 {
 			t.Errorf("%q left the focus on window %d, want the next one", msg.String(), o.FocusedWindow)
 		}

@@ -128,7 +128,7 @@ func Scopes(leader string) []Scope {
 			Reaches:  ReachSteals,
 		},
 		{
-			ID: ScopeWindowMode, Name: "Window mode",
+			ID: ScopeWindowMode, Name: "Legacy command definitions",
 			Sections: []string{
 				SectionWindowManagement, SectionWorkspaces, SectionLayout,
 				SectionModeControl, SectionSystem, SectionNavigation,
@@ -137,7 +137,7 @@ func Scopes(leader string) []Scope {
 			Reaches: ReachModal,
 		},
 		{
-			ID: ScopeTerminalMode, Name: "Terminal mode",
+			ID: ScopeTerminalMode, Name: "Pane shortcuts",
 			Sections: []string{SectionTerminalMode},
 			Reaches:  ReachSteals,
 		},
@@ -397,6 +397,9 @@ type Binding struct {
 	Section string `json:"section"`
 	Action  string `json:"action"`
 	Desc    string `json:"description"`
+	// Inactive marks a legacy window-mode definition. It is retained for
+	// config diagnostics, not advertised as a key the user can press.
+	Inactive bool `json:"inactive,omitempty"`
 	// Key is the key as the lookup sees it, after the normalizer's platform
 	// expansion has been undone: what the user wrote in config.toml.
 	Key string `json:"key"`
@@ -464,11 +467,12 @@ func (r *KeybindRegistry) Bindings() []Binding {
 				// file spells it.
 				if liveKeyCount(section[action]) == 0 {
 					out = append(out, Binding{
-						Scope:   scope.ID,
-						Section: name,
-						Action:  action,
-						Desc:    describeAction(action),
-						Unbound: true,
+						Scope:    scope.ID,
+						Section:  name,
+						Action:   action,
+						Desc:     describeAction(action),
+						Unbound:  true,
+						Inactive: scope.ID == ScopeWindowMode && !terminalSafeAction(action),
 					})
 					continue
 				}
@@ -479,12 +483,13 @@ func (r *KeybindRegistry) Bindings() []Binding {
 					}
 					idx := len(out)
 					out = append(out, Binding{
-						Scope:   scope.ID,
-						Section: name,
-						Action:  action,
-						Desc:    describeAction(action),
-						Key:     key,
-						Press:   press(scope.Chord, key),
+						Scope:    scope.ID,
+						Section:  name,
+						Action:   action,
+						Desc:     describeAction(action),
+						Key:      key,
+						Press:    press(scope.Chord, key),
+						Inactive: scope.ID == ScopeWindowMode && !(terminalSafeAction(action) && reservedTerminalChord(key)),
 					})
 
 					lookup := lookupForm(key)

@@ -189,8 +189,6 @@ func TestWorkspaceSwitchIsSwallowedOnlyOnAReservedChord(t *testing.T) {
 func TestTerminalKeysAreReportedFromTheirSection(t *testing.T) {
 	r := registryFor(t, nil)
 	want := map[string]string{
-		"ctrl+p":       "global",
-		"alt+space":    "global",
 		"shift+up":     "terminal_mode",
 		"shift+down":   "terminal_mode",
 		"shift+pgup":   "terminal_mode",

@@ -41,11 +41,7 @@ func copyModeSearchActionKey(msg tea.KeyPressMsg, o *app.OS, window *terminal.Wi
 	}
 	action := sectionAction(msg, o, (*config.KeybindRegistry).GetGlobalAction)
 	if !isSearchAction(action) {
-		if o.Mode == app.TerminalMode {
-			action = sectionAction(msg, o, (*config.KeybindRegistry).GetTerminalModeAction)
-		} else {
-			action = sectionAction(msg, o, (*config.KeybindRegistry).GetAction)
-		}
+		action = sectionAction(msg, o, (*config.KeybindRegistry).GetTerminalModeAction)
 	}
 	if !isSearchAction(action) {
 		return o, nil, false

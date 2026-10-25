@@ -63,9 +63,10 @@ func TestHelpShowsTheWholeChord(t *testing.T) {
 // PressesByAction and the help offers "z" for toggle_zoom, which never fires.
 func TestHelpDoesNotOfferADeadBinding(t *testing.T) {
 	cfg := config.DefaultConfig()
-	// layout is merged into the window-mode keymap after window_management, so
-	// snap_left takes z and toggle_zoom's only binding goes dark.
-	cfg.Keybindings.Layout["snap_left"] = []string{"z"}
+	// A deliberate direct-key clash: the first action by name wins within
+	// this active table. Legacy WM maps must not advertise bare keys at all.
+	cfg.Keybindings.TerminalMode["snap_left"] = []string{"z"}
+	cfg.Keybindings.TerminalMode["toggle_zoom"] = []string{"z"}
 	r := config.NewKeybindRegistry(cfg)
 
 	// The premise: the help really does list this action, and the shadowing is
@@ -74,7 +75,7 @@ func TestHelpDoesNotOfferADeadBinding(t *testing.T) {
 	if _, ok := helpBindingFor(t, config.NewKeybindRegistry(config.DefaultConfig()), "toggle_zoom"); !ok {
 		t.Fatal("toggle_zoom is in no help category, so this case would prove nothing")
 	}
-	if got := r.GetAction("z"); got != "snap_left" {
+	if got := r.GetTerminalModeAction("z"); got != "snap_left" {
 		t.Fatalf("z runs %q, so toggle_zoom is not shadowed and this case would prove nothing", got)
 	}
 

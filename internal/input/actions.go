@@ -976,23 +976,9 @@ func afterFocusCommand(o *app.OS, previousFocused int, kind focusEnterKind) (*ap
 // The auto path is silent: a toast per Tab is noise. Explicit enter_terminal_mode
 // still notifies.
 func maybeEnterTerminalOnFocusChange(o *app.OS, previousFocused int, kind focusEnterKind) (*app.OS, tea.Cmd) {
-	if o.Mode != app.WindowManagementMode {
-		return o, nil
-	}
-	if o.FocusedWindow == previousFocused || o.FocusedWindow < 0 || len(o.Windows) == 0 {
-		return o, nil
-	}
-	switch o.Settings.AutoEnterTerminalOnFocus {
-	case config.AutoEnterTerminalAll:
-		return enterTerminalModeSilent(o)
-	case config.AutoEnterTerminalTargeted:
-		if kind != focusEnterTargeted {
-			return o, nil
-		}
-		return enterTerminalModeSilent(o)
-	default:
-		return o, nil
-	}
+	// Every explicit focus action is already ready for input, including a
+	// no-op that reselects the same pane. Old auto-enter settings are ignored.
+	return o, nil
 }
 
 func enterTerminalModeSilent(o *app.OS) (*app.OS, tea.Cmd) {
@@ -1003,28 +989,13 @@ func enterTerminalModeSilent(o *app.OS) (*app.OS, tea.Cmd) {
 }
 
 func handleEnterTerminalMode(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if len(o.Windows) > 0 && o.FocusedWindow >= 0 {
-		focusedWindow := o.GetFocusedWindow()
-		if focusedWindow != nil {
-			o.LogInfo("Entering terminal mode for window: %s", focusedWindow.Title())
-		}
-		o.ShowNotification("Terminal mode", "info", o.Settings.NotificationDuration)
-		// Enter terminal mode and start raw input reader
-		return o, o.EnterTerminalMode()
-	}
-	o.LogWarn("Cannot enter terminal mode: no focused window")
+	// Legacy action used by old tapes; focusing the pane is sufficient now.
 	return o, nil
 }
 
 func handleEnterWindowMode(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	o.LogInfo("Entering window management mode")
-	// Exit terminal mode to window management mode
-	cmd := o.ExitTerminalMode()
-	o.ShowNotification("Window management mode", "info", o.Settings.NotificationDuration)
-	if focusedWindow := o.GetFocusedWindow(); focusedWindow != nil {
-		focusedWindow.InvalidateCache()
-	}
-	return o, cmd
+	o.CancelPrefix()
+	return o, nil
 }
 
 func handleToggleHelp(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {

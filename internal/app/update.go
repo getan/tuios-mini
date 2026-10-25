@@ -560,7 +560,7 @@ func clientEventMsg(event ClientEvent) tea.Msg {
 // manipulation. Everything it checks is an O(1) flag or an atomic load, so the
 // gate stays bounded no matter how many idle shells are open.
 func (m *OS) tickNeedsWork() bool {
-	return m.tickAtFrameRate() || len(m.Notifications) > 0 ||
+	return m.tickAtFrameRate() || m.pendingInputPane || len(m.Notifications) > 0 ||
 		len(m.pendingAgentAlerts) > 0 || m.programAlertHeld() || m.spotlightMotionPending ||
 		m.tickPolledWork()
 }
@@ -894,6 +894,8 @@ func (m *OS) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		defer func() { m.ProcessingRemoteKeys = true }()
 	}
 	m.msgClock = time.Now()
+	m.checkPendingPaneInput(m.msgClock)
+	m.CheckPrefixExpiry()
 	m.quietFrame = false
 	m.reportActivity(msg)
 	m.rendererRestarted(msg)
@@ -1036,6 +1038,9 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case PrefixExpiredMsg:
+		m.ExpirePrefix(msg)
+		return m, nil
 	case sidebarSessionNotice:
 		cmd := m.handleSidebarSessionEvent(msg.sidebarSessionEvent)
 		return m, tea.Batch(cmd, m.listenSidebarSession())
@@ -2035,6 +2040,7 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		return m, m.noteHostFocus(true)
 
 	case tea.BlurMsg:
+		m.CancelPrefix()
 		// The host terminal lost focus. A key held when the window went away
 		// will never report its release, so the hold ends here rather than
 		// outliving it.

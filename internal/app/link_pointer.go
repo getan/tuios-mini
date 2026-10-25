@@ -184,7 +184,7 @@ func (m *OS) hoverSuppressedByGuest(window *terminal.Window) bool {
 // click handler applies before forwarding: the pane is focused, tuios is in
 // terminal mode, and the guest asked for mouse reporting.
 func (m *OS) guestOwnsPointer(window *terminal.Window) bool {
-	if window == nil || window.Terminal == nil || m.Mode != TerminalMode {
+	if window == nil || window.Terminal == nil || m.PointerGestureActive() || m.InputOverlayOpen() {
 		return false
 	}
 	if f := m.GetFocusedWindow(); f == nil || f.ID != window.ID {

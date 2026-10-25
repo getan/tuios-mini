@@ -30,6 +30,14 @@ func press(key string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyTab}
 	case "space":
 		return tea.KeyPressMsg{Code: tea.KeySpace}
+	case "down":
+		return tea.KeyPressMsg{Code: tea.KeyDown}
+	case "up":
+		return tea.KeyPressMsg{Code: tea.KeyUp}
+	case "left":
+		return tea.KeyPressMsg{Code: tea.KeyLeft}
+	case "right":
+		return tea.KeyPressMsg{Code: tea.KeyRight}
 	}
 	runes := []rune(key)
 	return tea.KeyPressMsg{Code: runes[0], Text: key}
@@ -158,19 +166,19 @@ func TestRebindingAMinimizePrefixKeyTakesEffect(t *testing.T) {
 // section, whose whole point is binds that work while typing into a shell.
 func TestRebindingATerminalModeKeyTakesEffect(t *testing.T) {
 	o := osWithBindings(t, func(k *config.KeybindingsConfig) {
-		k.TerminalMode["terminal_exit_mode"] = []string{"alt+q"}
+		k.TerminalMode["prefix_help"] = []string{"alt+q"}
 	})
 	o.Mode = app.TerminalMode
 
 	if !handleTerminalModeBinds(tea.KeyPressMsg{Code: 'q', Mod: tea.ModAlt}, o) {
 		t.Fatal("rebound terminal-mode key was not consumed")
 	}
-	if o.Mode != app.WindowManagementMode {
-		t.Error("rebound terminal-mode key did not leave terminal mode")
+	if !o.ShowHelp {
+		t.Error("rebound direct key did not open help")
 	}
 
 	o2 := osWithBindings(t, func(k *config.KeybindingsConfig) {
-		k.TerminalMode["terminal_exit_mode"] = []string{"alt+q"}
+		k.TerminalMode["prefix_help"] = []string{"alt+q"}
 	})
 	o2.Mode = app.TerminalMode
 	if handleTerminalModeBinds(tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}, o2) {
@@ -207,8 +215,8 @@ func TestPrefixEscapeLeavesTerminalModeRatherThanDetaching(t *testing.T) {
 	o.PrefixActive = true
 
 	result, cmd := HandlePrefixCommand(press("esc"), o)
-	if result.Mode != app.WindowManagementMode {
-		t.Error("leader esc did not return to window-management mode")
+	if result.PrefixActive || result.ShowQuitMenu {
+		t.Error("leader esc did not cancel the command safely")
 	}
 	if cmd != nil {
 		t.Error("leader esc produced a command, which would mean it quit or detached")

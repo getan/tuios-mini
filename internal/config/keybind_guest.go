@@ -132,13 +132,6 @@ func (r *KeybindRegistry) TerminalModeSwallowed() []Swallow {
 		add(key, "", hardcodedTerminalKeys[key], "built-in")
 	}
 
-	// The hold trigger is only inert when no terminal reports releases, and the
-	// report cannot know that from here, so it is listed: a held modifier that
-	// does reach the input path is one the guest does not get.
-	for _, key := range kb.section(SectionModeControl)["hold_window_mode"] {
-		add(key, "hold_window_mode", describeAction("hold_window_mode"), SectionModeControl)
-	}
-
 	return out
 }
 

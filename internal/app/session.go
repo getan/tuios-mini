@@ -527,6 +527,7 @@ func (m *OS) ApplyStateSync(state *session.SessionState) error {
 // pushed, this client included. See adoptTopology below.
 func (m *OS) ApplyStateSyncFrom(state *session.SessionState, sourceID string) error {
 	defer m.adoptFocusReport()
+	defer m.settlePendingPaneInput()
 	if state == nil {
 		return nil
 	}

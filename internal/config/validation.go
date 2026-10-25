@@ -145,11 +145,9 @@ func ValidateConfig(cfg *UserConfig) *ValidationResult {
 
 	// Check for essential actions that should have keybindings
 	essentialActions := map[string]string{
-		"new_window":          "window_management",
-		"close_window":        "window_management",
-		"enter_terminal_mode": "mode_control",
-		"enter_window_mode":   "mode_control",
-		"quit":                "mode_control",
+		"new_window":   "window_management",
+		"close_window": "window_management",
+		"quit":         "mode_control",
 	}
 
 	for action, section := range essentialActions {

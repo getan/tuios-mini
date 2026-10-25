@@ -5,8 +5,8 @@ import (
 	"github.com/getan/tuios-mini/internal/tape"
 )
 
-// EnterTerminalMode switches from window management to terminal mode.
-// In terminal mode, raw input bypasses Bubbletea and goes directly to the PTY.
+// EnterTerminalMode records the compatibility value used by old tapes/callers.
+// Deprecated: focus now owns input; no raw-reader or input routing changes.
 func (m *OS) EnterTerminalMode() tea.Cmd {
 	// Record mode switch for tape recording
 	if m.TapeRecorder != nil && m.TapeRecorder.IsRecording() {
@@ -25,8 +25,8 @@ func (m *OS) EnterTerminalMode() tea.Cmd {
 	return nil
 }
 
-// ExitTerminalMode switches from terminal to window management mode.
-// In window management mode, Bubbletea handles input parsing.
+// ExitTerminalMode records the compatibility value used by old tapes/callers.
+// Deprecated: this does not suspend input in a focused pane.
 func (m *OS) ExitTerminalMode() tea.Cmd {
 	// Record mode switch for tape recording
 	if m.TapeRecorder != nil && m.TapeRecorder.IsRecording() {

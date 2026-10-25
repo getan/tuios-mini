@@ -1,5 +1,7 @@
 package app
 
+import "github.com/charmbracelet/x/ansi"
+
 // NotePaneKeyDown records that the press of the key with this code went to the
 // pane with this window ID.
 //
@@ -7,6 +9,11 @@ package app
 // pressed, and must not get the release of a key it never saw. The leader's b
 // is the plain case: tuios keeps the press, so its release is tuios's too.
 func (m *OS) NotePaneKeyDown(code rune, windowID string) {
+	w := m.InputPaneByID(windowID)
+	if !m.HostReportsReleases() || w == nil || w.Terminal == nil ||
+		w.Terminal.KittyKeyboardFlags()&ansi.KittyReportEventTypes == 0 {
+		return
+	}
 	if m.paneKeysDown == nil {
 		m.paneKeysDown = map[rune]string{}
 	}

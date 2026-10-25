@@ -91,13 +91,11 @@ func GetHelpCategories(registry *config.KeybindRegistry, s *config.Settings) []H
 			Bindings: append(generateCopyModeBindings(registry, s), generateHintsBindings(registry, s)...),
 		},
 		{
-			Name: "Modes",
+			Name: "Input",
 			// The list keys ride along here rather than in a tab of their own:
 			// the strip is one row wide at a desktop width, and there is no
 			// room for another tab on it.
 			Bindings: append(append(generateCategoryBindings(registry, "Modes", []string{
-				"enter_terminal_mode", "enter_window_mode",
-				"terminal_exit_mode",
 				"toggle_help", "quit",
 			}), generateSpotlightOffBindings(registry, s)...), append(messageViewKeys(), generateListBindings()...)...),
 		},
@@ -703,7 +701,7 @@ func generateTapeBindings(s *config.Settings) []HelpBinding {
 // chip. See spotlight_exit.go.
 func generateSpotlightOffBindings(registry *config.KeybindRegistry, s *config.Settings) []HelpBinding {
 	fixed := spotlightOffKeys()
-	out := []HelpBinding{fixed[0]}
+	var out []HelpBinding
 	if keys := registry.GetKeys("prefix_toggle_spotlight"); len(keys) > 0 {
 		out = append(out, HelpBinding{
 			Action:      "spotlight_off",
@@ -712,13 +710,12 @@ func generateSpotlightOffBindings(registry *config.KeybindRegistry, s *config.Se
 			Category:    "Modes",
 		})
 	}
-	return append(out, fixed[1:]...)
+	return append(out, fixed...)
 }
 
 // spotlightOffKeys are the ways out of the spotlight that are not bindings.
 func spotlightOffKeys() []HelpBinding {
 	return []HelpBinding{
-		{Action: "spotlight_off", Keys: []string{"esc"}, Description: "Turn off spotlight, in window mode", Category: "Modes"},
 		{Action: "spotlight_off", Keys: []string{"click the Spotlight chip"}, Description: "Turn off spotlight, in any mode", Category: "Modes"},
 	}
 }
@@ -897,6 +894,7 @@ var helpTabNames = map[string]string{
 	"Agents":            "Agents",
 	"Copy Mode":         "Copy",
 	"Modes":             "Modes",
+	"Input":             "Input",
 	"Debug":             "Debug",
 	"Tape":              "Tape",
 	"Prefix":            "Prefix",
@@ -919,17 +917,9 @@ func (m *OS) RenderHelpMenu() (string, overlay.Geometry) {
 		return "", overlay.Geometry{}
 	}
 
-	// Auto-select an appropriate category based on mode when first opened.
+	// Help starts at the first category; there is no mode to explain first.
 	if m.HelpCategory < 0 {
 		m.HelpCategory = 0
-		if m.Mode == TerminalMode {
-			for i, cat := range categories {
-				if cat.Name == "Modes" {
-					m.HelpCategory = i
-					break
-				}
-			}
-		}
 	}
 	if m.HelpCategory >= len(categories) {
 		m.HelpCategory = len(categories) - 1

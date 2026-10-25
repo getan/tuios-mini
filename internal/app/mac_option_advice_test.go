@@ -8,7 +8,10 @@ import (
 )
 
 func adviceModel() *OS {
-	return &OS{Settings: config.DefaultSettings(), KeybindRegistry: config.NewKeybindRegistry(config.DefaultConfig())}
+	cfg := config.DefaultConfig()
+	cfg.Keybindings.TerminalMode["terminal_next_window"] = []string{"alt+n"}
+	cfg.Keybindings.TerminalMode["terminal_focus_left"] = []string{"alt+left"}
+	return &OS{Settings: config.DefaultSettings(), KeybindRegistry: config.NewKeybindRegistry(cfg)}
 }
 
 // TestBrowserClientGetsNoTerminalAdvice checks the browser case.

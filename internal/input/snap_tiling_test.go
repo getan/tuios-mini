@@ -53,7 +53,10 @@ func sideBySide(t *testing.T, tiled bool) *app.OS {
 }
 
 func pressWM(o *app.OS, key string) {
-	HandleWindowManagementModeKey(tea.KeyPressMsg{Code: rune(key[0]), Text: key}, o)
+	// Exercise the layout action directly, as the palette does. Bare hjkl
+	// now belongs to the focused pane rather than an alternate input mode.
+	action := o.KeybindRegistry.GetAction(key)
+	GetDispatcher().Dispatch(action, tea.KeyPressMsg{Code: rune(key[0]), Text: key}, o)
 }
 
 func TestSnapKeysFocusANeighbourUnderTiling(t *testing.T) {

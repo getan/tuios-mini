@@ -24,13 +24,13 @@ func TestKeysTypedRightAfterEnteringTerminalModeReachThePTY(t *testing.T) {
 	t.Run("i then a letter", func(t *testing.T) {
 		o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.WindowManagementMode)
 		o, _ = HandleKeyPress(tea.KeyPressMsg{Code: 'i', Text: "i"}, o)
-		if o.Mode != app.TerminalMode {
-			t.Fatalf("i did not enter terminal mode (mode %v)", o.Mode)
+		if o.KeyboardPane() == nil {
+			t.Fatal("focused pane is not ready for input")
 		}
 		o, _ = HandleKeyPress(tea.KeyPressMsg{Code: 'a', Text: "a"}, o)
 		_, _ = HandleKeyPress(tea.KeyPressMsg{Code: '2', Text: "2"}, o)
-		if string(pty.got) != "a2" {
-			t.Fatalf("the shell got %q for keys typed at once after entering terminal mode, want %q", pty.got, "a2")
+		if string(pty.got) != "ia2" {
+			t.Fatalf("the shell got %q for keys typed at once, want %q", pty.got, "ia2")
 		}
 	})
 	t.Run("click then a letter", func(t *testing.T) {
@@ -39,8 +39,8 @@ func TestKeysTypedRightAfterEnteringTerminalModeReachThePTY(t *testing.T) {
 		cx, cy := win.X+2, win.Y+2
 		HandleInput(tea.MouseClickMsg{Button: tea.MouseLeft, X: cx, Y: cy}, o)
 		HandleInput(tea.MouseReleaseMsg{Button: tea.MouseLeft, X: cx, Y: cy}, o)
-		if o.Mode != app.TerminalMode {
-			t.Fatalf("the click did not enter terminal mode (mode %v)", o.Mode)
+		if o.KeyboardPane() == nil {
+			t.Fatal("clicked pane is not ready for input")
 		}
 		HandleInput(tea.KeyPressMsg{Code: 'l', Text: "l"}, o)
 		HandleInput(tea.KeyPressMsg{Code: 's', Text: "s"}, o)

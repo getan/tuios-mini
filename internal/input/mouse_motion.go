@@ -166,10 +166,6 @@ func handleMouseMotion(msg tea.MouseMotionMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			o.CtrlDragPending = false
 			o.CtrlClickLink = ""
 			o.CtrlDragging = true
-			// beginWindowDrag leaves window management on, which is right for a
-			// title-bar grab but not here: a ctrl-drag from a pane the user is
-			// typing in should hand typing back when the pane lands.
-			o.CtrlDragWasTerminal = o.Mode == app.TerminalMode
 			beginWindowDrag(o, o.CtrlDragIndex, o.DragStartX, o.DragStartY)
 		}
 	}
@@ -228,7 +224,8 @@ func handleMouseMotion(msg tea.MouseMotionMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// Hover over the picture-in-picture view is over the view, not over the
 	// pane under it. A drag that started in the pane and crosses the view
 	// still reaches the pane.
-	if o.Mode == app.TerminalMode && (mouse.Button != tea.MouseNone || !pipOwns(mouse.X, mouse.Y, o)) {
+	if !o.PointerGestureActive() && !o.InputOverlayOpen() && !o.ScrollbarDragging &&
+		(mouse.Button != tea.MouseNone || !pipOwns(mouse.X, mouse.Y, o)) {
 		focusedWindow := o.GetFocusedWindow()
 		if focusedWindow != nil && focusedWindow.Terminal != nil {
 			if guestWantsMotion(focusedWindow.Terminal, mouse.Button) {

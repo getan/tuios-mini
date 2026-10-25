@@ -73,10 +73,7 @@ func debugLogEvent(m *OS, msg tea.Msg) {
 	// unrecoverable concurrent map read/write panics.
 	mouseMode := "unknown"
 
-	modeStr := "WinMgmt"
-	if m.Mode == TerminalMode {
-		modeStr = "Terminal"
-	}
+	modeStr := string(m.InputTarget())
 
 	var logLine string
 	switch e := msg.(type) {
@@ -86,7 +83,7 @@ func debugLogEvent(m *OS, msg tea.Msg) {
 			e.String(), e.Code, e.Mod, e.Text)
 	case tea.MouseMotionMsg:
 		// Only log in TerminalMode to avoid flooding
-		if m.Mode != TerminalMode {
+		if m.KeyboardPane() == nil {
 			return
 		}
 		logLine = fmt.Sprintf("[%s] MOUSE_MOTION mode=%s mouse=%s: x=%d y=%d\n",
@@ -301,7 +298,7 @@ func FilterMouseMotion(model tea.Model, msg tea.Msg) tea.Msg {
 		}
 	}
 
-	if m.Mode == TerminalMode {
+	if !m.PointerGestureActive() && !m.InputOverlayOpen() {
 		focusedWindow := m.GetFocusedWindow()
 		if focusedWindow != nil && focusedWindow.Terminal != nil {
 			if focusedWindow.Terminal.HasMouseMode() {

@@ -30,7 +30,8 @@ import (
 	"tuios.dev/swatch"
 )
 
-// Mode represents the current interaction mode of the application.
+// Mode is retained for old tape commands and source compatibility only.
+// Deprecated: input ownership is derived from OS.InputTarget, not this value.
 type Mode int
 
 const (
@@ -166,7 +167,9 @@ type OS struct {
 	lastFocusedID string
 	Width         int
 	Height        int
-	Mode          Mode
+	// Mode is a legacy tape value. It never gates keyboard, paste or mouse input.
+	// Deprecated: use InputTarget to inspect the client interaction state.
+	Mode Mode
 	// terminalMu guards the m.Windows slice and the per-window dirty flags and
 	// render caches against the UI goroutine's render pass. It does NOT guard
 	// emulator cell data; that is Window.ioMu.
@@ -948,6 +951,13 @@ type OS struct {
 	// holds describes a session that no longer exists and must not be pushed.
 	// See SyncStateToDaemon, AddWindow and DeleteWindow.
 	daemonWindowIntent bool
+	// A new focused pane is created asynchronously. Until it arrives, input
+	// intended for it must not reach the pane that happened to be focused before.
+	pendingInputPane      bool
+	pendingInputWorkspace int
+	pendingInputWindows   map[string]bool
+	pendingInputCount     int
+	pendingInputStarted   time.Time
 	// windowIntentErr is why the last window request did not go out, read
 	// once by addWindowInChecked.
 	windowIntentErr error
@@ -972,8 +982,6 @@ type OS struct {
 	paneKeysDown map[rune]string
 	// hostKey is the last key press as the host terminal sent it. See NoteHostKey.
 	hostKey tea.KeyPressMsg
-	// hold is the momentary window-management mode (see hold_mode.go).
-	hold holdMode
 	// optionAdviceShown keeps the macOS Option advice to once per run.
 	optionAdviceShown bool
 	// currentPointer is the last OSC 22 pointer shape written, to avoid
@@ -1840,9 +1848,9 @@ type OS struct {
 	// dropping the window puts the user back where they were instead of leaving
 	// them in window management. Moving a pane is not a request to stop typing.
 	CtrlDragWasTerminal bool
-	// pointerGestureWasTerminal is the same bargain for a resize or an alt-drag
-	// move: see BeginPointerGesture.
-	pointerGestureWasTerminal bool
+	// pointerGestureActive holds motion/release for a frame grab rather than
+	// handing them to a mouse-aware program underneath.
+	pointerGestureActive bool
 
 	// ContextMenu is the open shift+right-click menu, or nil. It is deliberately
 	// not one of the draggable overlay kinds: a context menu is anchored to the

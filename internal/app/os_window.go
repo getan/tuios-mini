@@ -359,6 +359,9 @@ func (m *OS) FocusWindow(i int) *OS {
 	if len(m.Windows) == 0 || i < 0 || i >= len(m.Windows) {
 		return m
 	}
+	if !m.applyingPeerSync {
+		m.CancelPendingPaneInput()
+	}
 	// A pane of a hidden scratch group is shown with its group before it
 	// takes the focus. Every jump comes through here (the rail, the Inbox, a
 	// notification, focus-window), and the switch below into the group's
@@ -676,6 +679,7 @@ func (m *OS) addDaemonWindow(dir, name, sshFrom string, command []string) *OS {
 		// know the session's window set, so the state it holds must not be
 		// pushed. See SyncStateToDaemon.
 		m.daemonWindowIntent = true
+		m.beginPaneInputRequest()
 	}
 	return m
 }

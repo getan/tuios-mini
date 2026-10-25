@@ -15,7 +15,7 @@ import (
 func threePaneOS(t *testing.T, sel map[string][]string) *app.OS {
 	t.Helper()
 	o := osWithBindings(t, func(kb *config.KeybindingsConfig) {
-		maps.Copy(kb.WindowManagement, sel)
+		maps.Copy(kb.TerminalMode, sel)
 		// The digits are snap_corner_N by default, and layout is consulted after
 		// window_management, so leaving them bound would shadow the rebind under
 		// test with corner snapping.

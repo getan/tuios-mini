@@ -22,7 +22,7 @@ func (m *OS) getRealCursor() *tea.Cursor {
 	// A docked session is a separate daemon pane; it can own the keyboard
 	// without changing the center session's mode or focused window.
 	sidebarWindow := m.SidebarSessionWindow()
-	if sidebarWindow == nil && (m.Mode != TerminalMode || m.FocusedWindow < 0 || m.FocusedWindow >= len(m.Windows)) {
+	if m.KeyboardPane() == nil {
 		return nil
 	}
 

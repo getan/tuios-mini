@@ -53,9 +53,6 @@ func (m *OS) spotlightOffChord() string {
 // mode the keyboard is in. In terminal mode with the chord unbound there is no
 // key, and the chip says to click it.
 func (m *OS) spotlightOffHint() overlay.Hint {
-	if m.Mode != TerminalMode {
-		return overlay.Hint{Key: "esc", Label: "turn off", Priority: overlay.HintEssential}
-	}
 	if chord := m.spotlightOffChord(); chord != "" {
 		return overlay.Hint{Key: chord, Label: "turn off", Priority: overlay.HintEssential}
 	}
@@ -123,9 +120,6 @@ func (m *OS) AnnounceSpotlight() {
 func (m *OS) spotlightMessage() string {
 	if !m.spotlight.on {
 		return "Spotlight is off."
-	}
-	if m.Mode != TerminalMode {
-		return "Spotlight is on. Press Esc to turn it off."
 	}
 	if chord := m.spotlightOffChord(); chord != "" {
 		return "Spotlight is on. Press " + spotlightChordWords(chord) + " to turn it off."
