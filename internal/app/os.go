@@ -630,6 +630,12 @@ type OS struct {
 	IsDaemonSession bool               // True when running as part of a persistent daemon session
 	DaemonClient    *session.TUIClient // Client for daemon communication (nil in local mode)
 	SessionName     string             // Name of the daemon session (if attached)
+	// LocalSocket is the socket this client's host owns when it embeds the
+	// daemon. Empty resolves this machine's default through GetSocketPath.
+	// Workspace sets it, so a verb from the embedded TUI reaches the workspace
+	// daemon rather than a same-named standalone tuios socket. See
+	// OSOptions.LocalSocket.
+	LocalSocket string
 	// lastWorkspace and lastSession are where this client was before the
 	// current workspace and session, for last_workspace and last_session.
 	lastWorkspace int
