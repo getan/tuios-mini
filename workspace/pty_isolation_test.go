@@ -43,6 +43,9 @@ func TestARealClientKeepsItsStateInItsOwnTree(t *testing.T) {
 	if _, err := exec.LookPath("/bin/sh"); err != nil {
 		t.Skipf("no /bin/sh to run in the session's pane: %v", err)
 	}
+	// A real pty still needs a terminal type: the client refuses to draw when
+	// TERM says nothing about what the terminal can render, as CI runners do.
+	t.Setenv("TERM", "xterm-256color")
 
 	// The person's own files, each with something in it that the client must
 	// neither read nor write.
@@ -152,6 +155,11 @@ func TestARealClientKeepsItsStateInItsOwnTree(t *testing.T) {
 		mu.Unlock()
 		if got > 0 {
 			break
+		}
+		select {
+		case err := <-runResult:
+			t.Fatalf("Run returned before drawing: %v", err)
+		default:
 		}
 		if time.Now().After(deadline) {
 			t.Fatal("the client drew nothing in 60s")

@@ -35,6 +35,10 @@ func TestRunDrawsAPaneInAPTY(t *testing.T) {
 	if _, err := exec.LookPath("/bin/sh"); err != nil {
 		t.Skipf("no /bin/sh to run in the session's pane: %v", err)
 	}
+	// The client refuses a terminal it cannot render, and a CI runner has no
+	// TERM of its own. The pty is real; only its declared capabilities are
+	// supplied here.
+	t.Setenv("TERM", "xterm-256color")
 
 	// A unix socket path is a fixed-size field, so the directory has to stay
 	// short: see testutil.RuntimeDir.
@@ -133,6 +137,11 @@ func TestRunDrawsAPaneInAPTY(t *testing.T) {
 		mu.Unlock()
 		if strings.Contains(got, enteredAltScreen) && strings.Contains(got, frameBracket) {
 			break
+		}
+		select {
+		case r := <-runResult:
+			t.Fatalf("Run returned before drawing a frame: %v", r.err)
+		default:
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("the client drew no frame in 60s; it wrote %d bytes:\n%q", len(got), tail(got, 2000))

@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"bytes"
 	"os/exec"
 	"sort"
 	"strings"
@@ -112,9 +113,12 @@ func TestTheGuardWouldCatchAProductDependency(t *testing.T) {
 // depsOf is the import graph of one package, its dependencies and theirs.
 func depsOf(t *testing.T, pkg string) map[string]bool {
 	t.Helper()
-	out, err := exec.Command("go", "list", "-deps", pkg).Output()
+	cmd := exec.Command("go", "list", "-deps", pkg)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("go list -deps %s: %v", pkg, err)
+		t.Fatalf("go list -deps %s: %v\n%s", pkg, err, stderr.String())
 	}
 	deps := map[string]bool{}
 	for l := range strings.SplitSeq(string(out), "\n") {
