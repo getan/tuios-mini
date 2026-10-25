@@ -3,8 +3,8 @@ package app
 import (
 	"image/color"
 
-	"github.com/Gaurav-Gosain/tuios/internal/composer"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/composer"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // composerStyles is the composer's look in pal. The composer takes no colour

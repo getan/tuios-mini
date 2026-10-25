@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/federation"
 )
 
 // The two ends of a copy: this machine's disk, read directly, or a host's,

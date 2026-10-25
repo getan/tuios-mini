@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/federation"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // Host-qualified targets on the command line.

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // A session has one name, and the daemon owns it. rename-session changes it:

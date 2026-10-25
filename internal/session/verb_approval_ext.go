@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/Gaurav-Gosain/tuios/internal/risk"
+	"github.com/getan/tuios-mini/internal/risk"
 )
 
 // Reading a held approval whole, and the answers that need more than the

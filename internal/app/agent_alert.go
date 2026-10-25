@@ -3,12 +3,12 @@ package app
 import (
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/sound"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/hooks"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/sound"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // Agent alerts run on the client, not the daemon, and that is the design rather

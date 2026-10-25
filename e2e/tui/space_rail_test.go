@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
 	"github.com/Gaurav-Gosain/tuitest"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // The rail's space headings: the sessions section draws a heading per space

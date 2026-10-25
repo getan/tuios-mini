@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/ui"
+	"github.com/getan/tuios-mini/internal/terminal"
+	"github.com/getan/tuios-mini/internal/ui"
 )
 
 // MinimizeWindow minimizes the window at the specified index.

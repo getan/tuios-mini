@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // The maintenance tick runs only when a job is due.

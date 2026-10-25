@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // TestCheckpointUndoesATurn runs the turn checkpoints through the binary a

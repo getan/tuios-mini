@@ -9,9 +9,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/review"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/review"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // Reviewing what an agent changed: the full-screen diff of a pane's worktree

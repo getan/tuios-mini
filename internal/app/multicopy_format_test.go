@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // The three multi copy formats, held to exact output, and the untrusted pane

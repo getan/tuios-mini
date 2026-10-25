@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // Security boundaries the review of the transfer engine found. These are kept

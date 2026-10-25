@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/overlay"
 	"tuios.dev/shot"
 )
 

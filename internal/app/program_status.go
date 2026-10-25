@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 	"tuios.dev/progstatus"
 )
 

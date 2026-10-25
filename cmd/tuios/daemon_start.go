@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // daemonStartTimeout is how long a client waits for a spawned daemon to be

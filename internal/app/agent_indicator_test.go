@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // TestAgentStateIndicatorDistinctPerMode guards the one property every surface

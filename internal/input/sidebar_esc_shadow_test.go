@@ -3,9 +3,9 @@ package input
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // railWithSidebarBinds is railOS with the sidebar section replaced, so a test

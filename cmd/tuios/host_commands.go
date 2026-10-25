@@ -12,9 +12,9 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/federation"
+	"github.com/getan/tuios-mini/internal/plural"
+	"github.com/getan/tuios-mini/internal/session"
 	"golang.org/x/term"
 )
 

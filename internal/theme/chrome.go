@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/overlay"
 	tint "github.com/lrstanley/bubbletint/v2"
 )
 

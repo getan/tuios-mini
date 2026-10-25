@@ -51,13 +51,7 @@ import (
 //     or a refused client is not told why.
 
 // budgetWhole reports whether none of b is taken.
-func budgetWhole(b *memBudget) bool {
-	if !b.sem.TryAcquire(b.size) {
-		return false
-	}
-	b.sem.Release(b.size)
-	return true
-}
+func budgetWhole(b *memBudget) bool { return b.Whole() }
 
 // rawFrameHeader is the length prefix, type and codec of an untagged frame
 // with a payload of n bytes.

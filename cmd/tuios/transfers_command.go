@@ -9,10 +9,10 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/Gaurav-Gosain/tuios/internal/units"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/theme"
+	"github.com/getan/tuios-mini/internal/units"
 	"github.com/spf13/cobra"
 )
 

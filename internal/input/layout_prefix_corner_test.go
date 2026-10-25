@@ -3,8 +3,8 @@ package input
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // Corner snapping moved off the bare digits in window mode, where it shadowed

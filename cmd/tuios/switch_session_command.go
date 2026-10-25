@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/federation"
 	"github.com/spf13/cobra"
 )
 

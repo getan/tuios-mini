@@ -8,10 +8,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/federation"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 )
 
 // Federation in the client: the rail draws every machine's sessions as one

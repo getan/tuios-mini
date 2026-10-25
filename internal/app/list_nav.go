@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/listnav"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/listnav"
 )
 
 // listWraps reports whether a single step off the end of a list wraps to the

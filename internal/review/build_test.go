@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 func write(t *testing.T, dir, name, body string) {

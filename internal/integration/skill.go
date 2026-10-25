@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
-	"github.com/Gaurav-Gosain/tuios/skills"
+	"github.com/getan/tuios-mini/internal/lazyre"
+	"github.com/getan/tuios-mini/skills"
 )
 
 // The skill stub: a SKILL.md that makes a harness load the tuios skill.

@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // TestMain isolates the whole test binary from the developer's own XDG

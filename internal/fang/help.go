@@ -13,10 +13,10 @@ import (
 	"sync"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/term"
+	"github.com/getan/tuios-mini/internal/lazyre"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

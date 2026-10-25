@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/getan/tuios-mini/internal/wire"
 )
 
 // DebugLevel controls the verbosity of protocol logging.
@@ -230,6 +232,21 @@ func ProtocolLog(level DebugLevel, format string, args ...any) {
 // not own their text (the standard library logger, an error string) would have
 // their per-cent signs read as verbs.
 func logRaw(level DebugLevel, message string) {
+	logRingAndDebug(level, message)
+
+	// The file keeps errors and basic events whatever the level, and follows the
+	// level for anything above them.
+	if alwaysFile(level) || GetDebugLevel() >= level {
+		writeDaemonLogFile(level.String(), message)
+	}
+}
+
+// logRingAndDebug records one line in the process's ring buffer and, at or
+// above the configured level, on the debug output. Every sink the daemon has is
+// fed from logRaw; this is the half of it that belongs to the process rather
+// than to a file, so a daemon with a log file of its own can take this half
+// without also writing into the process's file.
+func logRingAndDebug(level DebugLevel, message string) {
 	// Always store in buffer (regardless of debug level)
 	if logBuffer != nil {
 		logBuffer.Add(level.String(), message)
@@ -241,12 +258,6 @@ func logRaw(level DebugLevel, message string) {
 		logger := debugLogger
 		debugMu.RUnlock()
 		logger.Print(message)
-	}
-
-	// The file keeps errors and basic events whatever the level, and follows the
-	// level for anything above them.
-	if alwaysFile(level) || GetDebugLevel() >= level {
-		writeDaemonLogFile(level.String(), message)
 	}
 }
 
@@ -291,91 +302,10 @@ func LogMessage(direction string, msg *Message) {
 	}
 }
 
-// messageTypeNames names every message type, indexed by its wire value.
-// Reserved types, which nothing sends any more, are labelled as such so a
-// protocol log that shows one points at a peer from another build.
-var messageTypeNames = [...]string{
-	MsgHello:             "Hello",
-	MsgAttach:            "Attach",
-	MsgDetach:            "Detach",
-	MsgNew:               "New",
-	MsgList:              "List",
-	MsgKill:              "Kill",
-	MsgInput:             "Input",
-	MsgResize:            "Resize",
-	MsgPing:              "Ping",
-	MsgCreatePTY:         "CreatePTY",
-	MsgClosePTY:          "ClosePTY",
-	MsgListPTYs:          "Reserved(ListPTYs)",
-	MsgFocusPTY:          "Reserved(FocusPTY)",
-	MsgGetState:          "Reserved(GetState)",
-	MsgUpdateState:       "UpdateState",
-	MsgSubscribePTY:      "SubscribePTY",
-	MsgUnsubscribePTY:    "UnsubscribePTY",
-	MsgGetTerminalState:  "GetTerminalState",
-	MsgExecuteCommand:    "ExecuteCommand",
-	MsgSendKeys:          "Reserved(SendKeys)",
-	MsgSetConfig:         "Reserved(SetConfig)",
-	MsgCapturePane:       "Reserved(CapturePane)",
-	MsgWelcome:           "Welcome",
-	MsgAttached:          "Attached",
-	MsgDetached:          "Detached",
-	MsgSessionList:       "SessionList",
-	MsgOutput:            "Reserved(Output)",
-	MsgError:             "Error",
-	MsgPong:              "Pong",
-	MsgSessionEnded:      "SessionEnded",
-	MsgWindowChanged:     "Reserved(WindowChanged)",
-	MsgPTYList:           "Reserved(PTYList)",
-	MsgPTYCreated:        "PTYCreated",
-	MsgPTYClosed:         "PTYClosed",
-	MsgPTYOutput:         "PTYOutput",
-	MsgStateData:         "Reserved(StateData)",
-	MsgTerminalState:     "TerminalState",
-	MsgCommandResult:     "CommandResult",
-	MsgRemoteCommand:     "RemoteCommand",
-	MsgGetLogs:           "GetLogs",
-	MsgLogsData:          "LogsData",
-	MsgQueryWindows:      "Reserved(QueryWindows)",
-	MsgWindowList:        "Reserved(WindowList)",
-	MsgQuerySession:      "Reserved(QuerySession)",
-	MsgSessionInfo:       "Reserved(SessionInfo)",
-	MsgStateSync:         "StateSync",
-	MsgClientJoined:      "ClientJoined",
-	MsgClientLeft:        "ClientLeft",
-	MsgSessionResize:     "SessionResize",
-	MsgForceRefresh:      "Reserved(ForceRefresh)",
-	MsgRequestFullSync:   "Reserved(RequestFullSync)",
-	MsgResurrect:         "Resurrect",
-	MsgPTYResized:        "PTYResized",
-	MsgAgentMail:         "AgentMail",
-	MsgHostsChanged:      "HostsChanged",
-	MsgReadDir:           "ReadDir",
-	MsgDirListing:        "DirListing",
-	MsgClientFocus:       "ClientFocus",
-	MsgLayoutTree:        "LayoutTree",
-	MsgTypeAtPrompt:      "TypeAtPrompt",
-	MsgPromptTyped:       "PromptTyped",
-	MsgClientGraphics:    "ClientGraphics",
-	MsgMasterLayout:      "MasterLayout",
-	MsgSidebarVisibility: "SidebarVisibility",
-	MsgSessionUsed:       "SessionUsed",
-	MsgClientActivity:    "ClientActivity",
-	MsgWatchDir:          "WatchDir",
-	MsgDirChanged:        "DirChanged",
-	MsgSessionsChanged:   "SessionsChanged",
-	MsgPaneMark:          "PaneMark",
-}
-
-// MessageTypeName returns a human-readable name for a message type.
-func MessageTypeName(t MessageType) string {
-	if int(t) < len(messageTypeNames) {
-		if name := messageTypeNames[t]; name != "" {
-			return name
-		}
-	}
-	return fmt.Sprintf("Unknown(%d)", t)
-}
+// MessageTypeName returns a human-readable name for a message type. The names
+// belong with the numbering, so they live in internal/wire with it: the
+// frames' own errors print them without this package linked.
+func MessageTypeName(t MessageType) string { return wire.MessageTypeName(t) }
 
 // GetLogEntries returns the last n log entries.
 // If n <= 0, returns all entries.

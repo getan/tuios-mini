@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // Starting an agent: what fan and start-agent share.

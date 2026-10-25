@@ -2,19 +2,19 @@ package app
 
 import (
 	"encoding/json"
-	"github.com/Gaurav-Gosain/tuios/internal/composer"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/composer"
+	"github.com/getan/tuios-mini/internal/theme"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/risk"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/harness"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/risk"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // Safer approvals in the Inbox: a risky approval that needs a second press to

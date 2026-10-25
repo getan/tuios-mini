@@ -18,10 +18,10 @@ import (
 	"charm.land/lipgloss/v2"
 	xpty "github.com/charmbracelet/x/xpty"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
-	"github.com/Gaurav-Gosain/tuios/internal/ptyspawn"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/ptyspawn"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 	"tuios.dev/vt"
 )
 
@@ -821,10 +821,10 @@ func NewWindowIn(dir, id, title string, x, y, width, height, z int, exitChan cha
 	termType, colorTerm := getTerminalEnv()
 
 	// Debug logging for terminal environment
-	if os.Getenv("TUIOS_DEBUG_INTERNAL") == "1" {
+	if debuglog.Enabled() {
 		debugMsg := fmt.Sprintf("[%s] NewWindow TERM=%s COLORTERM=%s (envTERM=%s envCOLORTERM=%s)\n",
 			time.Now().Format("15:04:05.000"), termType, colorTerm, os.Getenv("TERM"), os.Getenv("COLORTERM"))
-		if f, err := debuglog.Open(debuglog.Path); err == nil {
+		if f, err := debuglog.Open(debuglog.DebugPath()); err == nil {
 			_, _ = f.WriteString(debugMsg)
 			_ = f.Close()
 		}

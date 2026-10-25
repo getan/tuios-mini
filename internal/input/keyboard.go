@@ -2,7 +2,7 @@ package input
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/getan/tuios-mini/internal/app"
 )
 
 // selectWindowByIndex focuses the num-th window of the current workspace, where

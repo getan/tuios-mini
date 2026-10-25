@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // herdr's socket API, answered by tuios.

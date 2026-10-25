@@ -12,8 +12,8 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // sshExitRun is one real SSH client attached to one real daemon session, with

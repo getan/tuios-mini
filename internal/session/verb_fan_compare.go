@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // Fan compare: the attempts of a fan side by side, one check run in all of

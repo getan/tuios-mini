@@ -5,36 +5,32 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
-	"github.com/Gaurav-Gosain/tuios/internal/memtrim"
-	"github.com/Gaurav-Gosain/tuios/internal/pool"
+	"github.com/getan/tuios-mini/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/memtrim"
+	"github.com/getan/tuios-mini/internal/pool"
 	"tuios.dev/vt"
 )
 
-// debugInternal reports whether TUIOS_DEBUG_INTERNAL=1 is set, read once on
-// first use. The switch is set at startup, before any window exists, and
-// every call site below checks it before building its arguments: a
+// debugInternal reports whether the diagnostic log is on: TUIOS_DEBUG_INTERNAL
+// for a standalone client, the host's own answer while a client is scoped.
+// Every call site below checks it before building its arguments: a
 // time.Now().Format, a string(input) and a hex rendering were being made on
 // every keystroke and every terminal response for a log line that was then
 // thrown away.
-var debugInternal = sync.OnceValue(func() bool {
-	return os.Getenv("TUIOS_DEBUG_INTERNAL") == "1"
-})
+func debugInternal() bool { return debuglog.Enabled() }
 
-// debugLogf appends one formatted line to /tmp/tuios-debug.log when
-// TUIOS_DEBUG_INTERNAL=1, and is a no-op otherwise. One helper instead of a
+// debugLogf appends one formatted line to debuglog.DebugPath when the
+// diagnostic log is on, and is a no-op otherwise. One helper instead of a
 // getenv+open at every call site, and one file instead of several.
 func debugLogf(format string, v ...any) {
 	if !debugInternal() {
 		return
 	}
-	f, err := debuglog.Open(debuglog.Path)
+	f, err := debuglog.Open(debuglog.DebugPath())
 	if err != nil {
 		return
 	}

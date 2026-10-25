@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/pkg/fuzzy"
+	"github.com/getan/tuios-mini/internal/terminal"
+	"github.com/getan/tuios-mini/pkg/fuzzy"
 )
 
 // AggregateViewItem represents a window entry in the aggregate view.

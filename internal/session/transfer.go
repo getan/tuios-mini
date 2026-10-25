@@ -19,8 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/federation"
 )
 
 // Transfers: copies between machines that the daemon runs.
@@ -331,7 +331,7 @@ type transferManager struct {
 }
 
 func newTransferManager(d *Daemon) *transferManager {
-	return &transferManager{d: d, parts: newPartDirs(), jobs: map[string]*transferJob{}, running: make(chan struct{}, transferMaxRunning)}
+	return &transferManager{d: d, parts: newPartDirsIn(d.stateRoot), jobs: map[string]*transferJob{}, running: make(chan struct{}, transferMaxRunning)}
 }
 
 func newTransferID() string {

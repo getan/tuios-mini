@@ -5,8 +5,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // One wiring for the daemon connection, shared by every client.

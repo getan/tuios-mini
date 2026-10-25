@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // close_workspace asks first, then closes the panes of the current workspace

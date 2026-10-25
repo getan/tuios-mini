@@ -5,8 +5,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/dirwatch"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/dirwatch"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // # Keeping the listing true to the disk

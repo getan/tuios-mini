@@ -7,8 +7,8 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/Gaurav-Gosain/tuios/internal/invisible"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/invisible"
+	"github.com/getan/tuios-mini/internal/theme"
 	"tuios.dev/vt"
 )
 

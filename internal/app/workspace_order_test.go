@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // TestAnUnarrangedWorkspaceKeepsItsNumericPlace: a workspace made after the

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/federation"
 )
 
 // The session tree carries the other machines' rows alongside this machine's,

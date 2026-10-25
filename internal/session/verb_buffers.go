@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pastebuf"
+	"github.com/getan/tuios-mini/internal/pastebuf"
 	"tuios.dev/vt"
 )
 

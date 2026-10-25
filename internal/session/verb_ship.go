@@ -14,9 +14,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Gaurav-Gosain/tuios/internal/ghpr"
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/ghpr"
+	"github.com/getan/tuios-mini/internal/plural"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // Shipping: from an agent's worktree to a merged change.

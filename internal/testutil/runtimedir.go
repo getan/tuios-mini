@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // A unix socket address is a fixed-size field in the kernel, not a string:

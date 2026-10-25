@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // getSessionClientCount returns the number of TUI clients attached to a session.

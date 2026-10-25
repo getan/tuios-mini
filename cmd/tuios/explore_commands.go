@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/explore"
-	"github.com/Gaurav-Gosain/tuios/internal/sortx"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/explore"
+	"github.com/getan/tuios-mini/internal/sortx"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

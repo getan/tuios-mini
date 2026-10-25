@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/composer"
-	"github.com/Gaurav-Gosain/tuios/pkg/fuzzy"
+	"github.com/getan/tuios-mini/internal/composer"
+	"github.com/getan/tuios-mini/pkg/fuzzy"
 )
 
 // The reply editor's @ list (composer/mention.go): the panes and the agents

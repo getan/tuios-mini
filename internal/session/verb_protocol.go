@@ -13,10 +13,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/agentproto"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/agentproto"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/guestenv"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // This file implements the typed, line-delimited JSON verb protocol layered

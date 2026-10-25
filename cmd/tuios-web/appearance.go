@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 
 	"github.com/Gaurav-Gosain/sip"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/theme"
 	tint "github.com/lrstanley/bubbletint/v2"
 )
 

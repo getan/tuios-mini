@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/federation"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // The fleet in the client: the Inbox holds other machines' items, the rail

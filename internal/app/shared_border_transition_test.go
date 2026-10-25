@@ -7,9 +7,9 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/layout"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // A pane under shared borders has no border of its own, so the only thing that

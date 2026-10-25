@@ -7,7 +7,7 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/getan/tuios-mini/internal/app"
 )
 
 // handleLayoutPickerInput handles keyboard input when the layout picker is open.

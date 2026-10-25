@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
-	"github.com/Gaurav-Gosain/tuios/pkg/fuzzy"
+	"github.com/getan/tuios-mini/internal/plural"
+	"github.com/getan/tuios-mini/pkg/fuzzy"
 )
 
 // The settings page searches its rows by name, key, value and description.

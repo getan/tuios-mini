@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/tape"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // spoofedCwd is a directory a pane can announce over OSC 7. Inside shell

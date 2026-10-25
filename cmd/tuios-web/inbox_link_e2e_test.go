@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // TestNotificationLinkOpensTheInboxOnItsItem follows a push notification's

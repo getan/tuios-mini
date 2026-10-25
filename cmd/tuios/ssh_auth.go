@@ -8,8 +8,8 @@ import (
 
 	"github.com/adrg/xdg"
 
-	"github.com/Gaurav-Gosain/tuios/internal/netutil"
-	"github.com/Gaurav-Gosain/tuios/internal/server"
+	"github.com/getan/tuios-mini/internal/netutil"
+	"github.com/getan/tuios-mini/internal/server"
 )
 
 // checkSSHAuth stops a bind that has no authorized keys and no --no-auth, and

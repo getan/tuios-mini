@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/getan/tuios-mini/internal/theme"
 	"tuios.dev/vt"
 )
 

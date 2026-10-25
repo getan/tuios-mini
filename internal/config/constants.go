@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/theme"
 	"github.com/lrstanley/go-nf/glyphs/fa"
 	"github.com/lrstanley/go-nf/glyphs/ple"
 )

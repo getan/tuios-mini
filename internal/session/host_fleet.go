@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/federation"
 )
 
 // The fleet: this daemon following the agents of every linked host.

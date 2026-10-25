@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/release"
+	"github.com/getan/tuios-mini/internal/release"
 )
 
 // Where `tuios hosts sync` gets its binaries: the release that matches this

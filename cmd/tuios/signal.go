@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // signalQuitGrace is how long a requested quit may take before the process

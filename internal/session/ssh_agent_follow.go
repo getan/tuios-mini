@@ -5,17 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
-	"github.com/Gaurav-Gosain/tuios/internal/sockpath"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/federation"
+	"github.com/getan/tuios-mini/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/sockpath"
 	"github.com/google/uuid"
 )
 
@@ -212,7 +211,7 @@ func (d *Daemon) startSSHAgent() {
 	n := max(len(SSHAgentLinkPath(d.manager.SocketPath(), "00000000-0000-0000-0000-000000000000")),
 		len(hostAgentLinkPath(d.manager.SocketPath(), strings.Repeat("h", hostLinkKeep))))
 	if n > sockpath.MaxLen() {
-		log.Printf("Warning: the ssh agent links are %d characters long, and a Unix socket path can be at most %d. ssh in a pane cannot reach the agent. Set XDG_RUNTIME_DIR to a shorter folder.", n, sockpath.MaxLen())
+		d.warnf("Warning: the ssh agent links are %d characters long, and a Unix socket path can be at most %d. ssh in a pane cannot reach the agent. Set XDG_RUNTIME_DIR to a shorter folder.", n, sockpath.MaxLen())
 	}
 }
 

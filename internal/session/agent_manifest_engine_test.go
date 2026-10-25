@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 	"tuios.dev/vt"
 )
 

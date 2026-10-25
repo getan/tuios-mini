@@ -4,7 +4,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
+	"github.com/getan/tuios-mini/internal/layout"
 )
 
 // Merging a client state sync into daemon-owned state.

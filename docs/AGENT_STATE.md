@@ -4812,6 +4812,16 @@ every pane, are held to nothing new.
 | `respond` | Answer another pane's prompt with `respond`, without the person (see [Who may answer](#who-may-answer)), and type into a pane waiting on a prompt |
 | `admin` | Everything else, as every pane could before grants: every session, the listings across sessions, windows, layouts, options, `kill-session`, `run-command`, attach. Includes `read`, `write` and `fan`, never `respond` |
 
+In a **local-only** daemon — the embedded workspace `mini` starts, which is what
+`golder` runs — `write` also arranges the pane's own session: `new-window`,
+`close-window`, `focus-window`, `move-window`, `set-window` and `resize`, there
+and nowhere else. `move-window`'s `to_session` and `new-window`'s `host` are
+refused, a pane started this way holds no more than the pane that started it,
+and `close-window` closes only panes that hold nothing the caller does not. A
+standalone daemon keeps all six for `admin`. See
+[protocol.md](protocol.md#pane-grants) and
+[M4.md](M4.md#7-a-workspaces-panes-arrange-their-own-session).
+
 Whatever it holds, a pane can always report about itself (`set-agent-state`,
 `set-agent-meta`, `set-agent-session`, `ask-human`, `request-approval`, on its
 own pane only), and ask what it holds with `tuios pane-grants`. So

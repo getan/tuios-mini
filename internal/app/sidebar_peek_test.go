@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 )
 
 // sessionRowY is the screen row a session's rail row was drawn on.

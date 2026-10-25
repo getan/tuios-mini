@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/capture"
+	"github.com/getan/tuios-mini/internal/capture"
 	"tuios.dev/shot"
 	"tuios.dev/vt"
 )

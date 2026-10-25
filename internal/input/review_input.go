@@ -2,7 +2,7 @@ package input
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/getan/tuios-mini/internal/app"
 )
 
 // handleReviewInput handles a key while the review overlay is open. It owns

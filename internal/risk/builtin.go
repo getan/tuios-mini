@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // Names of the shipped rules, as the Inbox shows them.

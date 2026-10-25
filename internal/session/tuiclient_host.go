@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/getan/tuios-mini/internal/tape"
 )
 
 // A TUI client attached to a session on another machine.

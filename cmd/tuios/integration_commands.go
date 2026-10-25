@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
+	"github.com/getan/tuios-mini/internal/integration"
 	"github.com/spf13/cobra"
 )
 

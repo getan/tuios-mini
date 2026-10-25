@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/layout"
+	"github.com/getan/tuios-mini/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/session"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

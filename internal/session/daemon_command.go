@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/getan/tuios-mini/internal/tape"
 )
 
 // daemonOwnedCommands are the commands the daemon executes itself whether or not

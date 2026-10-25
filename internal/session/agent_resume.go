@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // Resuming an agent's conversation after the daemon restarts.

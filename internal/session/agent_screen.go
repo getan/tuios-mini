@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // screenScanInterval bounds how often output drives a screen scan, so a pane

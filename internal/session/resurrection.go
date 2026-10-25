@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/atomicfile"
 )
 
 const (
@@ -66,7 +66,7 @@ func getResurrectionDir() string {
 // Callers are responsible for having validated the name (see ValidateSessionName);
 // this is a plain join and cannot defend itself.
 func getResurrectionPath(sessionName string) string {
-	return filepath.Join(getResurrectionDir(), sessionName+".json")
+	return stateRoot("").sessionPath(sessionName)
 }
 
 // ValidateSessionName rejects a name a session could never be saved under. The
@@ -98,7 +98,7 @@ func ValidateSessionName(name string) error {
 // ResurrectionStateDir returns the directory holding saved session state, so a
 // message can name where sessions are persisted.
 func ResurrectionStateDir() string {
-	return getResurrectionDir()
+	return stateRoot("").dir()
 }
 
 // ResurrectionArchiveDir returns the directory where corrupt or incompatible
@@ -106,7 +106,7 @@ func ResurrectionStateDir() string {
 // is exported so an error message can tell the user where their session went
 // rather than only that it is gone.
 func ResurrectionArchiveDir() string {
-	return filepath.Join(getResurrectionDir(), "archive")
+	return stateRoot("").archiveDir()
 }
 
 // archiveResurrectionFile moves a bad state file into the archive directory,
@@ -114,8 +114,8 @@ func ResurrectionArchiveDir() string {
 // failure the original file is removed so it is not retried on every load, and
 // an empty path is returned. Never returns an error to callers because the load
 // must continue regardless.
-func archiveResurrectionFile(path string) string {
-	archiveDir := ResurrectionArchiveDir()
+func archiveResurrectionFile(root stateRoot, path string) string {
+	archiveDir := root.archiveDir()
 	if err := os.MkdirAll(archiveDir, 0700); err != nil {
 		_ = os.Remove(path)
 		return ""
@@ -156,7 +156,14 @@ const staleTempAge = 10 * time.Minute
 // Best effort and never fatal. It runs on daemon start, which is the one moment
 // no save of this daemon's can be in flight, and only one daemon runs at a time.
 func CleanResurrectionDir() {
-	dir := getResurrectionDir()
+	cleanResurrectionDirIn(stateRoot(""))
+}
+
+// cleanResurrectionDirIn is CleanResurrectionDir for the state root of one
+// daemon: a daemon with a state directory of its own sweeps that directory and
+// nothing else, so its start can never delete another daemon's state.
+func cleanResurrectionDirIn(root stateRoot) {
+	dir := root.dir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -173,19 +180,19 @@ func CleanResurrectionDir() {
 		}
 	}
 
-	cleanOrphanHistory()
+	cleanOrphanHistoryIn(root)
 
 	// The other state folders are written through atomicfile too. A file
 	// there is only swept once it is old, since nothing here says no write is
 	// in flight in them.
 	for _, d := range []string{
-		filepath.Dir(outboxPath()), filepath.Dir(attentionPath()),
-		filepath.Dir(reviewNotesPath()), filepath.Dir(appliedGrantsPath()), pushDir(),
+		filepath.Dir(root.outboxPath()), filepath.Dir(root.attentionPath()),
+		filepath.Dir(root.reviewNotesPath()), filepath.Dir(root.appliedGrantsPath()), root.pushDir(),
 	} {
 		atomicfile.SweepStale(d, staleTempAge)
 	}
 
-	archiveDir := ResurrectionArchiveDir()
+	archiveDir := root.archiveDir()
 	archived, err := os.ReadDir(archiveDir)
 	if err != nil {
 		return
@@ -207,6 +214,13 @@ func CleanResurrectionDir() {
 
 // SaveSessionForResurrection persists the session state to disk.
 func SaveSessionForResurrection(state *SessionState) error {
+	return saveSessionStateIn(stateRoot(""), state)
+}
+
+// saveSessionStateIn is SaveSessionForResurrection into one daemon's state
+// root. A session passes its own root, so a daemon that was given a state
+// directory writes its sessions there and nowhere else.
+func saveSessionStateIn(root stateRoot, state *SessionState) error {
 	if state == nil || state.Name == "" {
 		return nil
 	}
@@ -216,7 +230,7 @@ func SaveSessionForResurrection(state *SessionState) error {
 	// state do not set this field.
 	state.ResurrectionVersion = ResurrectionVersion
 
-	dir := getResurrectionDir()
+	dir := root.dir()
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create resurrection dir: %w", err)
 	}
@@ -226,7 +240,7 @@ func SaveSessionForResurrection(state *SessionState) error {
 		return fmt.Errorf("failed to marshal session state: %w", err)
 	}
 
-	if err := atomicfile.Write(getResurrectionPath(state.Name), data, 0o600, false); err != nil {
+	if err := atomicfile.Write(root.sessionPath(state.Name), data, 0o600, false); err != nil {
 		return fmt.Errorf("failed to write resurrection file: %w", err)
 	}
 
@@ -237,7 +251,12 @@ func SaveSessionForResurrection(state *SessionState) error {
 // version-incompatible files are archived (not deleted) and returned as an
 // error, so a single bad file can never crash the daemon or block startup.
 func LoadResurrectionState(sessionName string) (*SessionState, error) {
-	path := getResurrectionPath(sessionName)
+	return loadResurrectionStateIn(stateRoot(""), sessionName)
+}
+
+// loadResurrectionStateIn is LoadResurrectionState in one daemon's state root.
+func loadResurrectionStateIn(root stateRoot, sessionName string) (*SessionState, error) {
+	path := root.sessionPath(sessionName)
 	data, err := os.ReadFile(path) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("no resurrection data for session %q: %w", sessionName, err)
@@ -245,13 +264,13 @@ func LoadResurrectionState(sessionName string) (*SessionState, error) {
 
 	var state SessionState
 	if err := json.Unmarshal(data, &state); err != nil {
-		dest := archiveResurrectionFile(path)
+		dest := archiveResurrectionFile(root, path)
 		return nil, fmt.Errorf("saved state for session %q is corrupt and cannot be restored (%s): %w",
 			sessionName, archivedNote(dest), err)
 	}
 
 	if state.ResurrectionVersion > ResurrectionVersion {
-		dest := archiveResurrectionFile(path)
+		dest := archiveResurrectionFile(root, path)
 		return nil, fmt.Errorf("saved state for session %q was written by a newer TUIOS (state version %d, this build reads up to %d) and cannot be restored (%s)",
 			sessionName, state.ResurrectionVersion, ResurrectionVersion, archivedNote(dest))
 	}
@@ -270,19 +289,24 @@ type ResurrectableInfo struct {
 // ListResurrectableInfos returns metadata for every resurrectable session,
 // sorted by name. Corrupt/incompatible files are skipped (and archived).
 func ListResurrectableInfos() ([]ResurrectableInfo, error) {
-	names, err := ListResurrectableSessions()
+	return listResurrectableInfosIn(stateRoot(""))
+}
+
+// listResurrectableInfosIn is ListResurrectableInfos in one daemon's state root.
+func listResurrectableInfosIn(root stateRoot) ([]ResurrectableInfo, error) {
+	names, err := listResurrectableSessionsIn(root)
 	if err != nil {
 		return nil, err
 	}
 
 	infos := make([]ResurrectableInfo, 0, len(names))
 	for _, name := range names {
-		state, err := LoadResurrectionState(name)
+		state, err := loadResurrectionStateIn(root, name)
 		if err != nil {
 			continue
 		}
 		info := ResurrectableInfo{Name: name, WindowCount: len(state.Windows), Space: state.Space}
-		if fi, statErr := os.Stat(getResurrectionPath(name)); statErr == nil {
+		if fi, statErr := os.Stat(root.sessionPath(name)); statErr == nil {
 			info.SavedAt = fi.ModTime()
 		}
 		infos = append(infos, info)
@@ -292,7 +316,13 @@ func ListResurrectableInfos() ([]ResurrectableInfo, error) {
 
 // ListResurrectableSessions returns names of sessions that can be restored.
 func ListResurrectableSessions() ([]string, error) {
-	dir := getResurrectionDir()
+	return listResurrectableSessionsIn(stateRoot(""))
+}
+
+// listResurrectableSessionsIn is ListResurrectableSessions in one daemon's state
+// root.
+func listResurrectableSessionsIn(root stateRoot) ([]string, error) {
+	dir := root.dir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -315,11 +345,17 @@ func ListResurrectableSessions() ([]string, error) {
 // RemoveResurrectionState deletes the resurrection file for a session, and
 // its saved pane history.
 func RemoveResurrectionState(sessionName string) {
-	path := getResurrectionPath(sessionName)
+	removeResurrectionStateIn(stateRoot(""), sessionName)
+}
+
+// removeResurrectionStateIn is RemoveResurrectionState in one daemon's state
+// root.
+func removeResurrectionStateIn(root stateRoot, sessionName string) {
+	path := root.sessionPath(sessionName)
 	_ = os.Remove(path)
 	// The session's pane history goes with it. It is only ever read back into
 	// a restore of this state, and it holds whatever the panes printed.
-	RemoveHistory(sessionName)
+	removeHistoryIn(root, sessionName)
 }
 
 // startPeriodicSaveWith starts a goroutine that saves session state with the

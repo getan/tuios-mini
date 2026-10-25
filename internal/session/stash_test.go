@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sockpath"
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/getan/tuios-mini/internal/sockpath"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // These tests hit the stash the way it will actually be used and the way it will

@@ -5,16 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
+	"github.com/getan/tuios-mini/internal/atomicfile"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/federation"
 )
 
 // What panes held on the default when the daemon last ran.
@@ -34,18 +32,13 @@ type appliedGrants struct {
 	Grants []string `json:"grants"`
 }
 
-// appliedGrantsPath is where the record lives, under the saved state.
-func appliedGrantsPath() string {
-	return filepath.Join(getResurrectionDir(), "grants", "applied.json")
-}
-
 // recordAppliedGrants writes the default now in force.
 func (d *Daemon) recordAppliedGrants(r config.ResolvedPermissions) {
 	data, err := json.Marshal(appliedGrants{Strict: r.Strict, Grants: r.Grants})
 	if err != nil {
 		return
 	}
-	_ = atomicfile.WritePrivate(appliedGrantsPath(), data, false)
+	_ = atomicfile.WritePrivate(d.stateRoot.appliedGrantsPath(), data, false)
 }
 
 // inForce is the default the grant table holds now, as a config value.
@@ -64,13 +57,13 @@ const grantsWidenedNote = "Panes on the default hold more than when tuios last r
 // recorded at the last run, says so when it widened, and records the new one.
 func (d *Daemon) checkGrantsSinceLastRun() {
 	now := d.manager.grants.inForce()
-	if data, err := os.ReadFile(appliedGrantsPath()); err == nil {
+	if data, err := os.ReadFile(d.stateRoot.appliedGrantsPath()); err == nil {
 		var prev appliedGrants
 		if json.Unmarshal(data, &prev) == nil {
 			was := policyDefaults(config.ResolvedPermissions{Strict: prev.Strict, Grants: prev.Grants})
 			if !was.Covers(policyDefaults(now)) {
 				d.grantsWidenedAtStart.Store(true)
-				log.Printf("%s Before: %s. Now: %s.", grantsWidenedNote, was.String(), policyDefaults(now).String())
+				d.warnf("%s Before: %s. Now: %s.", grantsWidenedNote, was.String(), policyDefaults(now).String())
 				d.attention.noteConfigNotice(configWidenedNotice, grantsWidenedNote)
 			}
 		}
@@ -162,7 +155,7 @@ func (d *Daemon) verbApplyConfig(cs *connState, params json.RawMessage) (any, *v
 		}
 	} else {
 		d.applyUserConfig(cfg, true)
-		log.Printf("config.toml was applied in full by the person")
+		d.warnf("config.toml was applied in full by the person")
 	}
 	after := d.configSnapshot()
 	out := map[string]any{
@@ -206,7 +199,7 @@ func (d *Daemon) applyOneHost(cfg *config.UserConfig, name string) *verbError {
 		hosts = append(hosts, *want)
 	}
 	d.ApplyHosts(hosts)
-	log.Printf("[FEDERATION] Host %s was applied by the person", name)
+	d.warnf("[FEDERATION] Host %s was applied by the person", name)
 	return nil
 }
 

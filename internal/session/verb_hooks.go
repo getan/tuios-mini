@@ -3,7 +3,7 @@ package session
 import (
 	"encoding/json"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/getan/tuios-mini/internal/hooks"
 	"github.com/google/uuid"
 )
 

@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/pkg/applist"
+	"github.com/getan/tuios-mini/pkg/applist"
 )
 
 // Icons are drawn as real pictures, not glyphs, and only where the host can

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/Gaurav-Gosain/tuios/pkg/applist"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/theme"
+	"github.com/getan/tuios-mini/pkg/applist"
 )
 
 // Launcher layout constants. These are the preferred sizes; a narrower or

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // JSONBlock represents a JSON object or array found in command output.

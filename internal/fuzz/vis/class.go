@@ -3,7 +3,7 @@ package vis
 import (
 	"slices"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
+	"github.com/getan/tuios-mini/internal/fuzz"
 )
 
 // The tape shows one cell per action and the cell has one glyph, so the

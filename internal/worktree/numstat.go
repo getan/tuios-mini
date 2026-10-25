@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/childproc"
+	"github.com/getan/tuios-mini/internal/childproc"
 )
 
 // Comparing the attempts of a fan: how much each one changed against its

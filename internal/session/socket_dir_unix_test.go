@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sockpath"
+	"github.com/getan/tuios-mini/internal/sockpath"
 )
 
 // The socket directory is a security boundary: whoever controls it can swap

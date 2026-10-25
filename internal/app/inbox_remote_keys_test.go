@@ -2,14 +2,14 @@ package app
 
 import (
 	"encoding/json"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // TestInboxDigitsFromSendKeysAnswerNothing: send-keys with no window hands

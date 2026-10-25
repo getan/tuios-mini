@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fang"
+	"github.com/getan/tuios-mini/internal/fang"
 	"github.com/spf13/cobra"
 )
 

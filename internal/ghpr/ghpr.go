@@ -20,7 +20,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/childproc"
+	"github.com/getan/tuios-mini/internal/childproc"
 )
 
 // PR states, lower case.

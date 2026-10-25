@@ -7,7 +7,7 @@ import (
 
 	"github.com/adrg/xdg"
 
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // TestApplyReadsTheCurrentStateHome guards against a cached base going stale.

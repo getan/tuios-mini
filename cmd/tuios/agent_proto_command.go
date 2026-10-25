@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/agentproto"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/agentproto"
+	"github.com/getan/tuios-mini/internal/session"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

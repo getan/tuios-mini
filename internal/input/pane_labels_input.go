@@ -5,7 +5,7 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/getan/tuios-mini/internal/app"
 )
 
 // handleDisplayPanes is the display_panes action: prefix Q by default.

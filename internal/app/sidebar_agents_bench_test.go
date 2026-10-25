@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // benchAgentStates cycles through every state a rail row can be in, so the

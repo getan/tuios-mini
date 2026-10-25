@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
-	"github.com/Gaurav-Gosain/tuios/internal/federation"
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
+	"github.com/getan/tuios-mini/internal/atomicfile"
+	"github.com/getan/tuios-mini/internal/federation"
+	"github.com/getan/tuios-mini/internal/plural"
 )
 
 // Mail to a machine whose link is down.
@@ -162,11 +161,6 @@ func (o *hostOutbox) busy(host string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	return o.flushing[host] || o.hasLocked(host)
-}
-
-// outboxPath is where the queue is saved, beside the Inbox.
-func outboxPath() string {
-	return filepath.Join(getResurrectionDir(), "outbox", "mail.json")
 }
 
 // load reads the saved queue and opens an Inbox item for every machine it

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 // TestWorkspaceSwitcherRowKeepsItsFacts: a workspace named past the row's budget

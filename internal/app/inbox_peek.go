@@ -3,15 +3,15 @@ package app
 import (
 	"encoding/json"
 	"errors"
-	"github.com/Gaurav-Gosain/tuios/internal/composer"
+	"github.com/getan/tuios-mini/internal/composer"
 	"strconv"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/harness"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // The Inbox's peek: space on an approval or a question reads the prompt the

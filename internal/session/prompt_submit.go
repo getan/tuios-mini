@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // This file is the one way the daemon types a prompt into an agent's pane and

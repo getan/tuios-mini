@@ -11,8 +11,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/integration"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // The Agents section of the settings page.

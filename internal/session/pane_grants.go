@@ -2,15 +2,14 @@ package session
 
 import (
 	"encoding/json"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/tape"
 )
 
 // Pane grants: what a process in a pane may do through tuios.
@@ -415,7 +414,7 @@ func (d *Daemon) reloadPanePermissions(r config.ResolvedPermissions) {
 	t.setPolicy(config.ResolvedPermissions{Strict: true, Grants: kept.Names()})
 	t.restartNeeded.Store(true)
 	d.recordAppliedGrants(t.inForce())
-	log.Printf("The new [agents.permissions] gives panes more than before. Panes on the default now hold %s. The rest applies after tuios config apply from outside tuios, or a daemon restart.", kept.String())
+	d.warnf("The new [agents.permissions] gives panes more than before. Panes on the default now hold %s. The rest applies after tuios config apply from outside tuios, or a daemon restart.", kept.String())
 }
 
 // PanePermissionsFromConfig reads [agents.permissions].
@@ -694,6 +693,14 @@ func (d *Daemon) checkGrants(cs *connState, verb string, params json.RawMessage)
 		return params, nil
 	}
 	kind := grantKind(verb)
+	if kind == scopeDeny {
+		// A local-only workspace admits the verbs it arranges its own
+		// session with as scopeLayout (local_control.go). The standalone
+		// product, and every other verb, keeps the refusal below.
+		if layout, ok := d.layoutKind(verb); ok {
+			kind = layout
+		}
+	}
 	if pa.hosted {
 		// A report as the hosted pane is sent on to the machine that owns
 		// its window, which holds it to that pane (forwardHostedCall, which
@@ -756,6 +763,11 @@ func (d *Daemon) checkGrants(cs *connState, verb string, params json.RawMessage)
 			}
 			return "session " + echoName(target) + " is not the pane's own session or in its fan group, and starting agents there needs the admin grant"
 		}
+	case scopeLayout:
+		if !pa.grants.Has(GrantWrite) {
+			return nil, deny(verb + " arranges the panes of the session, which needs the write grant")
+		}
+		reach = d.layoutReach(pa.session)
 	case scopeMail, scopeWrite:
 		if verb == "respond" {
 			if !pa.grants.Has(GrantRespond) {
@@ -779,9 +791,20 @@ func (d *Daemon) checkGrants(cs *connState, verb string, params json.RawMessage)
 	if pa.session == "" {
 		return nil, deny("the pane's session could not be found")
 	}
+	if why := layoutParamsWhy(verb, params); why != "" {
+		return nil, deny(why)
+	}
 	out, verr := d.holdToPane(verb, kind, params, pa.session, pa.window, "without the admin grant a pane reaches only its own", reach, deny)
-	if verr != nil || !typingVerbs[verb] {
-		return out, verr
+	if verr != nil {
+		return nil, verr
+	}
+	if kind == scopeLayout && verb == "close-window" {
+		if why := d.closeRefusal(pa, out); why != "" {
+			return nil, deny(why)
+		}
+	}
+	if !typingVerbs[verb] {
+		return out, nil
 	}
 	return d.holdTypingTarget(verb, pa, out, deny)
 }

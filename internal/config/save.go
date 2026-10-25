@@ -11,7 +11,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -299,7 +298,7 @@ var (
 // older one gives way rather than overwriting the newer. Its WriteNote says
 // when a read-only file sent a change to another file.
 func RenderUserConfig(cfg *UserConfig) (func() (WriteNote, error), error) {
-	configPath, err := xdg.ConfigFile("tuios/config.toml")
+	configPath, err := configFileToWrite()
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve config path: %w", err)
 	}

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/Gaurav-Gosain/tuitest"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/overlay"
 	"tuios.dev/shot"
 )
 

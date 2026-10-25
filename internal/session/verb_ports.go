@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sortx"
+	"github.com/getan/tuios-mini/internal/sortx"
 )
 
 // list-ports: the TCP ports the processes in each pane listen on, so the GUI

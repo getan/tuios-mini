@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // Answers: how a person answers a prompt a needs_input rule reads, without

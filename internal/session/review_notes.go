@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
-	"github.com/Gaurav-Gosain/tuios/internal/review"
+	"github.com/getan/tuios-mini/internal/atomicfile"
+	"github.com/getan/tuios-mini/internal/review"
 )
 
 // The review notes store: the notes people and agents leave on a pane's
@@ -60,11 +60,6 @@ type reviewNoteStore struct {
 
 // reviewKey is the key of a pane's notes on a worktree.
 func reviewKey(root, window string) string { return root + "\x00" + window }
-
-// reviewNotesPath is where the store is saved.
-func reviewNotesPath() string {
-	return filepath.Join(getResurrectionDir(), "review", "notes.json")
-}
 
 // canonRoot is a worktree root as notes are keyed by it: symbolic links
 // resolved, so a path read from a process and one recorded at creation name

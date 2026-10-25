@@ -2,14 +2,12 @@ package app
 
 import (
 	"fmt"
-	"os"
-	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/debuglog"
 )
 
 // ProgramOptions is the one list of Bubble Tea options a tuios client runs
@@ -35,6 +33,9 @@ import (
 // writer, which the local client wraps and the servers serialize, and the
 // input, environment and window size a server takes from its session. A
 // transport supplies those itself, and it appends this list AFTER them. The
+// one native client that is handed its terminal rather than using this
+// process's is the workspace runner (package workspace), which supplies
+// tea.WithInput for the pty it draws to beside the writer. The
 // order matters for one option: WithFilter is a single slot, both wish and sip
 // install a filter of their own, and the last one wins. The filter here does
 // what theirs do (see FilterMouseMotion), so it has to be the last one set.
@@ -56,18 +57,14 @@ func ProgramOptions() []tea.ProgramOption {
 	}
 }
 
-// eventDebugLog says whether TUIOS_DEBUG_INTERNAL=1 asked for the event log,
-// read once on the first event rather than per event. The local command sets
-// the variable at startup before the program runs, so the first event sees it.
-var eventDebugLog = sync.OnceValue(func() bool {
-	return os.Getenv("TUIOS_DEBUG_INTERNAL") == "1"
-})
-
-// debugLogEvent logs events to /tmp/tuios-events.log when TUIOS_DEBUG_INTERNAL=1.
+// debugLogEvent logs events to debuglog.EventsLogPath when the diagnostic logs
+// are on: TUIOS_DEBUG_INTERNAL=1 for a standalone client, the host's own answer
+// for the duration of an embedded one. The switch is asked per event, which is
+// one mutex read and a value the package cached at startup.
 // Only logs KeyPressMsg, MouseMotionMsg, and unknown events in TerminalMode
 // to diagnose phantom keypresses.
 func debugLogEvent(m *OS, msg tea.Msg) {
-	if !eventDebugLog() {
+	if !debuglog.Enabled() {
 		return
 	}
 
@@ -98,7 +95,7 @@ func debugLogEvent(m *OS, msg tea.Msg) {
 		return
 	}
 
-	f, err := debuglog.Open(debuglog.EventsPath)
+	f, err := debuglog.Open(debuglog.EventsLogPath())
 	if err != nil {
 		return
 	}

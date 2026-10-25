@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/skills"
+	"github.com/getan/tuios-mini/internal/session"
+	"github.com/getan/tuios-mini/skills"
 )
 
 // TestSkillKeyTableListsEveryKeyName holds the key table in the panes topic to

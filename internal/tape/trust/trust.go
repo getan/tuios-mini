@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/atomicfile"
 	"github.com/pelletier/go-toml/v2"
 )
 

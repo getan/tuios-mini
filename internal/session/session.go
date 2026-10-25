@@ -23,12 +23,12 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/google/uuid"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/memtrim"
-	"github.com/Gaurav-Gosain/tuios/internal/ptyspawn"
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/guestenv"
+	"github.com/getan/tuios-mini/internal/layout"
+	"github.com/getan/tuios-mini/internal/memtrim"
+	"github.com/getan/tuios-mini/internal/ptyspawn"
+	"github.com/getan/tuios-mini/internal/serverscope"
 	"tuios.dev/progstatus"
 	"tuios.dev/vt"
 	"tuios.dev/vt/snapshot"
@@ -1256,6 +1256,11 @@ type Session struct {
 	// discardHistory is set when the session is killed. The history would be
 	// deleted with the state straight after, so the last save skips it.
 	discardHistory atomic.Bool
+	// stateRoot is the directory this session saves its state and its panes'
+	// history under. It is the daemon's, stamped by the manager when the
+	// session is made, and it never changes: an empty root is the shared
+	// upstream layout. See DaemonConfig.StateDir.
+	stateRoot stateRoot
 
 	stateMu sync.RWMutex
 	// snapSeq is the last SnapshotSeq handed out.
@@ -1636,6 +1641,15 @@ type SessionConfig struct {
 	// so a client's ids for it stay valid. Empty, or an id already in use,
 	// mints a new one.
 	restoreID string
+	// stateRoot is the directory the session saves its state and its panes'
+	// history under. The manager stamps it from its own, so a daemon with a
+	// state directory of its own keeps every session inside it. Empty is the
+	// shared upstream layout.
+	stateRoot stateRoot
+	// paneEnv is the environment every pane of this session is started with,
+	// applied under the variables the session stamps itself. The manager
+	// stamps it from DaemonConfig.PaneEnv. See buildEnvFor.
+	paneEnv []string
 }
 
 // SetStartDir sets the directory new local windows start in when nothing
@@ -1838,6 +1852,7 @@ func NewSession(name string, cfg *SessionConfig, width, height int) (*Session, e
 	}
 	if cfg != nil {
 		session.state.Space = cfg.Space
+		session.stateRoot = cfg.stateRoot
 	}
 
 	session.setName(name)
@@ -1880,7 +1895,7 @@ func (s *Session) persist(state *SessionState) error {
 		return nil
 	}
 	state.SessionID = s.ID
-	err := SaveSessionForResurrection(state)
+	err := saveSessionStateIn(s.stateRoot, state)
 	s.saveHistory(state, false)
 	return err
 }
@@ -3376,8 +3391,14 @@ func (s *Session) Stop() {
 	s.ptysMu.Lock()
 	defer s.ptysMu.Unlock()
 
-	for id, pty := range s.ptys {
-		_ = pty.Close()
+	// Every pane is asked to leave before any is waited on, so the grace is paid
+	// once for the session rather than once per pane. See closePTYs.
+	panes := make([]*PTY, 0, len(s.ptys))
+	for _, pty := range s.ptys {
+		panes = append(panes, pty)
+	}
+	closePTYs(panes)
+	for id := range s.ptys {
 		delete(s.ptys, id)
 		s.places.Delete(id)
 	}
@@ -3612,6 +3633,28 @@ func (s *Session) buildEnvWith(windowID string, restored bool, extra []string) [
 	return s.buildEnvFor(windowID, 0, restored, extra, nil)
 }
 
+// withAssignments returns env with every name in add replaced by the value in
+// add, keeping the order of what was there. A name add does not mention is left
+// alone; a name add holds twice keeps the last, as exec.Cmd does.
+func withAssignments(env, add []string) []string {
+	if len(add) == 0 {
+		return env
+	}
+	replaced := make(map[string]bool, len(add))
+	for _, kv := range add {
+		if k, _, ok := strings.Cut(kv, "="); ok {
+			replaced[k] = true
+		}
+	}
+	out := env[:0:0]
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); !replaced[k] {
+			out = append(out, kv)
+		}
+	}
+	return append(out, add...)
+}
+
 // buildEnvFor is buildEnv with a caller's own variables, for a pane that runs
 // command (nil for the user's shell). The caller's variables replace the
 // daemon's variables of the same name, and every variable set below them,
@@ -3625,6 +3668,15 @@ func (s *Session) buildEnvFor(windowID string, workspace int, restored bool, ext
 	// inside tmux would otherwise hand every pane the variables that make a
 	// program believe it is in a tmux pane. See guestenv.WithoutHostMultiplexer.
 	env := guestenv.WithoutHostMultiplexer(os.Environ())
+	// The session's own variables (DaemonConfig.PaneEnv) come next, so a pane
+	// this session starts carries them under everything the caller named and
+	// under the contract set below. They are filtered on the way in as well as
+	// at the door: an identity or herdr variable that got this far is dropped
+	// rather than allowed to describe a pane that does not exist.
+	if s.config != nil && len(s.config.paneEnv) > 0 {
+		paneEnv, _ := guestenv.FilterPaneEnv(s.config.paneEnv)
+		env = withAssignments(env, paneEnv)
+	}
 	if len(extra) > 0 {
 		replaced := make(map[string]bool, len(extra))
 		for _, kv := range extra {
@@ -4579,13 +4631,26 @@ func (p *PTY) capturePlainAt(scrollback bool) (string, captureState) {
 	return p.captureContent(scrollback, false), p.captureStateLocked()
 }
 
-// Close terminates the PTY.
 // ptyCloseGrace is how long a pane's process has to exit after SIGTERM before
-// Close kills it. It is a bound, not a guarantee: a program that ignores the
+// the close kills it. It is a bound, not a guarantee: a program that ignores the
 // signal still loses its pane when the grace expires.
 const ptyCloseGrace = 100 * time.Millisecond
 
+// Close terminates the PTY: it asks the process to leave, waits out the grace,
+// and tears the emulator and descriptor down.
+//
+// The three steps are separate methods because Close is not the only way panes
+// go. A daemon shutting down closes all of them at once, and a wait per pane in
+// series is a wait per pane added together — see closePTYs.
 func (p *PTY) Close() error {
+	p.closeRequest()
+	p.closeAwait(time.Now().Add(ptyCloseGrace))
+	return p.closeRelease()
+}
+
+// closeRequest is the first step of Close: the pane is told to go, and
+// everything that could still publish against it is stopped. It does not wait.
+func (p *PTY) closeRequest() {
 	p.cancel()
 
 	// Before anything else, so a settle scan already armed cannot fire against a
@@ -4604,18 +4669,34 @@ func (p *PTY) Close() error {
 	// Ask the pane's process to leave before the terminal goes away. Closing
 	// the PTY first sends SIGHUP to the foreground group and skips a handler
 	// that watches SIGTERM. A program that ignores SIGTERM is killed after the
-	// grace, so a close can never hang the daemon.
+	// grace by closeAwait, so a close can never hang the daemon.
 	if p.cmd != nil && p.cmd.Process != nil && !p.IsExited() {
 		_ = terminateProcess(p.cmd.Process)
-		deadline := time.Now().Add(ptyCloseGrace)
-		for !p.IsExited() && time.Now().Before(deadline) {
-			time.Sleep(10 * time.Millisecond)
-		}
-		if !p.IsExited() {
-			_ = p.cmd.Process.Kill()
-		}
 	}
+}
 
+// closeAwait is the second step of Close: it waits for the process closeRequest
+// asked to leave, and kills it at the deadline. A caller closing several panes
+// passes one deadline to all of them, so the wait is the grace they were given
+// together rather than the grace counted once per pane.
+//
+// A pane whose process has no handle here (one on another machine) has nothing
+// to wait for.
+func (p *PTY) closeAwait(deadline time.Time) {
+	if p.cmd == nil || p.cmd.Process == nil {
+		return
+	}
+	for !p.IsExited() && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !p.IsExited() {
+		_ = p.cmd.Process.Kill()
+	}
+}
+
+// closeRelease is the last step of Close: the emulator, the held window size and
+// the descriptor are given up. Nothing that waits belongs here.
+func (p *PTY) closeRelease() error {
 	// Mark the VT emulator closed so forwardTerminalResponses returns EOF on
 	// its next read. (A read already blocked in the response pipe is only
 	// unblocked once Emulator.Close CloseWrites the pipe.)
@@ -4636,6 +4717,32 @@ func (p *PTY) Close() error {
 		return p.pty.Close()
 	}
 	return nil
+}
+
+// closePTYs closes a set of panes, asking all of them to leave before waiting on
+// any of them. It is what a session's Stop uses.
+//
+// The order is the point. Close's wait is bounded by ptyCloseGrace per pane, so
+// closing a session's panes one after another made shutdown cost one grace per
+// pane: a session with ten panes that ignore SIGTERM took a second, and the
+// daemon's whole shutdown grew with the number of panes it had. Asked together,
+// the same panes share one grace, and the bound is the grace rather than the
+// grace times the pane count.
+//
+// Each pane is still released by its own goroutine's state: the three steps stay
+// per pane and no callback runs here, so nothing re-enters the session while it
+// is closing them.
+func closePTYs(ptys []*PTY) {
+	for _, p := range ptys {
+		p.closeRequest()
+	}
+	deadline := time.Now().Add(ptyCloseGrace)
+	for _, p := range ptys {
+		p.closeAwait(deadline)
+	}
+	for _, p := range ptys {
+		_ = p.closeRelease()
+	}
 }
 
 // ProcessCwd returns the current working directory of the PTY's shell process.

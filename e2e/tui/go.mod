@@ -1,4 +1,4 @@
-module github.com/Gaurav-Gosain/tuios/e2e/tui
+module github.com/getan/tuios-mini/e2e/tui
 
 go 1.26.6
 
@@ -25,7 +25,6 @@ require (
 )
 
 require (
-	github.com/Gaurav-Gosain/tuios v0.0.0
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260812204455-68fa937c71be
 	github.com/charmbracelet/x/ansi v0.11.8
@@ -37,6 +36,7 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/creack/pty v1.1.24 // indirect
+	github.com/getan/tuios-mini v0.0.0
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-runewidth v0.0.28 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
@@ -47,4 +47,4 @@ require (
 	tuios.dev/shot v0.2.0
 )
 
-replace github.com/Gaurav-Gosain/tuios => ../..
+replace github.com/getan/tuios-mini => ../..

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/pkg/fuzzy"
+	"github.com/getan/tuios-mini/pkg/fuzzy"
 )
 
 // The settings page is fourteen tabs and nearly two hundred rows, and without

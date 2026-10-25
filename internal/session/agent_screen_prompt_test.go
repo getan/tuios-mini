@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // TestReportMessageIsNotOverwrittenByTheScreen: a report that carries its own

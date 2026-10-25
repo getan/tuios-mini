@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Gaurav-Gosain/tuios/internal/composer"
+	"github.com/getan/tuios-mini/internal/composer"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // Pasting an image from the clipboard into a pane.

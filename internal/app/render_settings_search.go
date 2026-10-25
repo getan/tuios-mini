@@ -6,7 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // settingsRowExtra is what a row shows beyond itself when it is a search

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/worktree"
 )
 
 // bundle-worktree: a worktree's work, read out in pieces so it can cross a

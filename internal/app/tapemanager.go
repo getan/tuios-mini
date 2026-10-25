@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/listnav"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/Gaurav-Gosain/tuios/internal/units"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/listnav"
+	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/plural"
+	"github.com/getan/tuios-mini/internal/tape"
+	"github.com/getan/tuios-mini/internal/theme"
+	"github.com/getan/tuios-mini/internal/units"
 )
 
 // tapeManagerVisibleRows is the number of tape files shown at once in the list.
@@ -61,6 +61,13 @@ type TapeManagerState struct {
 
 // GetTapeDirectory returns the XDG data directory for tape files
 func GetTapeDirectory() (string, error) {
+	// A client running inside a host's tree records its tapes there: a tape is
+	// this client's, and the data directory is the person's.
+	if dir, ok, err := uiStateSubdir("tapes"); err != nil {
+		return "", err
+	} else if ok {
+		return dir, nil
+	}
 	tapeDir, err := xdg.DataFile("tuios/tapes")
 	if err != nil {
 		return "", fmt.Errorf("failed to get tape directory: %w", err)

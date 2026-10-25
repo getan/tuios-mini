@@ -22,7 +22,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Gaurav-Gosain/tuios/internal/childproc"
+	"github.com/getan/tuios-mini/internal/childproc"
 	"golang.org/x/image/draw"
 )
 

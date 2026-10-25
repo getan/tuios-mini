@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // TestSettingsKeyReclaimedFromLegacyRename is the config half of the leader-","

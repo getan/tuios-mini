@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/getan/tuios-mini/internal/tape"
 )
 
 // TestCompileProjectBody pins what a project tape's body compiles to.

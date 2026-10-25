@@ -23,11 +23,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/childproc"
+	"github.com/getan/tuios-mini/internal/childproc"
 
-	"github.com/Gaurav-Gosain/tuios/internal/gitstate"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/gitstate"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // Info is what a worktree is, as far as the rest of tuios needs to know.

@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/guestenv"
 )
 
 // Manager manages all persistent sessions for a user.
@@ -36,6 +36,14 @@ type Manager struct {
 	// history is what sessions made from now on do with their panes' history
 	// across a restart. Nil saves nothing. Guarded by mu.
 	history *HistoryPolicy
+	// stateRoot is the directory sessions made from now on save their state,
+	// history and per-feature files under. Empty is the shared upstream
+	// layout; see DaemonConfig.StateDir. Guarded by mu.
+	stateRoot stateRoot
+	// paneEnv is the environment every pane of every session made from now on
+	// is started with, under the variables the session stamps itself. Guarded
+	// by mu.
+	paneEnv []string
 	// inheritCwd is appearance.new_window_inherit_cwd, stamped into every
 	// session this manager makes.
 	inheritCwd bool
@@ -132,6 +140,32 @@ func (m *Manager) SetHistoryPolicy(p HistoryPolicy) {
 	m.history = &p
 }
 
+// SetStateRoot sets the directory sessions made from now on save everything
+// they keep across a restart under. An empty dir is the shared upstream
+// layout. It is set once, before any session exists.
+func (m *Manager) SetStateRoot(dir string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stateRoot = stateRoot(dir)
+}
+
+// StateRoot is the directory this manager's sessions save their state under:
+// the empty value for the upstream layout.
+func (m *Manager) StateRoot() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return string(m.stateRoot)
+}
+
+// SetPaneEnv sets the environment every pane of every session made from now on
+// is started with. The daemon's identity variables still win; see
+// guestenv.FilterPaneEnv.
+func (m *Manager) SetPaneEnv(env []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.paneEnv = append([]string(nil), env...)
+}
+
 // HistoryPolicy is what SetHistoryPolicy last set, off when nothing did.
 func (m *Manager) HistoryPolicy() HistoryPolicy {
 	m.mu.RLock()
@@ -185,6 +219,15 @@ func (m *Manager) SetHerdrSocket(path string) {
 // config.HerdrProtocolOff.
 func (m *Manager) SetHerdrProtocol(mode string) {
 	m.herdrMode.Store(&mode)
+}
+
+// HerdrProtocol is [agents] herdr_protocol as it is in force, normalised, with
+// the default when nothing set it.
+func (m *Manager) HerdrProtocol() string {
+	if p := m.herdrMode.Load(); p != nil {
+		return config.NormalizeHerdrProtocol(*p)
+	}
+	return config.HerdrProtocolAlways
 }
 
 // SetHerdrBin records the program a pane is given as HERDR_BIN_PATH: the
@@ -317,6 +360,13 @@ func (m *Manager) CreateSession(name string, cfg *SessionConfig, width, height i
 	if cfg.grants == nil {
 		cfg.grants = m.grants
 	}
+	// Every session saves under the daemon's state root, so one daemon's
+	// sessions never land in another's state directory, and a caller cannot
+	// make a session that writes somewhere else.
+	cfg.stateRoot = m.stateRoot
+	if cfg.paneEnv == nil {
+		cfg.paneEnv = m.paneEnv
+	}
 
 	// A restored id is kept only when it is a well-formed id no live session
 	// holds. Anything else gets a new one, as before ids were saved.
@@ -426,7 +476,7 @@ func (m *Manager) RenameSession(old, newName string) (*Session, error) {
 
 	// A saved session that is not running still owns its state file. Taking
 	// its name would overwrite that file, and the saved session would be lost.
-	if _, err := os.Stat(getResurrectionPath(newName)); err == nil && m.GetSession(newName) == nil {
+	if _, err := os.Stat(m.stateRoot.sessionPath(newName)); err == nil && m.GetSession(newName) == nil {
 		return nil, fmt.Errorf("a saved session is named '%s'. Restore it with 'tuios resurrect %s', or pick another name", newName, newName)
 	}
 
@@ -478,13 +528,13 @@ func (m *Manager) RenameSession(old, newName string) (*Session, error) {
 	// The new file is written before the old one goes, so a crash between
 	// the two leaves the session saved under one name or both, never none.
 	if st := sess.ResurrectionState(); st != nil {
-		if err := SaveSessionForResurrection(st); err != nil {
+		if err := saveSessionStateIn(m.stateRoot, st); err != nil {
 			LogError("Resurrection save for renamed session %q failed: %v", newName, err)
 		}
 	}
 	// Before the old state goes, which takes the old name's history with it.
-	moveHistory(old, newName)
-	RemoveResurrectionState(old)
+	moveHistoryIn(m.stateRoot, old, newName)
+	removeResurrectionStateIn(m.stateRoot, old)
 
 	if onRename != nil {
 		onRename(sess, old)
@@ -536,7 +586,7 @@ func (m *Manager) DeleteSession(name string) error {
 	// is a deliberate teardown and must not leave the session resurrectable.
 	session.discardHistory.Store(true)
 	session.Stop()
-	RemoveResurrectionState(name)
+	removeResurrectionStateIn(m.stateRoot, name)
 	return nil
 }
 

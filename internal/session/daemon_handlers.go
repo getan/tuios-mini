@@ -3,7 +3,6 @@ package session
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 )
@@ -265,7 +264,7 @@ func (d *Daemon) handleAttach(cs *connState, msg *Message) error {
 	d.refreshLinkedViewer(session.ID)
 
 	clientCount := d.getSessionClientCount(session.ID)
-	log.Printf("Client %s attached to session %s (TUI client, %d clients total, size=%dx%d)",
+	d.warnf("Client %s attached to session %s (TUI client, %d clients total, size=%dx%d)",
 		cs.clientID, session.Name(), clientCount, payload.Width, payload.Height)
 
 	// Tell the clients already here that somebody joined.
@@ -576,7 +575,7 @@ func (d *Daemon) handleNew(cs *connState, msg *Message) error {
 		if _, err := sess.AddDaemonWindow("", onExit); err != nil {
 			return d.replyError(cs, msg, ErrCodeInternal, fmt.Sprintf("failed to create initial window: %v", err))
 		}
-		log.Printf("Created detached session %q with an initial window", name)
+		d.warnf("Created detached session %q with an initial window", name)
 	}
 
 	return d.handleList(cs, msg)
@@ -620,7 +619,7 @@ func (d *Daemon) handleResurrect(cs *connState, msg *Message) error {
 		return d.handleList(cs, msg)
 	}
 
-	state, err := LoadResurrectionState(payload.SessionName)
+	state, err := loadResurrectionStateIn(d.stateRoot, payload.SessionName)
 	if err != nil {
 		return d.replyError(cs, msg, ErrCodeSessionNotFound, err.Error())
 	}
@@ -629,7 +628,7 @@ func (d *Daemon) handleResurrect(cs *connState, msg *Message) error {
 		return d.replyError(cs, msg, ErrCodeInternal, fmt.Sprintf("failed to restore session: %v", err))
 	}
 
-	log.Printf("Resurrected session %q on demand (%d windows)", payload.SessionName, len(state.Windows))
+	d.warnf("Resurrected session %q on demand (%d windows)", payload.SessionName, len(state.Windows))
 	return d.handleList(cs, msg)
 }
 

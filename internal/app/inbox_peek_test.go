@@ -7,9 +7,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/harness"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // fakeDaemon answers the peek's verb calls from canned replies and records

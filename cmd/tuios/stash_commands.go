@@ -11,8 +11,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"github.com/Gaurav-Gosain/tuios/internal/pathroot"
-	"github.com/Gaurav-Gosain/tuios/internal/plural"
+	"github.com/getan/tuios-mini/internal/pathroot"
+	"github.com/getan/tuios-mini/internal/plural"
 	"github.com/spf13/cobra"
 )
 

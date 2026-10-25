@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/childproc"
+	"github.com/getan/tuios-mini/internal/childproc"
 )
 
 // Event represents a hook event type.

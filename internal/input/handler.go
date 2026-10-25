@@ -4,14 +4,14 @@
 package input
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/listnav"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/getan/tuios-mini/internal/listnav"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // HandleInput is the main input coordinator that routes messages to appropriate handlers

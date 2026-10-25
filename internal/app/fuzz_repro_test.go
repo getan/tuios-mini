@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
+	"github.com/getan/tuios-mini/internal/fuzz"
 )
 
 // The corpus of shrunk repros, replayed on every ordinary test run.

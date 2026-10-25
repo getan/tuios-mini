@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/herdrplugin"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/herdrplugin"
 )
 
 // The herdr plugin host.
@@ -95,6 +95,17 @@ func newPluginHost(d *Daemon, cfg config.PluginsConfig) *pluginHost {
 		enabled: slices.Clone(cfg.Enabled), dirs: slices.Clone(cfg.Dirs),
 		startedUp: map[string]bool{}, panes: map[string]pluginPane{}, burst: map[string]int{},
 	}
+}
+
+// warnf is the plugin host's line about this daemon. See Daemon.warnf: it keeps
+// an embedded daemon's plugin lines out of the host process's standard logger,
+// and leaves the standalone daemon's logger alone.
+func (h *pluginHost) warnf(format string, args ...any) {
+	if h == nil {
+		log.Printf(format, args...)
+		return
+	}
+	h.d.warnf(format, args...)
 }
 
 // pluginDirs are the folders the plugins are read from.
@@ -210,7 +221,7 @@ func (h *pluginHost) apply(cfg config.PluginsConfig, byPerson bool) (waits bool)
 	}
 	h.mu.Unlock()
 	for _, id := range stopped {
-		log.Printf("[PLUGINS] %s is disabled. Its processes are stopped", id)
+		h.warnf("[PLUGINS] %s is disabled. Its processes are stopped", id)
 		h.runner.StopPlugin(id)
 	}
 	if wake {
@@ -248,7 +259,7 @@ func (h *pluginHost) runStartups() {
 				continue
 			}
 			if _, perr := h.run(e.Plugin, "", "startup", s.Command, ctx, "", 0); perr != nil {
-				log.Printf("[PLUGINS] startup of %s did not start: %s", e.ID, perr.Msg)
+				h.warnf("[PLUGINS] startup of %s did not start: %s", e.ID, perr.Msg)
 			}
 		}
 	}
@@ -322,7 +333,7 @@ func (h *pluginHost) baseEnv(p *herdrplugin.Plugin, dirs herdrplugin.Dirs) []str
 func (h *pluginHost) followEvents() {
 	sub, _, err := h.d.events.subscribeFrom(eventFilter{types: herdrHubTypes}, herdrEventQueue, nil)
 	if err != nil {
-		log.Printf("[PLUGINS] event hooks are off: %v", err)
+		h.warnf("[PLUGINS] event hooks are off: %v", err)
 		return
 	}
 	defer h.d.events.unsubscribe(sub)
@@ -347,7 +358,7 @@ func (h *pluginHost) followEvents() {
 				tr = fresh
 			}
 			if dropped {
-				log.Printf("[PLUGINS] event hooks fell behind and some events were lost")
+				h.warnf("[PLUGINS] event hooks fell behind and some events were lost")
 				tr = nil
 			}
 			if tr == nil {
@@ -390,7 +401,7 @@ func (h *pluginHost) fireHooks(e herdrEvent) {
 				continue
 			}
 			if !h.admitEvent(ent.ID) {
-				log.Printf("[PLUGINS] %s ran more than %d event hooks in %s. The hook on %s was dropped", ent.ID, pluginEventBurst, pluginEventWindow, name)
+				h.warnf("[PLUGINS] %s ran more than %d event hooks in %s. The hook on %s was dropped", ent.ID, pluginEventBurst, pluginEventWindow, name)
 				continue
 			}
 			if !built {
@@ -399,7 +410,7 @@ func (h *pluginHost) fireHooks(e herdrEvent) {
 				built = true
 			}
 			if _, perr := h.run(ent.Plugin, "", name, hook.Command, ctx, eventJSON, herdrplugin.DefaultTimeout); perr != nil {
-				log.Printf("[PLUGINS] the %s hook of %s did not start: %s", name, ent.ID, perr.Msg)
+				h.warnf("[PLUGINS] the %s hook of %s did not start: %s", name, ent.ID, perr.Msg)
 			}
 		}
 	}

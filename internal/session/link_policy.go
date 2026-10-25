@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/lazyre"
 )
 
 // What a machine linked to this one may do here.

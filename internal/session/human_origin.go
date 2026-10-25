@@ -4,7 +4,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/procinfo"
 )
 
 // peerPID is the pid of the process on the other end of a unix socket, or 0

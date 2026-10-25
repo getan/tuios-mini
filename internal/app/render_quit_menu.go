@@ -3,7 +3,7 @@ package app
 import (
 	"image/color"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // quitMenuInnerWidth is the preferred inner width of the quit menu panel.

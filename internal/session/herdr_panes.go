@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	tlayout "github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/ptyspawn"
+	"github.com/getan/tuios-mini/internal/integration"
+	tlayout "github.com/getan/tuios-mini/internal/layout"
+	"github.com/getan/tuios-mini/internal/ptyspawn"
 )
 
 // herdr's pane navigation, zoom, process and agent start methods, and

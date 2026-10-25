@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sockpath"
+	"github.com/getan/tuios-mini/internal/sockpath"
 )
 
 // These guard the security and liveness of the shared ssh master: a link

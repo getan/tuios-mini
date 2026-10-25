@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
 	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // The daemon keeps two records of the same lines. The ring buffer answers
@@ -153,6 +153,56 @@ func openDaemonLogFile(path string) {
 	daemonLogPath = path
 	daemonLogSize = size
 	writeDaemonLogHeaderLocked()
+}
+
+// logLine records one line of this daemon's own log. It always goes to the
+// process sinks, exactly as logRaw writes them, so a standalone daemon's log
+// is unchanged. When the daemon was given a log sink of its own (an embedded
+// daemon, see DaemonConfig.LogSink), the line also goes there.
+//
+// The sink is per daemon, not per process. Two daemons in one process each own
+// a file, and neither writes a line into the other's: the points that name a
+// daemon's own life (start, shutdown, a goroutine that would not stop) go
+// through here, so the file an embedding caller opened holds that daemon's
+// story and no one else's. Nothing here touches the standard library logger.
+func (d *Daemon) logLine(level DebugLevel, format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	if d == nil || d.logSink == nil {
+		logRaw(level, message)
+		return
+	}
+	// A daemon with a file of its own takes the ring buffer and the debug
+	// output, and leaves the process's log file to whoever installed it: a
+	// workspace's lines belong in the workspace's file, not in the standalone
+	// daemon's.
+	logRingAndDebug(level, message)
+	d.logSink(level.String(), message)
+}
+
+// warnf records an unclassified line — the kind the daemon has always written
+// with log.Printf — through the same rule logLine follows: a daemon with a sink
+// of its own writes to that sink, and a daemon without one writes to the
+// standard library logger exactly as before.
+//
+// The distinction matters for an embedding process and only for one. The
+// standalone daemon installs its own logger (InstallDaemonLogging), so its
+// log.Printf calls land in the ring and in its file, which is what a reader of
+// `tuios logs` expects. An embedded daemon installs nothing, because it must not
+// take over its host's logger; its unclassified lines would otherwise land in
+// whatever the host's standard logger points at — a terminal, a host log, or a
+// file the host owns. warnf is how a line about this daemon stays with this
+// daemon.
+//
+// It is Basic rather than an invented level: these lines are diagnostics about
+// the daemon's own life, they were recorded as "warn" by the ring writer, and
+// Basic is the level that always reaches the file. Nothing here can call
+// log.SetOutput, so no per-daemon routing changes the process's logger.
+func (d *Daemon) warnf(format string, args ...any) {
+	if d == nil || d.logSink == nil {
+		log.Printf(format, args...)
+		return
+	}
+	d.logLine(DebugBasic, format, args...)
 }
 
 // writeDaemonLogHeaderLocked marks the start of a run and states what the file

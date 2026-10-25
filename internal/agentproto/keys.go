@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Gaurav-Gosain/tuios/internal/invisible"
+	"github.com/getan/tuios-mini/internal/invisible"
 )
 
 // Keyboard input for the pane's prompt line. The pane's terminal is in raw

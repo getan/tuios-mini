@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // GetSocketPath returns the path to the daemon socket. It refuses when

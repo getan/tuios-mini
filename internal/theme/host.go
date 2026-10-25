@@ -4,7 +4,7 @@ import (
 	"image/color"
 	"sync/atomic"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // With theme = "none", tuios draws on the terminal's own colours, and the

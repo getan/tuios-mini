@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/getan/tuios-mini/internal/tape"
 )
 
 // A project tape body is deliberately NOT the full recorder tape language. The

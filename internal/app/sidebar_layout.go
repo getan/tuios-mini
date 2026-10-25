@@ -3,7 +3,7 @@ package app
 import (
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/getan/tuios-mini/internal/config"
 )
 
 // The rail's layout: which sections it stacks, in what order, and the share of

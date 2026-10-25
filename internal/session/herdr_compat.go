@@ -66,7 +66,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -76,8 +75,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/integration"
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/integration"
+	"github.com/getan/tuios-mini/internal/procinfo"
 )
 
 // herdrMaxRequest bounds one request line, as herdr's 1 MiB cap does. A
@@ -283,11 +282,14 @@ func (d *Daemon) herdrYields(window, harness, source string) bool {
 // listenHerdrSocket opens the herdr protocol socket, owner only, and returns
 // nil after logging when it cannot. The start lock is held, so a stale file
 // at the path is a dead daemon's and is removed.
-func listenHerdrSocket(path string) net.Listener {
+//
+// It is a method so the line lands in this daemon's log rather than in the
+// standard logger of whatever process embedded it. See Daemon.warnf.
+func (d *Daemon) listenHerdrSocket(path string) net.Listener {
 	_ = os.Remove(path)
 	l, err := net.Listen("unix", path)
 	if err != nil {
-		log.Printf("The herdr protocol socket %s could not be opened: %v. Harnesses that report to herdr are read from the screen instead.", path, err)
+		d.warnf("The herdr protocol socket %s could not be opened: %v. Harnesses that report to herdr are read from the screen instead.", path, err)
 		return nil
 	}
 	if ul, ok := l.(*net.UnixListener); ok {
@@ -296,7 +298,7 @@ func listenHerdrSocket(path string) net.Listener {
 	if err := os.Chmod(path, 0o700); err != nil { //nolint:gosec // a socket, owner only; the execute bit means nothing on it
 		_ = l.Close()
 		_ = os.Remove(path)
-		log.Printf("The herdr protocol socket %s could not be secured: %v", path, err)
+		d.warnf("The herdr protocol socket %s could not be secured: %v", path, err)
 		return nil
 	}
 	return l
@@ -315,7 +317,7 @@ func (d *Daemon) acceptHerdrLoop(l net.Listener) {
 			if errors.Is(err, net.ErrClosed) {
 				return
 			}
-			log.Printf("Accept error on the herdr protocol socket: %v", err)
+			d.warnf("Accept error on the herdr protocol socket: %v", err)
 			continue
 		}
 		go d.serveHerdr(conn)
@@ -328,7 +330,7 @@ func (d *Daemon) serveHerdr(conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("PANIC in the herdr protocol socket: %v\n%s", r, debug.Stack())
+			d.warnf("PANIC in the herdr protocol socket: %v\n%s", r, debug.Stack())
 		}
 	}()
 	_ = conn.SetDeadline(time.Now().Add(herdrIOTimeout))

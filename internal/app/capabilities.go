@@ -17,9 +17,9 @@ import (
 	"github.com/adrg/xdg"
 	"golang.org/x/term"
 
-	"github.com/Gaurav-Gosain/tuios/internal/cellsize"
-	"github.com/Gaurav-Gosain/tuios/internal/lazyre"
-	"github.com/Gaurav-Gosain/tuios/internal/serverscope"
+	"github.com/getan/tuios-mini/internal/cellsize"
+	"github.com/getan/tuios-mini/internal/lazyre"
+	"github.com/getan/tuios-mini/internal/serverscope"
 )
 
 // HostCapabilities holds information about the host terminal's capabilities.
@@ -213,8 +213,14 @@ func DetectHostCapabilities() *HostCapabilities {
 // It used to be a fixed /tmp/tuios_caps.log, which on a shared machine is one
 // name every user races for and anyone can read. The state directory is
 // per-user, and the pid keeps two clients on one machine apart.
+//
+// A scoped client writes it into the tree its host owns, for the same reason
+// the rest of these do: a diagnostic of an embedded client is the host's file.
 func capabilitiesDebugPath() string {
 	name := fmt.Sprintf("tuios-caps.%d.log", os.Getpid())
+	if dir, ok := ScopedClientState(); ok {
+		return filepath.Join(dir, name)
+	}
 	// A named server's state home is set on xdg, not in the environment.
 	if dir := os.Getenv("XDG_STATE_HOME"); dir != "" && serverscope.Name() == "" {
 		return filepath.Join(dir, "tuios", name)

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/review"
+	"github.com/getan/tuios-mini/internal/review"
 )
 
 func TestParseNoteTarget(t *testing.T) {

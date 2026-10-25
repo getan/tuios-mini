@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
 	"github.com/Gaurav-Gosain/tuitest"
+	"github.com/getan/tuios-mini/internal/testutil"
 )
 
 // TestRailRightClickMakesAWorktree drives the dialog the way a person meets

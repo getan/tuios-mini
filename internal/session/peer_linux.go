@@ -5,7 +5,7 @@ package session
 import (
 	"net"
 
-	"github.com/Gaurav-Gosain/tuios/internal/procinfo"
+	"github.com/getan/tuios-mini/internal/procinfo"
 	"golang.org/x/sys/unix"
 )
 

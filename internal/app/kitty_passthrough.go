@@ -9,15 +9,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/debuglog"
+	"github.com/getan/tuios-mini/internal/debuglog"
 	"tuios.dev/vt"
 )
 
 func kittyPassthroughLog(format string, args ...any) {
-	if os.Getenv("TUIOS_DEBUG_INTERNAL") != "1" {
+	if !debuglog.Enabled() {
 		return
 	}
-	f, err := debuglog.Open(debuglog.Path)
+	f, err := debuglog.Open(debuglog.DebugPath())
 	if err != nil {
 		return
 	}

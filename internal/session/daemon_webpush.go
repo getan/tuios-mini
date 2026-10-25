@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/atomicfile"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/pushnotify"
-	"github.com/Gaurav-Gosain/tuios/internal/sortx"
+	"github.com/getan/tuios-mini/internal/atomicfile"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/pushnotify"
+	"github.com/getan/tuios-mini/internal/sortx"
 )
 
 // Web Push to the person's phones: the daemon's half.
@@ -153,8 +153,14 @@ func newWebPusher(n *pushNotifier) *webPusher {
 	}
 }
 
-// pushDir is where the phones and the VAPID key are kept.
-func pushDir() string { return filepath.Join(getResurrectionDir(), "push") }
+// warnf is the pusher's line about this daemon. See Daemon.warnf.
+func (w *webPusher) warnf(format string, args ...any) {
+	if w == nil || w.n == nil {
+		log.Printf(format, args...)
+		return
+	}
+	w.n.d.warnf(format, args...)
+}
 
 // pushChmodWarn makes the warning about a push folder that cannot be narrowed
 // appear once per daemon, not once per save.
@@ -175,8 +181,24 @@ func writePushFile(path string, data []byte) error {
 	return atomicfile.Write(path, data, 0o600, false)
 }
 
-func pushDevicesPath() string { return filepath.Join(pushDir(), "subscriptions.json") }
-func pushKeyPath() string     { return filepath.Join(pushDir(), "vapid.pem") }
+// pushDevicesPath and pushKeyPath are the two files in the daemon's push
+// folder.
+func (w *webPusher) pushDevicesPath() string {
+	return filepath.Join(w.pushRoot(), "subscriptions.json")
+}
+
+func (w *webPusher) pushKeyPath() string {
+	return filepath.Join(w.pushRoot(), "vapid.pem")
+}
+
+// pushRoot is the push folder of the daemon that owns this pusher, or of the
+// default layout for a pusher built without one.
+func (w *webPusher) pushRoot() string {
+	if w == nil || w.n == nil || w.n.d == nil {
+		return stateRoot("").pushDir()
+	}
+	return w.n.d.stateRoot.pushDir()
+}
 
 // loadLocked reads the phones from disk once. The caller holds mu.
 func (w *webPusher) loadLocked() {
@@ -184,7 +206,7 @@ func (w *webPusher) loadLocked() {
 		return
 	}
 	w.loaded = true
-	data, err := os.ReadFile(pushDevicesPath())
+	data, err := os.ReadFile(w.pushDevicesPath())
 	if err != nil {
 		return
 	}
@@ -192,12 +214,12 @@ func (w *webPusher) loadLocked() {
 	if err := json.Unmarshal(data, &list); err != nil {
 		// The next register would write over it with only the new phone.
 		// Keep it beside, so the phones in it can be got back by hand.
-		bad := pushDevicesPath() + ".bad"
-		if rerr := os.Rename(pushDevicesPath(), bad); rerr != nil {
-			log.Printf("[NOTIFY] cannot read the registered phones (%v), and cannot move the file aside: %v", err, rerr)
+		bad := w.pushDevicesPath() + ".bad"
+		if rerr := os.Rename(w.pushDevicesPath(), bad); rerr != nil {
+			w.warnf("[NOTIFY] cannot read the registered phones (%v), and cannot move the file aside: %v", err, rerr)
 			return
 		}
-		log.Printf("[NOTIFY] cannot read the registered phones: %v. The file is now %s. Register the phones again", err, bad)
+		w.warnf("[NOTIFY] cannot read the registered phones: %v. The file is now %s. Register the phones again", err, bad)
 		return
 	}
 	for _, d := range list {
@@ -218,7 +240,7 @@ func (w *webPusher) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	return writePushFile(pushDevicesPath(), data)
+	return writePushFile(w.pushDevicesPath(), data)
 }
 
 // keyLocked is the VAPID key, made and saved on first use. The caller holds
@@ -227,7 +249,7 @@ func (w *webPusher) keyLocked() (*pushnotify.VAPIDKey, error) {
 	if w.key != nil {
 		return w.key, nil
 	}
-	if data, err := os.ReadFile(pushKeyPath()); err == nil {
+	if data, err := os.ReadFile(w.pushKeyPath()); err == nil {
 		k, err := pushnotify.ParseVAPIDKey(data)
 		if err != nil {
 			return nil, err
@@ -245,7 +267,7 @@ func (w *webPusher) keyLocked() (*pushnotify.VAPIDKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := writePushFile(pushKeyPath(), data); err != nil {
+	if err := writePushFile(w.pushKeyPath(), data); err != nil {
 		return nil, err
 	}
 	w.key = k
@@ -371,7 +393,7 @@ func (w *webPusher) enqueueLocked(it AttentionItem, typ string) {
 	}
 	data, cut := fitPayload(p)
 	if cut {
-		log.Printf("[NOTIFY] item %s: the push payload was cut to fit %d bytes", it.ID, pushnotify.MaxPayload)
+		w.warnf("[NOTIFY] item %s: the push payload was cut to fit %d bytes", it.ID, pushnotify.MaxPayload)
 	}
 	urgency := pushnotify.UrgencyNormal
 	ttl := pushTTLOther
@@ -398,7 +420,7 @@ func (w *webPusher) enqueueLocked(it AttentionItem, typ string) {
 				times = times[cut:]
 				if len(times) >= limit {
 					w.hour[name] = times
-					log.Printf("[NOTIFY] item %s not pushed to %s: %d pushes in the last hour is the max_per_hour limit", it.ID, name, limit)
+					w.warnf("[NOTIFY] item %s not pushed to %s: %d pushes in the last hour is the max_per_hour limit", it.ID, name, limit)
 					continue
 				}
 				w.hour[name] = append(times, now)
@@ -504,7 +526,7 @@ func (w *webPusher) deliver(device string, j pushJob) {
 			return
 		}
 		if kerr != nil {
-			log.Printf("[NOTIFY] no VAPID key, so nothing is pushed: %v", kerr)
+			w.warnf("[NOTIFY] no VAPID key, so nothing is pushed: %v", kerr)
 			return
 		}
 		cfg := w.n.cfg.Load()
@@ -522,16 +544,16 @@ func (w *webPusher) deliver(device string, j pushJob) {
 			return
 		}
 		if errors.Is(err, pushnotify.ErrGone) {
-			log.Printf("[NOTIFY] webpush (%s): the push service no longer knows %s, so it is removed", host, device)
+			w.warnf("[NOTIFY] webpush (%s): the push service no longer knows %s, so it is removed", host, device)
 			if _, rerr := w.remove(device); rerr != nil {
-				log.Printf("[NOTIFY] cannot save the registered phones: %v", rerr)
+				w.warnf("[NOTIFY] cannot save the registered phones: %v", rerr)
 			}
 			w.n.d.attention.notePhone(device, "The push service ("+host+") no longer knows this phone, so tuios removed it. Register the phone again to get pushes.")
 			return
 		}
 		var retry *pushnotify.RetryableError
 		if !errors.As(err, &retry) || attempt >= len(pushRetryDelays) {
-			log.Printf("[NOTIFY] webpush (%s) failed for item %s to %s: %v", host, j.itemID, device, err)
+			w.warnf("[NOTIFY] webpush (%s) failed for item %s to %s: %v", host, j.itemID, device, err)
 			w.record(device, err.Error())
 			return
 		}

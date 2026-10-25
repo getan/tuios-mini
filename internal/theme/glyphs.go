@@ -12,8 +12,7 @@ import (
 	"sync/atomic"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/adrg/xdg"
+	"github.com/getan/tuios-mini/internal/overlay"
 )
 
 // A glyph set is the other half of a rice. A theme says what colour the chrome
@@ -215,12 +214,11 @@ var builtinGlyphSets = map[string]*GlyphSet{
 // directory's sibling, and for the same reason: a set is a file the user writes
 // and tuios reads, not a section of the config file, because it is a document
 // with a shape of its own that people copy between machines.
+//
+// A host that scoped this process to a tree of its own gets its own directory
+// instead, and the user's is neither read nor made: see ScopeAssets.
 func GetGlyphsDir() (string, error) {
-	keepFile, err := xdg.ConfigFile("tuios/glyphs/.keep")
-	if err != nil {
-		return "", fmt.Errorf("failed to get glyphs directory: %w", err)
-	}
-	return filepath.Dir(keepFile), nil
+	return assetDir("glyphs")
 }
 
 var (

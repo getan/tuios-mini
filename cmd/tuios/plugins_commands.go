@@ -12,9 +12,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/herdrcli"
-	"github.com/Gaurav-Gosain/tuios/internal/herdrplugin"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/herdrcli"
+	"github.com/getan/tuios-mini/internal/herdrplugin"
 	"github.com/spf13/cobra"
 )
 

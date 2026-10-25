@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/getan/tuios-mini/internal/sessiontree"
 )
 
 // fgSeq is the escape sequence a foreground color renders as, so a row can be

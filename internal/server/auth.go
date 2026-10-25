@@ -14,7 +14,7 @@ import (
 	"github.com/adrg/xdg"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/Gaurav-Gosain/tuios/internal/netutil"
+	"github.com/getan/tuios-mini/internal/netutil"
 )
 
 // Authentication for the SSH server.

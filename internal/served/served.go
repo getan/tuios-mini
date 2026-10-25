@@ -12,10 +12,10 @@ import (
 	"io"
 	"log"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/input"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/input"
+	"github.com/getan/tuios-mini/internal/session"
 )
 
 // NewModel builds a session's model from opts, filling in what every served

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/getan/tuios-mini/internal/harness"
 )
 
 // claudePermissionPrompt is what Claude Code paints and then goes silent behind.

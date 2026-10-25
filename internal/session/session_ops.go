@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Gaurav-Gosain/tuios/internal/worktree"
+	"github.com/getan/tuios-mini/internal/worktree"
 	"github.com/google/uuid"
 )
 
