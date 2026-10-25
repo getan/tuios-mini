@@ -472,6 +472,9 @@ func (m *OS) agentMailDialer() agentMailDial {
 	}
 	return func() (*session.VerbClient, error) {
 		if host == "" {
+			if m.LocalSocket != "" {
+				return session.DialVerbClientAt(m.LocalSocket, build)
+			}
 			return dialVerbLocal()
 		}
 		c, _, err := dialVerbThroughHost(host, build)

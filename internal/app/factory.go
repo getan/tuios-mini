@@ -86,6 +86,10 @@ type OSOptions struct {
 
 	// DaemonClient is the client for daemon communication (required if IsDaemonSession).
 	DaemonClient *session.TUIClient
+	// LocalSocket is the daemon socket this client's host owns, when the host
+	// embeds the daemon. Empty means GetSocketPath resolves this machine's
+	// default socket. See OS.LocalSocket.
+	LocalSocket string
 
 	// SessionName is the name of the daemon session.
 	SessionName string
@@ -252,6 +256,7 @@ func NewOS(opts OSOptions) *OS {
 
 		// Daemon connection
 		DaemonClient: opts.DaemonClient,
+		LocalSocket:  opts.LocalSocket,
 		SessionName:  opts.SessionName,
 		AttachedHost: opts.AttachedHost,
 

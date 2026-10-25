@@ -366,7 +366,10 @@ func Run(ctx context.Context, opts Options) error {
 		Height:          height,
 		IsDaemonSession: true,
 		DaemonClient:    client,
-		SessionName:     client.SessionName(),
+		// The TUI's verbs must reach the daemon this host started, not the
+		// default socket a standalone tuios would use.
+		LocalSocket: opts.Socket,
+		SessionName: client.SessionName(),
 		// Only a local attach starts in terminal mode, and only when asked.
 		StartInTerminalMode: opts.StartInTerminalMode,
 		// One writer for the terminal: frames, kitty and sixel sequences all
