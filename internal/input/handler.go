@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/getan/tuios-mini/internal/listnav"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/getan/tuios-mini/internal/app"
@@ -717,23 +716,6 @@ func isLeaderKey(msg tea.KeyPressMsg, s *config.Settings, base rune) bool {
 		}
 	}
 	return false
-}
-
-// handlePrefixKey handles Ctrl+B prefix key activation
-func handlePrefixKey(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	// If prefix is already active, deactivate it (double leader key cancels),
-	// or go back to the last workspace when leader_twice says so.
-	if o.PrefixActive {
-		o.PrefixActive = false
-		if o.KeybindRegistry != nil && o.KeybindRegistry.LeaderTwiceGoesBack() {
-			o.LastWorkspace()
-		}
-		return o, nil
-	}
-	// Activate prefix mode
-	o.PrefixActive = true
-	o.LastPrefixTime = time.Now()
-	return o, nil
 }
 
 // handleLogViewerKey handles keyboard input when the log viewer overlay is active.

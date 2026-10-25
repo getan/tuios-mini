@@ -678,6 +678,12 @@ func TestMiniLogFileIsRealAndNotTheProcesses(t *testing.T) {
 // and that a pane is never told about herdr or handed an identity the daemon
 // did not give it.
 func TestMiniPaneEnvIsPerPane(t *testing.T) {
+	// This test can itself run inside a golder workspace. Clear the outer
+	// values first, or they look like the daemon copied PaneEnv into this
+	// process even though the daemon did nothing.
+	t.Setenv("GOLDER_WORKSPACE", "")
+	t.Setenv("GOLDER_PROJECT", "")
+
 	probe := `printf 'GS=%s HERDR=%s SESS=%s PATHOK=%s\n' "$GOLDER_WORKSPACE" "${HERDR_ENV-unset}" "$TUIOS_SESSION" "${PATH:+yes}"
 printf 'DONE-ENV\n'
 sleep 30`

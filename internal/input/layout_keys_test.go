@@ -27,7 +27,7 @@ func ukrShift(produced, shifted, base rune) tea.KeyPressMsg {
 
 func TestBaseLayoutKeyRunsWindowModeBinding(t *testing.T) {
 	o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.WindowManagementMode)
-	o, _ = HandleKeyPress(ukr('ш', 'i'), o)
+	_, _ = HandleKeyPress(ukr('ш', 'i'), o)
 	if string(pty.got) != "ш" {
 		t.Fatalf("focused pane received %q, want the layout's text", pty.got)
 	}

@@ -5,13 +5,10 @@
     <img alt="tuios: a terminal window manager that knows what your agents are doing. Tilly, a small purple CRT whose screen is a tiled layout, stands beside the tuios wordmark and a tiled terminal session." src="./assets/brand/banner-light.png" width="100%">
   </picture>
 
-  <p><strong>TUIOS: Terminal UI Operating System</strong></p>
+  <p><strong>tuios-mini: trimmed TUIOS core for golder</strong></p>
 
-  <a href="https://github.com/Gaurav-Gosain/tuios/releases"><img src="https://img.shields.io/github/release/Gaurav-Gosain/tuios.svg" alt="Latest Release"></a>
-  <a href="https://pkg.go.dev/github.com/Gaurav-Gosain/tuios?tab=doc"><img src="https://godoc.org/github.com/Gaurav-Gosain/tuios?status.svg" alt="GoDoc"></a>
-  <a href="https://deepwiki.com/Gaurav-Gosain/tuios"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  <br>
-  <a title="This tool is Tool of The Week on Terminal Trove, The $HOME of all things in the terminal" href="https://terminaltrove.com/"><img src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/png/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.png" alt="Terminal Trove Tool of The Week" style="width: 250px;" /></a>
+  <a href="https://pkg.go.dev/github.com/getan/tuios-mini"><img src="https://pkg.go.dev/badge/github.com/getan/tuios-mini.svg" alt="Go Reference"></a>
+  <a href="https://github.com/getan/golder"><img src="https://img.shields.io/badge/used%20by-golder-blue" alt="Used by golder"></a>
 </div>
 
 <picture>
@@ -19,17 +16,32 @@
   <img alt="TUIOS" src="./assets/demo.gif">
 </picture>
 
-TUIOS is a modern terminal multiplexer and window manager built with Go. It provides a vim-like modal interface with multiple terminal panes, workspaces, BSP tiling, kitty graphics protocol support, and a command palette, all running inside your existing terminal. A daemon keeps sessions alive, reaches sessions on your other machines, and lets the coding agents in your panes report their state and message each other.
+> **Independent fork.** `getan/tuios-mini` began as a trimmed derivative of
+> [TUIOS](https://github.com/Gaurav-Gosain/tuios) and is maintained separately
+> for [golder](https://github.com/getan/golder). It has since diverged from
+> upstream: behavior, APIs, documentation, CI and distribution policy here are
+> not guaranteed to match TUIOS. Upstream releases, package-manager installs,
+> support channels and issue tracker do not apply to this repository. This fork
+> is not affiliated with or endorsed by the upstream project.
 
-Built on the Charm stack (Bubble Tea v2, Lipgloss v2), TUIOS features event-driven rendering for near-zero idle CPU usage, flicker-free kitty image passthrough, and comprehensive keyboard/mouse interaction.
+`tuios-mini` keeps the parts of TUIOS that golder needs: terminal panes, the PTY
+and daemon plumbing, the JSON control surface, and agent-state reporting. It is
+a Go module consumed by golder and pinned to a commit; it is not a replacement
+distribution of the full TUIOS application.
+
+TUIOS itself is a modern terminal multiplexer and window manager built with Go,
+with a vim-like modal interface, workspaces, BSP tiling, kitty graphics protocol
+support and a command palette. The remaining feature and design documentation
+below is inherited from upstream and may describe code this fork has removed.
 
 ## Documentation
 
-Full documentation is available at **[tuios.dev](https://tuios.dev)** (hosted) or in the [`docs/`](./docs/) folder. To try tuios without installing it, take the guided tour at **[tuios.dev/learn](https://tuios.dev/learn)**: the real app, compiled to WebAssembly, with a practice shell in every pane.
+Upstream documentation is available at **[tuios.dev](https://tuios.dev)**.
+Some of it is also present in the [`docs/`](./docs/) folder, inherited from
+upstream and not maintained as a description of this fork. Treat the code and
+the tests in this repository as authoritative.
 
-What changed in v0.10.1 is in the [release notes](docs/release-notes/v0.10.1.md).
-
-### Quick Links
+### Inherited upstream quick links
 - **[Getting Started](https://tuios.dev/docs/getting-started)**: Install and first session
 - **[Keybindings](docs/KEYBINDINGS.md)**: Default keys and how to rebind them
 - **[BSP Tiling](docs/BSP_TILING.md)**: Tiling with preselection and split control
@@ -51,7 +63,7 @@ What changed in v0.10.1 is in the [release notes](docs/release-notes/v0.10.1.md)
 <summary>Table of Contents</summary>
 
 <!--toc:start-->
-- [Installation](#installation)
+- [Using this repository](#using-this-repository)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
@@ -62,59 +74,25 @@ What changed in v0.10.1 is in the [release notes](docs/release-notes/v0.10.1.md)
 
 </details>
 
-## Installation
+## Using this repository
 
-### Package Managers
+This fork is consumed by golder as a Go module pinned to a commit. It does not
+publish its own binaries, containers, Homebrew/AUR formula, or Nix package.
+Use upstream TUIOS if you want the complete, supported application and its
+installation instructions.
 
-**Homebrew (macOS/Linux):**
-```bash
-brew install tuios
-```
-
-**Homebrew, ghostty build (Linux only):** `tuios` built with the [libghostty-vt emulator](./docs/ghostty-vt.md). It installs a binary with the same name as the `tuios` formula. Uninstall the formula first.
-```bash
-brew uninstall tuios
-brew install gaurav-gosain/tap/tuios-ghostty
-```
-
-**Arch Linux (AUR):**
-```bash
-yay -S tuios-bin
-```
-
-**Nix:**
-```bash
-nix run github:Gaurav-Gosain/tuios/v0.10.1#tuios   # a release
-nix run github:Gaurav-Gosain/tuios#tuios          # the latest main
-nix run nixpkgs#tuios                             # the nixpkgs package
-```
-
-Put a release tag after the repo name to build that release. Without a tag, Nix builds the newest commit on `main`.
-
-### Other Methods
+Building this repository from source needs Go 1.26.6 or newer:
 
 ```bash
-# Quick install script (Linux/macOS)
-curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install.sh | bash
-
-# Go install
-go install github.com/Gaurav-Gosain/tuios/cmd/tuios@latest
-
-# Docker
-docker run -it --rm ghcr.io/gaurav-gosain/tuios:latest
+git clone https://github.com/getan/tuios-mini.git
+cd tuios-mini
+go build ./...
+go test ./...
 ```
 
-**[GitHub Releases](https://github.com/Gaurav-Gosain/tuios/releases)**: Pre-built binaries for Linux, macOS, Windows, FreeBSD and OpenBSD, with a `checksums.txt`. The `tuios-ghostty_*` archives are `tuios` built on the [libghostty-vt emulator](./docs/ghostty-vt.md), for Linux, macOS and Windows on amd64 and arm64.
-
-**Building from source** needs Go 1.26.6 or newer.
-
-**Updating.** If you installed with the quick install script or a release
-binary, `tuios update` fetches the newest release and puts it in place
-(`tuios update --check` just reports). Everything else has a package manager
-that owns the binary, so use that instead; `tuios update` detects which you have
-and prints the right command rather than overwriting it.
-
-**Requirements:** A terminal with true color support. Kitty graphics and sixel support recommended (Ghostty, Kitty, WezTerm).
+The upstream compatibility entry points remain in the tree, but they are not a
+promise that this fork tracks upstream behavior. Downstream users should pin an
+exact commit or pseudo-version rather than follow a moving branch.
 
 ## Features
 
@@ -321,17 +299,11 @@ TUIOS follows the Model-View-Update pattern on Bubble Tea v2. For details, see [
 ## Development
 
 ```bash
-git clone https://github.com/gaurav-gosain/tuios.git
-cd tuios
+git clone https://github.com/getan/tuios-mini.git
+cd tuios-mini
 go build -o tuios ./cmd/tuios
 ./tuios
 ```
-
-To install a local build on your PATH instead, `./scripts/install.sh` builds
-and installs into `~/.local/bin`. It builds the pure Go emulator.
-`./scripts/install.sh ghostty` builds the
-[ghostty emulator backend](./docs/ghostty-vt.md) instead, and `tuios --version`
-says which is installed.
 
 ```bash
 go test ./...              # Run tests
@@ -340,31 +312,17 @@ golangci-lint run          # Lint with the checks CI runs (.golangci.yml)
 govulncheck ./...          # Known vulnerabilities in what the build reaches
 ```
 
-**Support:** [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B81N8V1R)
-
-## Star History
-
-[![Star History Chart](https://raw.githubusercontent.com/Gaurav-Gosain/tuios/star-history/star-history.svg)](https://github.com/Gaurav-Gosain/tuios/stargazers)
-
-<p style="display:flex;flex-wrap:wrap;">
-<img alt="GitHub Language Count" src="https://img.shields.io/github/languages/count/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Top Language" src="https://img.shields.io/github/languages/top/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="Repo Size" src="https://img.shields.io/github/repo-size/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Issues" src="https://img.shields.io/github/issues/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Closed Issues" src="https://img.shields.io/github/issues-closed/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Pull Requests" src="https://img.shields.io/github/issues-pr/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Closed Pull Requests" src="https://img.shields.io/github/issues-pr-closed/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Contributors" src="https://img.shields.io/github/contributors/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Last Commit" src="https://img.shields.io/github/last-commit/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Commit Activity (Week)" src="https://img.shields.io/github/commit-activity/w/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-</p>
-
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+This fork is distributed under the MIT License. The original TUIOS copyright
+(c) 2025 Gaurav Gosain is retained in [LICENSE](LICENSE), together with the
+copyright for modifications made by this fork. See [LICENSE](LICENSE) for the
+full text.
 
 ## Acknowledgments
 
+- [TUIOS](https://github.com/Gaurav-Gosain/tuios) by Gaurav Gosain, the
+  MIT-licensed project from which this fork derives
 - The [Charm](https://charm.sh) team for Bubble Tea, Lipgloss, and the Go terminal ecosystem
 - [CharmTone](https://github.com/charmbracelet/tone) by Charmbracelet, Inc. (Apache License 2.0) for the colours of the `charmtone` themes
 - The vim, tmux, and i3 communities for interface design inspiration

@@ -283,8 +283,14 @@ func TestAStaleAnswerIsNotTakenForTheNextCall(t *testing.T) {
 		t.Fatalf("third call = %s (%v), want the answer to c", raw, err)
 	}
 
-	want := []string{helloVerb, "a", "b", helloVerb, "c"}
-	if verbs := d.verbs(t, len(want)); !slices.Equal(verbs, want) {
+	// The daemon serves each connection in its own goroutine, so the global
+	// read order between the old connection's "b" and the new connection's
+	// hello is not guaranteed. Check what the test is for: every verb was sent
+	// once, the stale "b" was attempted, and the reconnect was greeted.
+	want := []string{"a", "b", "c", helloVerb, helloVerb}
+	verbs := d.verbs(t, len(want))
+	slices.Sort(verbs)
+	if !slices.Equal(verbs, want) {
 		t.Fatalf("verbs = %v, want %v: nothing replayed, and the new connection greeted", verbs, want)
 	}
 	if n := d.connectionCount(); n != 2 {

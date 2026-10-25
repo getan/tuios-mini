@@ -981,13 +981,6 @@ func maybeEnterTerminalOnFocusChange(o *app.OS, previousFocused int, kind focusE
 	return o, nil
 }
 
-func enterTerminalModeSilent(o *app.OS) (*app.OS, tea.Cmd) {
-	if len(o.Windows) == 0 || o.FocusedWindow < 0 {
-		return o, nil
-	}
-	return o, o.EnterTerminalMode()
-}
-
 func handleEnterTerminalMode(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// Legacy action used by old tapes; focusing the pane is sufficient now.
 	return o, nil
