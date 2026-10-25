@@ -107,18 +107,13 @@ func ScopedClientState() (string, bool) {
 // when this process is scoped, the user's XDG state directory otherwise.
 //
 // It is the one place the fallback is written down. Every file below goes
-// through it or through uiStatePath, so a host that scoped the process cannot
+// through it or through uiStateSubdir, so a host that scoped the process cannot
 // reach the user's tree through a path this package forgot to route.
 func uiStateDir() string {
 	if dir, ok := ScopedClientState(); ok {
 		return dir
 	}
 	return filepath.Join(xdg.StateHome, "tuios")
-}
-
-// uiStatePath is one file inside uiStateDir.
-func uiStatePath(name string) string {
-	return filepath.Join(uiStateDir(), name)
 }
 
 // uiStateSubdir is a directory inside the scoped tree, made ready, for the

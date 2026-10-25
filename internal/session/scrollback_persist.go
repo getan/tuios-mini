@@ -199,13 +199,6 @@ func removeAllHistoryIn(root stateRoot) {
 	_ = os.RemoveAll(root.historyRoot())
 }
 
-// cleanOrphanHistory deletes the history of every session that has no state
-// file. That history can never be restored: the state was archived as
-// corrupt, or a daemon from before pane history killed or renamed the session
-// and never knew to take its history along. Called at daemon start, before
-// any session is live.
-func cleanOrphanHistory() { cleanOrphanHistoryIn(stateRoot("")) }
-
 func cleanOrphanHistoryIn(root stateRoot) {
 	entries, err := os.ReadDir(root.historyRoot())
 	if err != nil {

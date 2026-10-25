@@ -49,10 +49,6 @@ const transferProgressEvery = 250 * time.Millisecond
 // copied again after a restart, which costs its bytes and nothing else.
 const transferSaveFinishedEvery = 2 * time.Second
 
-// journalDir is the folder that holds the journal: the daemon's own transfer
-// folder under its state root, so two daemons never resume each other's copies.
-func transferJournalDir() string { return stateRoot("").transferJournalDir() }
-
 func (m *transferManager) journalDir() string {
 	if m.d == nil {
 		return stateRoot("").transferJournalDir()
@@ -385,8 +381,6 @@ type partDirs struct {
 	// directory of its own keeps its part folders there.
 	root stateRoot
 }
-
-func newPartDirs() *partDirs { return newPartDirsIn(stateRoot("")) }
 
 func newPartDirsIn(root stateRoot) *partDirs {
 	return &partDirs{dirs: map[string]int64{}, root: root}

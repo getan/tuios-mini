@@ -163,11 +163,6 @@ func (o *hostOutbox) busy(host string) bool {
 	return o.flushing[host] || o.hasLocked(host)
 }
 
-// outboxPath is where the queue is saved, beside the Inbox. A daemon resolves
-// it through its own state root; this is the default layout's.
-
-func outboxPath() string { return stateRoot("").outboxPath() }
-
 // load reads the saved queue and opens an Inbox item for every machine it
 // names. A file that cannot be read is set aside rather than trusted.
 func (o *hostOutbox) load(path string) {

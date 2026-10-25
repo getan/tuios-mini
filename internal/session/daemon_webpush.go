@@ -162,11 +162,6 @@ func (w *webPusher) warnf(format string, args ...any) {
 	w.n.d.warnf(format, args...)
 }
 
-// pushDir is where the phones and the VAPID key are kept. A daemon resolves it
-// through its own state root; this is the default layout's.
-
-func pushDir() string { return stateRoot("").pushDir() }
-
 // pushChmodWarn makes the warning about a push folder that cannot be narrowed
 // appear once per daemon, not once per save.
 var pushChmodWarn sync.Once

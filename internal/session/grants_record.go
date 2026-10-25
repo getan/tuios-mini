@@ -32,11 +32,6 @@ type appliedGrants struct {
 	Grants []string `json:"grants"`
 }
 
-// appliedGrantsPath is where the record lives, under the saved state. A daemon
-// resolves it through its own state root; this is the default layout's.
-
-func appliedGrantsPath() string { return stateRoot("").appliedGrantsPath() }
-
 // recordAppliedGrants writes the default now in force.
 func (d *Daemon) recordAppliedGrants(r config.ResolvedPermissions) {
 	data, err := json.Marshal(appliedGrants{Strict: r.Strict, Grants: r.Grants})
