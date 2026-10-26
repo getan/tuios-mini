@@ -63,6 +63,15 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		}
 	}
 
+	// The file sheet covers the content region. A click on it goes to its
+	// document, never to a pane behind it; a click on the rail beside it does
+	// not, so the rail's own rows keep working while the sheet is up. Overlay
+	// panels above it were asked first.
+	if o.DocPreviewOpen() && o.DocPreviewContains(X, Y) {
+		o.DocPreviewClick(X, Y)
+		return o, nil
+	}
+
 	// Rail panes keep their ordinary title bars. A title click focuses that
 	// exact pane; its controls must never fall through to the center session.
 	if edge, w := o.SidebarSessionTitlePaneAt(X, Y); w != nil {

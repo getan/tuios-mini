@@ -23,7 +23,8 @@ var (
 	// reviewStageActions are what review-stage does.
 	reviewStageActions = []string{"stage", "unstage", "undo"}
 	// reviewNoteSides are the sides of a diff a note can sit on.
-	reviewNoteSides = []string{"new", "old"}
+	reviewNoteSides             = []string{"new", "old"}
+	expectedReviewWorktreeParam = verbParam{Name: "expected_worktree", Type: "string", Description: "Optional worktree precondition, not a repository selector. Refuse with not_repo if the pane now belongs to a different worktree; nothing is changed."}
 	// markAttentionActions are what mark-attention does to an item.
 	markAttentionActions = []string{"snooze", "wake", "unread", "restore"}
 	// approvalKinds are the kinds of hold request-approval takes.
@@ -75,6 +76,7 @@ func agentWorkVerbs() map[string]verbEntry {
 			params: []verbParam{
 				sessionParam,
 				windowParam,
+				expectedReviewWorktreeParam,
 				{Name: "base", Type: "string", Description: "The ref to diff against. Omit for the worktree's base, else the upstream merge base, else HEAD (uncommitted changes only)."},
 				{Name: "against", Type: "string", Description: "A fan sibling session to diff against instead of a base: the two attempts compared with each other."},
 				{Name: "uncommitted", Type: "bool", Description: "Only what is not committed yet, against HEAD.", Default: "false"},
@@ -144,6 +146,7 @@ func agentWorkVerbs() map[string]verbEntry {
 				{Name: "action", Type: "string", Required: true, Description: "What to do.", Accepted: reviewNoteActions},
 				sessionParam,
 				windowParam,
+				expectedReviewWorktreeParam,
 				{Name: "path", Type: "string", Description: "The file the note is on, relative to the repository root. Needed to add."},
 				{Name: "line", Type: "int", Description: "The line the note is on, on side. Omit with hunk for a note on the whole hunk."},
 				{Name: "side", Type: "string", Description: "Which side of the diff line counts on.", Accepted: reviewNoteSides, Default: "new"},
@@ -173,6 +176,7 @@ func agentWorkVerbs() map[string]verbEntry {
 			params: []verbParam{
 				sessionParam,
 				windowParam,
+				expectedReviewWorktreeParam,
 				{Name: "ids", Type: "[]string", Description: "Only these notes. Omit for every unsent one."},
 				{Name: "now", Type: "bool", Description: "Type it now or not at all: refuse with agent_blocked or not_ready instead of queueing.", Default: "false"},
 				humanNonce,

@@ -175,15 +175,16 @@ func within(root, dir string) bool {
 
 // reviewParams are what review-diff takes.
 type reviewParams struct {
-	Session     string   `json:"session"`
-	Window      string   `json:"window"`
-	Base        string   `json:"base"`
-	Against     string   `json:"against"`
-	Uncommitted bool     `json:"uncommitted"`
-	Paths       []string `json:"paths"`
-	Context     *int     `json:"context"`
-	Index       string   `json:"index"`
-	Highlight   bool     `json:"highlight"`
+	Session          string   `json:"session"`
+	Window           string   `json:"window"`
+	ExpectedWorktree string   `json:"expected_worktree"`
+	Base             string   `json:"base"`
+	Against          string   `json:"against"`
+	Uncommitted      bool     `json:"uncommitted"`
+	Paths            []string `json:"paths"`
+	Context          *int     `json:"context"`
+	Index            string   `json:"index"`
+	Highlight        bool     `json:"highlight"`
 }
 
 // verbReviewDiff answers review-diff.
@@ -223,6 +224,9 @@ func (d *Daemon) verbReviewDiff(cs *connState, params json.RawMessage) (any, *ve
 	}
 	sess, target, repo, verr := d.reviewTarget(p.Session, p.Window)
 	if verr != nil {
+		return nil, verr
+	}
+	if verr := reviewWorktreeGuard(repo, p.ExpectedWorktree); verr != nil {
 		return nil, verr
 	}
 
@@ -481,19 +485,36 @@ func (a reviewAuthor) mayTouch(n review.Note) bool {
 	}
 }
 
+// reviewWorktreeGuard is a precondition, not a way to select a repository.
+// reviewTarget still resolves and authorises the captured pane first. A pane
+// that cd'd since a client read its status must not redirect comments or sends.
+func reviewWorktreeGuard(repo reviewRepo, expected string) *verbError {
+	if expected == "" {
+		return nil // backward compatible with clients that do not pin a worktree
+	}
+	resolved, err := filepath.EvalSymlinks(expected)
+	if err == nil && filepath.Clean(resolved) == filepath.Clean(repo.root) {
+		return nil
+	}
+	return hintedVerbError(ErrVerbNotRepo, "the pane's repository changed since this review was opened", &VerbHint{
+		Detail: "Nothing was changed. Refresh the Git tab and select the file again.",
+	})
+}
+
 // reviewNoteParams are what review-note takes.
 type reviewNoteParams struct {
-	Action     string `json:"action"`
-	Session    string `json:"session"`
-	Window     string `json:"window"`
-	Path       string `json:"path"`
-	Line       int    `json:"line"`
-	Side       string `json:"side"`
-	Quote      string `json:"quote"`
-	Hunk       string `json:"hunk"`
-	Text       string `json:"text"`
-	ID         string `json:"id"`
-	HumanNonce string `json:"human_nonce"`
+	Action           string `json:"action"`
+	Session          string `json:"session"`
+	Window           string `json:"window"`
+	ExpectedWorktree string `json:"expected_worktree"`
+	Path             string `json:"path"`
+	Line             int    `json:"line"`
+	Side             string `json:"side"`
+	Quote            string `json:"quote"`
+	Hunk             string `json:"hunk"`
+	Text             string `json:"text"`
+	ID               string `json:"id"`
+	HumanNonce       string `json:"human_nonce"`
 }
 
 // verbReviewNote answers review-note.
@@ -533,6 +554,9 @@ func (d *Daemon) verbReviewNote(cs *connState, params json.RawMessage) (any, *ve
 	}
 	sess, target, repo, verr := d.reviewTarget(p.Session, p.Window)
 	if verr != nil {
+		return nil, verr
+	}
+	if verr := reviewWorktreeGuard(repo, p.ExpectedWorktree); verr != nil {
 		return nil, verr
 	}
 	author, verr := d.reviewAuthorOf(cs, p.HumanNonce, sess.ID, "review-note")
@@ -645,11 +669,12 @@ func reviewNoteRefusedError(action, id string) *verbError {
 
 // sendReviewParams are what send-review takes.
 type sendReviewParams struct {
-	Session    string   `json:"session"`
-	Window     string   `json:"window"`
-	IDs        []string `json:"ids"`
-	Now        bool     `json:"now"`
-	HumanNonce string   `json:"human_nonce"`
+	Session          string   `json:"session"`
+	Window           string   `json:"window"`
+	ExpectedWorktree string   `json:"expected_worktree"`
+	IDs              []string `json:"ids"`
+	Now              bool     `json:"now"`
+	HumanNonce       string   `json:"human_nonce"`
 }
 
 // verbSendReview answers send-review: the pane's unsent notes, or the ones
@@ -661,6 +686,9 @@ func (d *Daemon) verbSendReview(cs *connState, params json.RawMessage) (any, *ve
 	}
 	sess, target, repo, verr := d.reviewTarget(p.Session, p.Window)
 	if verr != nil {
+		return nil, verr
+	}
+	if verr := reviewWorktreeGuard(repo, p.ExpectedWorktree); verr != nil {
 		return nil, verr
 	}
 	state := sess.GetState()

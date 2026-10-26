@@ -881,7 +881,9 @@ func (m *OS) fileViewOpen(dir, name string, isDir bool) tea.Cmd {
 		}
 		return cmd
 	}
-	return m.copyFilePath(full)
+	// A file click opens the native preview. Copying the path is an explicit
+	// action (Copy path / Y), not what taking a name means.
+	return m.OpenDocPreview(dir, name, false)
 }
 
 // copyFilePath puts a path from the listing on the clipboard. A file row's

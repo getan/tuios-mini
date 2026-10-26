@@ -930,6 +930,11 @@ func (m *OS) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// pane's directory is what both are about, and every handler that can move
 	// it is covered by one comparison here rather than by a hook in each.
 	gitSync := m.GitSyncCmd()
+	// The Git tab's changed paths walk the working tree, so they are read only
+	// while that tab is shown, on the same beat.
+	if statusSync := m.GitStatusSyncCmd(); statusSync != nil {
+		gitSync = tea.Batch(gitSync, statusSync)
+	}
 	// The opposite edge may be the only rail that names files or git. Its
 	// presentation state is scoped to that edge; the directory and repository
 	// readings themselves are shared because both follow the same pane.
@@ -1524,6 +1529,21 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		cmd := m.handleFileEdit(msg)
 		m.renderSkipped = false
 		return m, cmd
+
+	case docOpenMsg:
+		m.HandleDocOpen(msg)
+		m.renderSkipped = false
+		return m, nil
+
+	case docSaveMsg:
+		cmd := m.HandleDocSave(msg)
+		m.renderSkipped = false
+		return m, cmd
+
+	case GitStatusMsg:
+		m.ApplyGitStatus(msg)
+		m.renderSkipped = false
+		return m, nil
 
 	case fileOpMsg:
 		// A create, rename, delete or paste that finished on its own goroutine.

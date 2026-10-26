@@ -83,6 +83,9 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 			// Motion never syncs to the daemon, the same as the browser's.
 			return handleCaptureMouseMotion(msg, o)
 		}
+		if o.DocPreviewOpen() {
+			return o, nil
+		}
 		if o.ReviewOpen() {
 			return o, nil
 		}
@@ -94,6 +97,9 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		// Don't sync on motion: too frequent
 		return handleMouseMotion(msg, o)
 	case tea.MouseReleaseMsg:
+		if o.DocPreviewOpen() {
+			return o, nil
+		}
 		if o.CaptureActive() {
 			result, cmd = handleCaptureMouseRelease(o)
 		} else if o.ShowScrollbackBrowser {
@@ -125,6 +131,14 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 			result, cmd = handleScreenshotPreviewWheel(msg, o)
 		} else if o.ShowScrollbackBrowser {
 			result, cmd = handleScrollbackBrowserMouseWheel(msg, o)
+		} else if o.DocPreviewOpen() && !o.OverlayActive() && o.DocPreviewContains(msg.X, msg.Y) {
+			switch msg.Button {
+			case tea.MouseWheelUp:
+				o.DocPreviewWheel(-3)
+			case tea.MouseWheelDown:
+				o.DocPreviewWheel(3)
+			}
+			return o, nil
 		} else {
 			result, cmd = handleMouseWheel(msg, o)
 		}
@@ -232,6 +246,9 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 // terminal's bracketed paste (tea.PasteMsg) and the paste key's clipboard read
 // (tea.ClipboardMsg), so neither path can reach a pane the other protects.
 func pasteTakenByOverlay(o *app.OS, content string) bool {
+	if o.DocPreviewFocused() {
+		return o.DocPreviewPaste(content)
+	}
 	// While the Inbox's reply editor is open the paste is the reply's text,
 	// line breaks and all. A long paste is held as one block.
 	// The reply editor is handled by the two callers, before this.
@@ -506,6 +523,11 @@ func routeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// checked ahead of both. See review_input.go.
 	if o.ReviewOpen() {
 		return handleReviewInput(msg, o)
+	}
+	// A review can open over an existing document. Its comments, not the
+	// hidden editable buffer, must receive the keys above.
+	if o.DocPreviewFocused() {
+		return o.DocPreviewKey(msg)
 	}
 
 	// The accent picker and an in-flight rename are both opened from the rail,

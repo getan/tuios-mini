@@ -7,6 +7,36 @@ below. Two of them are **not** caught here; that is written down rather than
 papered over, because a suite whose real coverage is unknown is worse than no
 suite.
 
+## Project sidebar: reuse single-file index diffs and review comments
+
+`TestProjectSidebarReusesReviewDiffAndComments` runs a real client attached to
+an isolated daemon. `both.txt` has different HEAD/index/working-tree text;
+another changed file must stay out of the review. Mouse clicks select each
+side, and the existing comment editor adds, reloads, edits and resolves a
+comment whose stored text is also checked through the CLI.
+
+Controls run on 2026-10-25:
+
+- Before the rail memo included the project tab and status completion, the
+  screen stayed on the old Files view or `reading changes...`; the test timed
+  out waiting for `Staged 1` and `Changes 2`. With cache invalidation it passes.
+- Removed `params["index"] = q.Index` at the `review-diff` call site, built a
+  separate binary, restored the source, then ran the test against that binary.
+  It failed at the first file selection (`wrong single-file diff`), rather
+  than accepting a pane-wide/base diff. The ordinary build passes.
+
+Reproduce the positive run from the repository root:
+
+```sh
+TUIOS_E2E=1 TUIOS_E2E_FRAMES="$PWD/.dev/project-frames" \
+  go test ./e2e/tui -run '^TestProjectSidebarReusesReviewDiffAndComments$' -count=1
+```
+
+The named artifact directory holds plain/styled staged, unstaged, edited
+comment and resolved-comment frames. Deterministic in-process regressions
+cover out-of-order status replies, focus changes, scoped comment IDs on send,
+nonce/automated-key boundaries and edits made during an asynchronous save.
+
 ## PR #626: a rail must not resize a shared session
 
 `TestSidebarSessionDoesNotShrinkAnotherViewer` attaches a 120x40 ordinary

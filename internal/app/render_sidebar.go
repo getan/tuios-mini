@@ -88,6 +88,15 @@ const (
 	// index in the WindowIndex field, which is the only integer a row hit has;
 	// nothing in this section points at a window, so the field is free.
 	sidebarRowFileEntry
+	// sidebarRowProjectFiles and sidebarRowProjectGit are the project
+	// section's two tabs. They are rows rather than header tokens because a
+	// tab is a place, not a one-word control: the cursor lands on it and the
+	// whole row is the target, exactly like every other row on the rail.
+	sidebarRowProjectFiles
+	sidebarRowProjectGit
+	// sidebarRowGitEntry is one changed path in the Git tab. It carries the
+	// entry's index in the flattened list in WindowIndex.
+	sidebarRowGitEntry
 	// sidebarRowHostSession is one session on another machine. Activating it
 	// opens that session in this client over the link, and on a host that is
 	// not up it asks for the link first (host_open.go). It carries the host
@@ -2402,7 +2411,9 @@ func (m *OS) sidebarPublishNav(nav []sidebarNavRow, target sidebarNavRow, haveTa
 func sidebarFileRowIndex(nav []sidebarNavRow, name string) (int, bool) {
 	first := -1
 	for i, r := range nav {
-		if r.Kind != sidebarRowFileUp && r.Kind != sidebarRowFileEntry {
+		if r.Kind != sidebarRowFileUp && r.Kind != sidebarRowFileEntry &&
+			r.Kind != sidebarRowProjectFiles && r.Kind != sidebarRowProjectGit &&
+			r.Kind != sidebarRowGitEntry {
 			continue
 		}
 		if first < 0 {
@@ -2645,7 +2656,7 @@ func (m *OS) sidebarCursorIndex(target sidebarNavRow, sessions []sessiontree.Nod
 				return sidebarSectionAgents, i, true
 			}
 		}
-	case sidebarRowFileUp, sidebarRowFileEntry:
+	case sidebarRowFileUp, sidebarRowFileEntry, sidebarRowProjectFiles, sidebarRowProjectGit, sidebarRowGitEntry:
 		// By name, not by index: the listing is re-read whenever the pane cds or
 		// the user walks somewhere, and an index into the previous directory
 		// points at whatever happens to be in that slot now.

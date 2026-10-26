@@ -231,8 +231,21 @@ func TestSidebarFileEditor(t *testing.T) {
 			if err := term.SendKeys(tuitest.Enter); err != nil {
 				t.Fatal(err)
 			}
-			if err := term.WaitForText("Copied the path.", uiTimeout); err != nil {
-				t.Fatalf("Enter changed its navigation action: %v\n%s", err, term.Snapshot())
+			// Enter opens the native sheet now, and a binary file is shown
+			// read-only rather than copied or launched.
+			if err := term.WaitFor(func(s tuitest.Screen) bool {
+				txt := s.Text()
+				return strings.Contains(txt, "Preview") && strings.Contains(txt, "read only: binary file")
+			}, uiTimeout); err != nil {
+				t.Fatalf("Enter did not open the binary file read-only: %v\n%s", err, term.Snapshot())
+			}
+			if err := term.SendKeys(tuitest.Esc); err != nil {
+				t.Fatal(err)
+			}
+			if err := term.WaitFor(func(s tuitest.Screen) bool {
+				return !strings.Contains(s.Text(), "Preview")
+			}, uiTimeout); err != nil {
+				t.Fatalf("the sheet did not close: %v\n%s", err, term.Snapshot())
 			}
 			// CSI-u carries Shift+Enter distinctly from plain Enter.
 			if err := term.SendKeys("\x1b[13;2u"); err != nil {

@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -65,6 +66,10 @@ type reviewQuery struct {
 	Uncommitted bool
 	// Against names another attempt of the same fan, diffed with Session.
 	Against string
+	// A sidebar row scopes the existing review to one file (both names of a
+	// rename), one index side and the worktree the row was read from. Strings
+	// keep the query comparable for reload's same-place check.
+	Path, OldPath, Index, Worktree string
 }
 
 // reviewDiffResult is review-diff's answer, as the overlay reads it.
@@ -73,6 +78,7 @@ type reviewDiffResult struct {
 	Window      string        `json:"window"`
 	RepoRoot    string        `json:"repo_root"`
 	Worktree    string        `json:"worktree"`
+	Index       string        `json:"index"`
 	Base        string        `json:"base"`
 	BaseSHA     string        `json:"base_sha"`
 	Uncommitted bool          `json:"uncommitted"`
@@ -456,7 +462,19 @@ func (m *OS) reviewLoadCmd(q reviewQuery, probeFan bool) tea.Cmd {
 	if q.Window != "" {
 		params["window"] = q.Window
 	}
-	if q.Against != "" {
+	if q.Worktree != "" {
+		params["expected_worktree"] = q.Worktree
+	}
+	if q.Path != "" {
+		paths := []string{q.Path}
+		if q.OldPath != "" && q.OldPath != q.Path {
+			paths = append(paths, q.OldPath)
+		}
+		params["paths"] = paths
+	}
+	if q.Index != "" {
+		params["index"] = q.Index
+	} else if q.Against != "" {
 		params["against"] = q.Against
 	} else {
 		if q.Base != "" {
@@ -477,6 +495,23 @@ func (m *OS) reviewLoadCmd(q reviewQuery, probeFan bool) tea.Cmd {
 		if err := json.Unmarshal(raw, &res); err != nil {
 			msg.Err = err
 			return msg
+		}
+		// A pane may cd between the status read and this request. Never show a
+		// different repository under the selected row's name. This runs off the
+		// update loop, including the filesystem identity check for symlinked
+		// worktree roots. Older daemons that ignore index are rejected too.
+		if q.Worktree != "" && (res.Worktree == "" || !sameDir(q.Worktree, res.Worktree) || res.Session != q.Session || res.Window != q.Window) {
+			msg.Err = fmt.Errorf("the pane's repository changed; refresh the Git tab and select the file again")
+			return msg
+		}
+		if q.Index != "" && res.Index != q.Index {
+			msg.Err = fmt.Errorf("this daemon did not return the requested %s diff; update it before reviewing this row", q.Index)
+			return msg
+		}
+		if q.Path != "" {
+			res.Notes = slices.DeleteFunc(res.Notes, func(n review.Note) bool {
+				return n.Path != q.Path && n.Path != q.OldPath
+			})
 		}
 		msg.Diff = &res
 		if probeFan && q.Against == "" {
@@ -584,12 +619,18 @@ func (r *reviewState) rebuildFiles() {
 	}
 	for i := range r.diff.Files {
 		f := &r.diff.Files[i]
+		if r.query.Path != "" && f.Path != r.query.Path && f.Path != r.query.OldPath && f.OldPath != r.query.Path {
+			continue
+		}
 		r.files = append(r.files, reviewFileEntry{file: f, path: f.Path})
 	}
 	if r.query.Against != "" {
 		return
 	}
 	for _, n := range r.notes {
+		if r.query.Path != "" && n.Path != r.query.Path && n.Path != r.query.OldPath {
+			continue
+		}
 		if !slices.ContainsFunc(r.files, func(e reviewFileEntry) bool { return e.path == n.Path }) {
 			r.files = append(r.files, reviewFileEntry{path: n.Path})
 		}
@@ -914,6 +955,9 @@ func (m *OS) reviewNoteCmd(action string, params map[string]any) tea.Cmd {
 	params["action"] = action
 	params["session"] = r.diff.Session
 	params["window"] = r.diff.Window
+	if r.query.Worktree != "" {
+		params["expected_worktree"] = r.query.Worktree
+	}
 	return func() tea.Msg {
 		msg := ReviewNotesMsg{Gen: gen, Action: action}
 		raw, err := call("review-note", params, reviewVerbTimeout)
@@ -944,6 +988,11 @@ func (m *OS) applyReviewNotes(msg ReviewNotesMsg) {
 		return
 	}
 	r.notes = msg.Notes
+	if q := r.query; q.Path != "" {
+		r.notes = slices.DeleteFunc(r.notes, func(n review.Note) bool {
+			return n.Path != q.Path && n.Path != q.OldPath
+		})
+	}
 	path := ""
 	if e := r.currentFile(); e != nil {
 		path = e.path
@@ -979,6 +1028,18 @@ func (m *OS) ReviewSend() tea.Cmd {
 	call := m.inboxCaller()
 	gen, who := r.gen, r.who
 	params := map[string]any{"session": r.diff.Session, "window": r.diff.Window, "human_nonce": nonce}
+	if r.query.Worktree != "" {
+		params["expected_worktree"] = r.query.Worktree
+	}
+	if r.query.Path != "" {
+		var ids []string
+		for _, n := range r.notes {
+			if n.SentAt == 0 {
+				ids = append(ids, n.ID)
+			}
+		}
+		params["ids"] = ids
+	}
 	return func() tea.Msg {
 		msg := ReviewSentMsg{Gen: gen, Who: who}
 		raw, err := call("send-review", params, reviewVerbTimeout)
@@ -1042,7 +1103,7 @@ func reviewCount(n int, what string) string {
 // uncommitted changes only.
 func (m *OS) ReviewToggleUncommitted() tea.Cmd {
 	r := &m.review
-	if r.query.Against != "" {
+	if r.query.Against != "" || r.query.Index != "" {
 		return nil
 	}
 	r.query.Uncommitted = !r.query.Uncommitted
@@ -1052,7 +1113,7 @@ func (m *OS) ReviewToggleUncommitted() tea.Cmd {
 // ReviewBasePrompt opens the base line, filled with the base now shown.
 func (m *OS) ReviewBasePrompt() {
 	r := &m.review
-	if r.query.Against != "" {
+	if r.query.Against != "" || r.query.Index != "" {
 		return
 	}
 	base := r.query.Base

@@ -1358,6 +1358,20 @@ the lines they are on. The code is coloured by its file type in the
 active theme's colours, added and removed lines sit on green and red grounds,
 and the words that changed in a changed line are marked. It owns every key
 while it is open, in either mode.
+
+The sidebar's **Git** tab opens this same review for the selected file:
+**Staged** compares HEAD with the index, and **Changes** compares the index
+with the working file. A rename includes both names. Reload preserves that
+file and comparison; `u` and `b` are not offered in an index-scoped review.
+An untracked row opens the native file preview instead.
+
+The comment keys below work in sidebar-opened reviews too. Comments use the
+existing daemon review store, shared with the CLI and other clients. In a
+single-file review `S` sends only that file's visible unsent notes, to the pane
+the row originally belonged to. If that pane moved to another worktree, the
+operation is refused rather than redirected. The original review shortcuts
+and full-pane review remain unchanged.
+
 The keys are the overlay's own, not bindings, like the scrollback browser's:
 
 | Keys | What it does |

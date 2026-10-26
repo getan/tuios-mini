@@ -1560,6 +1560,19 @@ type OS struct {
 	// sidebar_files.go.
 	filesView fileViewState
 
+	// projectTab selects the project section's view: 0 files, 1 git. Client
+	// state, not part of the directory listing, so a listing that moves does
+	// not reset it.
+	projectTab int
+	// gitStatus is the changed-path reading the Git tab draws. Refreshed on the
+	// git section's beat, off the render path. See git_status.go.
+	gitStatus gitStatusView
+
+	// docPreview is the native file sheet: the document open in the content
+	// region beside the rail, its editable buffer and its save state. See
+	// doc_preview.go.
+	docPreview docPreviewState
+
 	// gitView is the rail's git section: the repository the focused pane is in
 	// and how far its branch has drifted. Derived state, never persisted and
 	// never synced, refreshed off the render path. See sidebar_git.go.

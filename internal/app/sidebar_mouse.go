@@ -369,6 +369,13 @@ func (m *OS) sidebarClick(x, y int, right bool) bool {
 	if !m.SidebarBandContains(x, y) {
 		return false
 	}
+	// A press on the rail while it holds the keyboard takes it back from the
+	// project sheet: the sheet stays open, and the row the press lands on
+	// answers. Without this a click on the rail would leave every key going to
+	// the document.
+	if m.DocPreviewFocused() && m.SidebarFocused {
+		m.BlurDocPreview()
+	}
 	// Any press takes the label down: it is a hover readout, and leaving it up
 	// over whatever the press opened is how a tooltip becomes litter.
 	m.tooltipClear()
@@ -411,6 +418,14 @@ func (m *OS) sidebarClick(x, y int, right bool) bool {
 	}
 
 	if right {
+		// A right press on either tab, or on a changed path, is still a press
+		// in the files section: the section's own menu (make a file, paste) is
+		// what a pointer aimed at that band is asking for.
+		if hit.Kind == sidebarRowProjectFiles || hit.Kind == sidebarRowProjectGit ||
+			hit.Kind == sidebarRowGitEntry {
+			m.openFilesSectionMenu(x, y, fileMenuTarget{Dir: m.filesView.Dir})
+			return true
+		}
 		m.openSidebarContextMenu(hit, x, y)
 		return true
 	}
@@ -458,6 +473,12 @@ func (m *OS) sidebarClick(x, y int, right bool) bool {
 		m.queueSidebarCmd(m.FileViewUp())
 	case sidebarRowFileEntry:
 		m.queueSidebarCmd(m.FileViewEnter(hit.WindowIndex))
+	case sidebarRowProjectFiles:
+		m.queueSidebarCmd(m.SetProjectTab(0))
+	case sidebarRowProjectGit:
+		m.queueSidebarCmd(m.SetProjectTab(1))
+	case sidebarRowGitEntry:
+		m.queueSidebarCmd(m.ActivateGitEntry(hit.WindowIndex))
 	case sidebarRowDivider:
 		// A press arms the split drag; a second press inside the double-click
 		// window resets the split instead.
@@ -648,6 +669,12 @@ func (m *OS) sidebarActivateRow(hit sidebarRowHit) {
 		m.queueSidebarCmd(m.FileViewEnter(hit.WindowIndex))
 	case sidebarRowDivider:
 		m.SidebarResetSplit()
+	case sidebarRowProjectFiles:
+		m.queueSidebarCmd(m.SetProjectTab(0))
+	case sidebarRowProjectGit:
+		m.queueSidebarCmd(m.SetProjectTab(1))
+	case sidebarRowGitEntry:
+		m.queueSidebarCmd(m.ActivateGitEntry(hit.WindowIndex))
 	case sidebarRowSession:
 		m.sidebarSwitchSession(hit.SessionID)
 	}

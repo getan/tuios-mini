@@ -397,6 +397,13 @@ func (m *OS) GetCanvas(render bool) *frameCanvas {
 	paneLayers := len(layers)
 
 	if render {
+		// The project preview is a sheet over the content region: the rail and
+		// every panel still draw over it, and the pane layers are untouched
+		// underneath. It is placed before the rail so the two share the frame,
+		// and at the dock's z minus one so a panel opened from it wins.
+		if layer := m.docPreviewLayer(); layer != nil {
+			layers = append(layers, layer)
+		}
 		// The sidebar sits below the floating overlays but, like the dock, is a
 		// reserved-region layer rather than an overlay panel. Compose it before
 		// the overlays so a palette or settings panel still draws on top of it.
@@ -857,7 +864,7 @@ func (m *OS) fullscreenFastWindow() (*terminal.Window, bool) {
 	// panels are asked through eachOverlayGate, the list mouse routing reads,
 	// so a panel added there cannot open over a lone pane unseen while it
 	// takes every key. The rest are the surfaces that list does not carry.
-	if m.AnyOverlayOpen() || m.ShowScrollbackBrowser || m.ShowCacheStats || m.ShowTapeManager || m.ShowTapeReview ||
+	if m.AnyOverlayOpen() || m.DocPreviewOpen() || m.ShowScrollbackBrowser || m.ShowCacheStats || m.ShowTapeManager || m.ShowTapeReview ||
 		m.PrefixActive || m.ContextMenu != nil || m.Capture.Active || m.review.open {
 		return nil, false
 	}

@@ -204,6 +204,11 @@ func (m *OS) sidebarSignature() uint64 {
 	mixB(m.filesView.Loading)
 	mixI(m.SidebarScrollF)
 	mixU(m.filesView.Gen)
+	// The same section can show a different navigator without a directory
+	// listing change. A status reply must invalidate the loading frame too.
+	mixI(m.projectTab)
+	mixU(m.gitStatus.gen)
+	mixB(m.gitStatus.inFlight)
 	// The custom section: its rows change when its command's output does,
 	// which is the generation, and the section scrolls like the others.
 	if m.sidebarDrawing {

@@ -637,6 +637,10 @@ func (m *OS) reviewHeader(pal overlay.Palette) []reviewSeg {
 	switch {
 	case d.Against != "":
 		dim("against " + reviewText(d.Against))
+	case d.Index == review.IndexStaged:
+		dim("staged: HEAD -> index")
+	case d.Index == review.IndexUnstaged:
+		dim("unstaged: index -> working tree")
 	case d.Uncommitted:
 		dim("uncommitted only")
 	default:
@@ -783,6 +787,8 @@ func (m *OS) reviewDiffLines(width, paneH int, look *reviewLook) []string {
 			text := "No changes against " + reviewText(r.diff.Base) + "."
 			if r.diff.Against != "" {
 				text = "No difference between the two attempts."
+			} else if r.diff.Index != "" {
+				text = "No " + r.diff.Index + " changes for this file."
 			} else if r.diff.Uncommitted {
 				text = "No uncommitted changes. u shows the changes since the base."
 			}
@@ -1092,12 +1098,14 @@ func (m *OS) reviewKeyHints() []overlay.Hint {
 		add("w", "compare")
 	}
 	if !against {
-		if r.query.Uncommitted {
-			add("u", "since base")
-		} else {
-			add("u", "uncommitted only")
+		if r.query.Index == "" {
+			if r.query.Uncommitted {
+				add("u", "since base")
+			} else {
+				add("u", "uncommitted only")
+			}
+			add("b", "base")
 		}
-		add("b", "base")
 		if !onNote && !r.listFocus {
 			add("C", "note hunk")
 		}

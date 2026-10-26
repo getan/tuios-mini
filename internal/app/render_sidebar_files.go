@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/getan/tuios-mini/internal/gitstatus"
 	"github.com/getan/tuios-mini/internal/overlay"
 	"github.com/getan/tuios-mini/internal/theme"
 )
@@ -79,6 +80,10 @@ func (m *OS) sidebarFileRows() []fileRowSpec {
 	if !m.filesSectionEnabled() {
 		return nil
 	}
+	if m.GitTabActive() {
+		return m.gitTabRows()
+	}
+	tabs := m.projectTabRows()
 	switch {
 	case m.filesView.Want == "":
 		// Nothing has ever been asked for, which on a fresh client means no pane
@@ -87,26 +92,27 @@ func (m *OS) sidebarFileRows() []fileRowSpec {
 		// shell does not report its directory would cost two lines to say
 		// nothing. The footer control is where a user who goes looking for it is
 		// told why, by name, once.
-		return nil
+		return tabs
 	case m.filesView.Elsewhere != "":
 		// The pane's shell is on another machine. Two rows, because the rail
 		// is about twenty-four cells wide and either half alone is unclear.
-		return []fileRowSpec{
-			{Note: true, Warn: true, Name: "Shell is on " + printableTitle(m.filesView.Elsewhere) + "."},
-			{Note: true, Name: "Its files are not shown."},
-		}
+		return append(tabs,
+			fileRowSpec{Note: true, Warn: true, Name: "Shell is on " + printableTitle(m.filesView.Elsewhere) + "."},
+			fileRowSpec{Note: true, Name: "Its files are not shown."},
+		)
 	case m.filesView.Err != "":
 		// A directory that could not be read says so where its names would have
 		// been, and draws nothing else. There is no listing to scroll and no row
 		// to click, so publishing either would be publishing a lie.
-		return []fileRowSpec{{Note: true, Warn: true, Name: m.filesView.Err}}
+		return append(tabs, fileRowSpec{Note: true, Warn: true, Name: m.filesView.Err})
 	case m.filesView.Dir == "":
 		// Nothing has come back yet. Either a first read is running or the rail
 		// has just been switched on; both say the same thing to the user.
-		return []fileRowSpec{{Note: true, Name: "loading"}}
+		return append(tabs, fileRowSpec{Note: true, Name: "loading"})
 	}
 
-	rows := make([]fileRowSpec, 0, len(m.filesView.Entries)+3)
+	rows := make([]fileRowSpec, 0, len(m.filesView.Entries)+len(tabs)+3)
+	rows = append(rows, tabs...)
 	if m.FileViewSpoofed() {
 		// First, above the way out, and in the warning ink. It is the one thing
 		// the section can say that changes what the rows below will do, so it
@@ -241,6 +247,35 @@ func (m *OS) sidebarFileRow(row fileRowSpec, cw int, pal overlay.Palette, st sid
 			sidebarStyle(bg, ink).Render(overlay.Truncate(row.Name, sidebarNameAvail(cw, 0))), cw, bg)
 	}
 
+	// The project tabs are words, not entries: the active one is the view you
+	// are in, the other is the way to the other view.
+	if row.Kind == sidebarRowProjectFiles || row.Kind == sidebarRowProjectGit {
+		active := (row.Kind == sidebarRowProjectFiles) == !m.GitTabActive()
+		ink := pal.FgMute
+		label := "  " + row.Name
+		if active {
+			ink = pal.AccentBright
+			label = "> " + row.Name
+		}
+		return sidebarFit(sidebarStyle(bg, ink).Render(
+			overlay.Truncate(label, sidebarNameAvail(cw, 0))), cw, bg)
+	}
+	if row.Kind == sidebarRowGitEntry {
+		letter, entry, ok := m.gitEntryAt(row.Index)
+		if !ok {
+			return sidebarFit("", cw, bg)
+		}
+		ink := theme.GitInk(letter.ColorToken(), m.sidebarGroundOr(bg))
+		name := entry.Path
+		if entry.Orig != "" {
+			name = entry.Orig + " → " + entry.Path
+		}
+		body := sidebarStyle(bg, pal.Fg).Render(
+			overlay.Truncate(name, max(sidebarNameAvail(cw, 2), 1)))
+		right := sidebarStyle(bg, ink).Render(letter.String())
+		return sidebarComposeRow(sidebarGutter(false, "", bg, pal, &m.Settings), "", body, right, cw, bg)
+	}
+
 	// A name off a filesystem is foreign data in the same sense a window title
 	// is: it can hold a control character, a private-use codepoint or an emoji,
 	// and the rail launders all three out of every other name it draws. A name
@@ -275,6 +310,15 @@ func (m *OS) sidebarFileRow(row fileRowSpec, cw int, pal overlay.Palette, st sid
 	glyph := sidebarStyle(bg, glyphInk).Render(mark.Glyph)
 	body := sidebarStyle(bg, ink).Render(overlay.Truncate(shown, sidebarNameAvail(cw, 0)))
 	return sidebarComposeRow(gutter, glyph, body, "", cw, bg)
+}
+
+// gitEntryAt resolves a drawn Git row back to its entry.
+func (m *OS) gitEntryAt(index int) (gitstatus.Letter, gitstatus.Entry, bool) {
+	if index < 0 || index >= len(m.gitStatus.entries) {
+		return 0, gitstatus.Entry{}, false
+	}
+	e := m.gitStatus.entries[index]
+	return e.Letter, e.Entry, true
 }
 
 // shortenHome writes a path under the home directory as ~/..., which is how the
