@@ -88,10 +88,12 @@ const (
 	// index in the WindowIndex field, which is the only integer a row hit has;
 	// nothing in this section points at a window, so the field is free.
 	sidebarRowFileEntry
-	// sidebarRowProjectFiles and sidebarRowProjectGit are the project
-	// section's two tabs. They are rows rather than header tokens because a
-	// tab is a place, not a one-word control: the cursor lands on it and the
-	// whole row is the target, exactly like every other row on the rail.
+	// sidebarRowProjectTabs is the project section's one tab bar, and
+	// sidebarRowProjectFiles / sidebarRowProjectGit are the two clickable
+	// tokens inside it. One row rather than two: the tabs are a switcher, and
+	// two full-width rows spent two lines of a twenty-six column rail to say
+	// what two icons say on one.
+	sidebarRowProjectTabs
 	sidebarRowProjectFiles
 	sidebarRowProjectGit
 	// sidebarRowGitEntry is one changed path in the Git tab. It carries the
@@ -2155,6 +2157,18 @@ func (m *OS) sidebarPanelLinesForTree(tree sessiontree.Tree) ([]string, int) {
 			idx := start[sidebarSectionFiles] + i
 			row := files[idx]
 			st := m.railRowState(idx == hoverRow[sidebarSectionFiles], false)
+			if row.Kind == sidebarRowProjectTabs {
+				// One line, two targets. The cursor on either token lights the
+				// bar, because the bar is the row the keyboard is on.
+				st.Cursor = isCursor(sidebarRowProjectFiles, "", "") ||
+					isCursor(sidebarRowProjectGit, "", "")
+				line, spans := m.sidebarProjectTabs(cw, pal, st)
+				for _, sp := range spans {
+					recordToken(sp, "")
+				}
+				lines = append(lines, compose(st.mark(pal, line)))
+				continue
+			}
 			if row.Kind != 0 {
 				st.Cursor = st.Cursor || isCursor(row.Kind, "", row.Key)
 				recordHit(row.Kind, "", row.Key, row.Index, 1)

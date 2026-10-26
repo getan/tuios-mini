@@ -1,6 +1,7 @@
 package app
 
 import (
+	"image/color"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -248,17 +249,12 @@ func (m *OS) sidebarFileRow(row fileRowSpec, cw int, pal overlay.Palette, st sid
 	}
 
 	// The project tabs are words, not entries: the active one is the view you
-	// are in, the other is the way to the other view.
-	if row.Kind == sidebarRowProjectFiles || row.Kind == sidebarRowProjectGit {
-		active := (row.Kind == sidebarRowProjectFiles) == !m.GitTabActive()
-		ink := pal.FgMute
-		label := "  " + row.Name
-		if active {
-			ink = pal.AccentBright
-			label = "> " + row.Name
-		}
-		return sidebarFit(sidebarStyle(bg, ink).Render(
-			overlay.Truncate(label, sidebarNameAvail(cw, 0))), cw, bg)
+	// are in, the other is the way to the other view. sidebarProjectTabs draws
+	// both on one line; this branch is the fallback for a caller that reaches a
+	// tab row without the draw loop's token recording.
+	if row.Kind == sidebarRowProjectTabs || row.Kind == sidebarRowProjectFiles || row.Kind == sidebarRowProjectGit {
+		line, _ := m.sidebarProjectTabs(cw, pal, st)
+		return line
 	}
 	if row.Kind == sidebarRowGitEntry {
 		letter, entry, ok := m.gitEntryAt(row.Index)
@@ -308,8 +304,61 @@ func (m *OS) sidebarFileRow(row fileRowSpec, cw int, pal overlay.Palette, st sid
 		glyphInk = theme.FileIconInkOn(mark.Hex, m.sidebarGroundOr(bg))
 	}
 	glyph := sidebarStyle(bg, glyphInk).Render(mark.Glyph)
+	// A changed file keeps its name, not a status letter: the Files tab is a
+	// navigator, and the ink is the one thing a twenty-six column rail can add
+	// without taking a character away from the name. A directory takes the
+	// strongest ink of anything under it (see fileGitToken), which is the
+	// "something in here is modified" signal a folded tree cannot show any
+	// other way.
+	if token := m.fileGitToken(row.Key, row.Dir); token != "" {
+		ink = theme.GitInk(token, m.sidebarGroundOr(bg))
+		if row.Dir {
+			glyph = sidebarStyle(bg, ink).Render(mark.Glyph)
+		}
+	}
 	body := sidebarStyle(bg, ink).Render(overlay.Truncate(shown, sidebarNameAvail(cw, 0)))
 	return sidebarComposeRow(gutter, glyph, body, "", cw, bg)
+}
+
+// sidebarProjectTabs draws the project section's tab bar and says where each
+// token landed, in content-relative columns. Icons only: the rail has no room
+// to spell two labels, and the two shapes are the same ones every file tree
+// and every shell prompt already use. The active tab is the accent ink; the
+// other is the muted one, which is the whole of the state either can be in.
+func (m *OS) sidebarProjectTabs(cw int, pal overlay.Palette, st sidebarRowState) (string, []sidebarTokenSpan) {
+	bg := sidebarRowBg(st, pal)
+	filesGlyph := m.Settings.GetRailFolderGlyph()
+	gitGlyph := m.Settings.GetRailGitGlyph()
+	filesActive := !m.GitTabActive()
+
+	inkOf := func(active bool) color.Color {
+		if active {
+			return pal.AccentBright
+		}
+		return pal.FgMute
+	}
+	// The two targets share the gap between the icons rather than each claiming
+	// only its one-cell glyph: a one-cell click target is a pixel hunt, and
+	// everything between the two icons is unambiguously one tab or the other.
+	// Left half of the gap belongs to Files, right half to Git.
+	x := 0
+	filesAt := x
+	x += 1 + lipgloss.Width(filesGlyph) // the leading cell and the glyph
+	filesEnd := x + 1
+	x = filesEnd
+	gitAt := x
+	x += 1 + lipgloss.Width(gitGlyph) // the gap's other half and the glyph
+	gitEnd := x
+
+	line := sidebarStyle(bg, nil).Render(" ") +
+		sidebarStyle(bg, inkOf(filesActive)).Render(filesGlyph) +
+		sidebarStyle(bg, nil).Render("  ") +
+		sidebarStyle(bg, inkOf(!filesActive)).Render(gitGlyph)
+	spans := []sidebarTokenSpan{
+		{Kind: sidebarRowProjectFiles, X0: filesAt, X1: filesEnd},
+		{Kind: sidebarRowProjectGit, X0: gitAt, X1: gitEnd},
+	}
+	return sidebarFit(line, cw, bg), spans
 }
 
 // gitEntryAt resolves a drawn Git row back to its entry.

@@ -181,10 +181,15 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 		labels = append(labels, r.Name)
 	}
 	joined := strings.Join(labels, "|")
-	for _, want := range []string{"files", "git", "Changes 1", "Untracked 1", "a.go", "new.txt"} {
+	for _, want := range []string{"Changes 1", "Untracked 1", "a.go", "new.txt"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("the Git tab is missing %q in %q", want, joined)
 		}
+	}
+	// The tab bar is one icon row; its two targets are published by the
+	// renderer, not by a name on the row.
+	if rows[0].Kind != sidebarRowProjectTabs {
+		t.Errorf("first row is %v, want the one-row tab bar", rows[0].Kind)
 	}
 
 	// The untracked row is the last one; it opens the file, not the review.
@@ -197,15 +202,15 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 	}
 }
 
-func TestProjectTabsAreRowsAndCarryTheCursor(t *testing.T) {
+func TestProjectTabsAreOneRowAndCarryTheCursor(t *testing.T) {
 	m, dir := previewOS(t)
 	m.filesView = fileViewState{Show: 1, Dir: dir, Want: dir}
 	rows := m.projectTabRows()
-	if len(rows) < 2 || rows[0].Kind != sidebarRowProjectFiles || rows[1].Kind != sidebarRowProjectGit {
-		t.Fatalf("the tab rows are not first: %+v", rows)
+	if len(rows) != 1 || rows[0].Kind != sidebarRowProjectTabs {
+		t.Fatalf("the tab bar is not one row: %+v", rows)
 	}
-	if got := rows[0].Key; got != "files" {
-		t.Fatalf("first tab key = %q", got)
+	if got := rows[0].Key; got != "tabs" {
+		t.Fatalf("tab bar key = %q", got)
 	}
 }
 

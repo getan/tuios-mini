@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"path"
 	"strconv"
 	"time"
 
@@ -43,6 +44,13 @@ type gitStatusView struct {
 	inFlight bool
 	at       time.Time
 	entries  []gitStatusEntry
+
+	// Decorations for the Files tab: one token per changed path, and one per
+	// directory holding a changed path, the strongest child winning. Rebuilt
+	// with each reading rather than per frame, so drawing a listing is map
+	// reads and a 2000-name tree costs nothing on the render path.
+	fileDeco map[string]string
+	dirDeco  map[string]string
 }
 
 // GitStatusMsg carries a finished reading back to the loop.
@@ -61,20 +69,24 @@ func (m *OS) SetProjectTab(tab int) tea.Cmd {
 		return nil
 	}
 	m.projectTab = tab
-	if tab == 1 {
-		// Switching in must not show a stale reading: ask now rather than wait
-		// for the beat that follows the next message.
-		m.gitStatus.at = time.Time{}
-		return m.GitStatusSyncCmd()
-	}
-	return nil
+	// Switching either way must not show a stale reading: the Files tab wears
+	// the same decorations the Git tab lists, so both directions ask now rather
+	// than wait for the beat that follows the next message.
+	m.gitStatus.at = time.Time{}
+	return m.GitStatusSyncCmd()
 }
 
-// GitStatusSyncCmd reads the repository's changed paths on the Git tab's beat.
-// It is deliberately separate from gitstate.Read: that is branch drift and is
-// cheap; this walks the working tree, so it runs only while the tab is shown.
+// GitStatusSyncCmd reads the repository's changed paths on the project
+// section's beat. It is deliberately separate from gitstate.Read: that is
+// branch drift and is cheap; this walks the working tree, so it runs only while
+// the section is shown — either tab, because the Files tab colours a name (and
+// a folder holding it) from the same reading.
 func (m *OS) GitStatusSyncCmd() tea.Cmd {
-	if !m.GitTabActive() {
+	// The Git tab is the project section's other view; a caller that selected it
+	// directly (a host, a test) asks for a reading even before the rail decides
+	// the section is visible. The Files tab needs the section to draw at all,
+	// which filesSectionEnabled already covers.
+	if !m.GitTabActive() && !m.filesSectionEnabled() {
 		return nil
 	}
 	w := m.GetFocusedWindow()
@@ -110,6 +122,80 @@ func (m *OS) ApplyGitStatus(msg GitStatusMsg) {
 		return
 	}
 	v.Dir, v.Status, v.Origin, v.inFlight = msg.Origin.Dir, msg.Status, msg.Origin, false
+	v.buildDecorations()
+}
+
+// gitDecorationStrength ranks the tokens so a directory wears the most urgent
+// change under it. A conflict must not be hidden by a modification two files
+// down the tree, and an ignored path is never worth colouring a folder for.
+func gitDecorationStrength(token string) int {
+	switch token {
+	case "git_conflict":
+		return 6
+	case "git_deleted":
+		return 5
+	case "git_modified":
+		return 4
+	case "git_added", "git_renamed":
+		return 3
+	case "git_untracked":
+		return 2
+	case "git_ignored":
+		return 1
+	}
+	return 0
+}
+
+func strongerGitToken(a, b string) string {
+	if gitDecorationStrength(b) > gitDecorationStrength(a) {
+		return b
+	}
+	return a
+}
+
+// buildDecorations folds one reading into the two lookup tables the Files tab
+// draws from. Every changed path is recorded as itself and rolled up into each
+// directory above it, so a folder whose contents changed is visible even when
+// the changed file is not on screen.
+func (v *gitStatusView) buildDecorations() {
+	v.fileDeco, v.dirDeco = nil, nil
+	if v.Status.Err != "" || v.Status.Root == "" {
+		return
+	}
+	v.fileDeco = make(map[string]string)
+	v.dirDeco = make(map[string]string)
+	add := func(entries []gitstatus.Entry) {
+		for _, e := range entries {
+			token := e.Letter.ColorToken()
+			if token == "" {
+				continue
+			}
+			v.fileDeco[e.Path] = strongerGitToken(v.fileDeco[e.Path], token)
+			for dir := path.Dir(e.Path); dir != "." && dir != "/"; dir = path.Dir(dir) {
+				v.dirDeco[dir] = strongerGitToken(v.dirDeco[dir], token)
+			}
+		}
+	}
+	add(v.Status.Conflicts)
+	add(v.Status.Staged)
+	add(v.Status.Unstaged)
+	add(v.Status.Untracked)
+}
+
+// fileGitToken is the ink a Files-tab row wears: the entry's own status for a
+// file, and the strongest status of anything under it for a directory. Empty
+// when the reading belongs to another directory — the tab may still be showing
+// the previous pane's tree while the new read is in flight — or when the tree
+// is clean.
+func (m *OS) fileGitToken(name string, dir bool) string {
+	v := &m.gitStatus
+	if name == "" || v.Dir == "" || v.Dir != m.filesView.Dir || v.Status.Err != "" {
+		return ""
+	}
+	if dir {
+		return v.dirDeco[name]
+	}
+	return v.fileDeco[name]
 }
 
 // gitTabRows is what the Git tab draws: two tab rows, then one header per
@@ -160,11 +246,13 @@ func (m *OS) gitTabRows() []fileRowSpec {
 	return rows
 }
 
-// projectTabRows is the two-tab bar every project view starts with.
+// projectTabRows is the tab bar every project view starts with. It is one row:
+// sidebarProjectTabs draws both tokens inside it and publishes one click target
+// per token, so the mouse can tell files from git while the keyboard walks the
+// same two rows it always did.
 func (m *OS) projectTabRows() []fileRowSpec {
 	return []fileRowSpec{
-		{Kind: sidebarRowProjectFiles, Index: -1, Key: "files", Name: "files"},
-		{Kind: sidebarRowProjectGit, Index: -1, Key: "git", Name: "git"},
+		{Kind: sidebarRowProjectTabs, Index: -1, Key: "tabs"},
 	}
 }
 

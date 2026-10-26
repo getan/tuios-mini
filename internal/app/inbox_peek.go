@@ -97,8 +97,21 @@ func (m *OS) inboxCaller() inboxVerbCall {
 	if m.DaemonClient != nil {
 		build = m.DaemonClient.ClientVersion()
 	}
+	// A host that embedded this client (golder's workspace) owns a daemon of
+	// its own, and LocalSocket names it. Dialing the default socket instead
+	// sent every review verb to a daemon that may not exist — the reported
+	// "/tmp/tuios-501/tuios.sock: no such file" on ctrl+b v.
+	local := m.LocalSocket
 	return func(verb string, params map[string]any, timeout time.Duration) (json.RawMessage, error) {
-		client, err := session.DialVerbClientAs(build)
+		var (
+			client *session.VerbClient
+			err    error
+		)
+		if local != "" {
+			client, err = session.DialVerbClientAt(local, build)
+		} else {
+			client, err = session.DialVerbClientAs(build)
+		}
 		if err != nil {
 			return nil, err
 		}

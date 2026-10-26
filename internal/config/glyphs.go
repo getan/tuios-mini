@@ -101,6 +101,17 @@ func (s *Settings) GetRailFileGlyph() string {
 	return s.glyphOr(func(g *theme.GlyphSet) string { return g.File }, "·", ".")
 }
 
+// GetRailGitGlyph is the mark on the project section's Git tab: a branch. It is
+// one cell so the two tabs share the rail's glyph column and a click lands on
+// the column it was tested against. The ASCII fallback is the fork a branch
+// draws ("Y"), not a word: the tab bar carries no labels.
+func (s *Settings) GetRailGitGlyph() string {
+	if s.UseASCIIOnly {
+		return "Y"
+	}
+	return "⎇"
+}
+
 // GetRailFoldOpenGlyph is the mark on a group header whose rows are on screen
 // under it, and GetRailFoldShutGlyph the mark on one that is folded shut. The
 // rail draws them on a machine's row in the sessions section. One cell each,

@@ -184,7 +184,7 @@ func sidebarSectionOfKind(kind sidebarRowKind) sidebarSection {
 		return sidebarSectionTerminals
 	case sidebarRowAgent, sidebarRowAgentFilter, sidebarRowAgentSort, sidebarRowAgentMail, sidebarRowAgentFold, sidebarRowSubagentToggle:
 		return sidebarSectionAgents
-	case sidebarRowFileUp, sidebarRowFileEntry, sidebarRowFileCd, sidebarRowProjectFiles, sidebarRowProjectGit, sidebarRowGitEntry:
+	case sidebarRowFileUp, sidebarRowFileEntry, sidebarRowFileCd, sidebarRowProjectTabs, sidebarRowProjectFiles, sidebarRowProjectGit, sidebarRowGitEntry:
 		return sidebarSectionFiles
 	default:
 		return sidebarSectionCount
@@ -285,6 +285,8 @@ func (m *OS) SidebarActivateCursor() bool {
 		m.queueSidebarCmd(m.SetProjectTab(0))
 	case sidebarRowProjectGit:
 		m.queueSidebarCmd(m.SetProjectTab(1))
+	case sidebarRowProjectTabs:
+		m.queueSidebarCmd(m.SetProjectTab(1 - m.projectTab))
 	case sidebarRowGitEntry:
 		m.queueSidebarCmd(m.ActivateGitEntry(row.WindowIndex))
 	case sidebarRowDivider:
