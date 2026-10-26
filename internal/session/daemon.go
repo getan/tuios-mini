@@ -418,9 +418,7 @@ const defaultAgentDetectInterval = 2 * time.Second
 // it sleeps, so the bound holds for a program started within it. One started
 // with no output and no input later than that is found when the pane next
 // prints. See agentMonitor.
-//
-// A variable so the idle budget test can shorten it.
-var agentDetectQuietBound = 10 * time.Second
+const agentDetectQuietBound = 10 * time.Second
 
 // detectQuietTicks is how many ticks a quiet pane waits between reads at the
 // given poll interval: agentDetectQuietBound in ticks, and never less than one,

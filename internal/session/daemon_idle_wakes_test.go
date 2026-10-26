@@ -59,9 +59,8 @@ func TestDaemonIdleArmsNoTimers(t *testing.T) {
 	// One second, so the loop runs, runs once more and sleeps inside the
 	// settle wait.
 	t.Setenv("TUIOS_CLEANUP_SECONDS", "1")
-	prevBound := agentDetectQuietBound
-	agentDetectQuietBound = 300 * time.Millisecond
-	t.Cleanup(func() { agentDetectQuietBound = prevBound })
+	// Exercise the real bound. Mutating a process-wide deadline here races
+	// with monitors from another daemon that is still finishing shutdown.
 	const interval = 100 * time.Millisecond
 
 	const stall = 600 * time.Millisecond
@@ -111,7 +110,7 @@ func TestDaemonIdleArmsNoTimers(t *testing.T) {
 		}
 		time.Sleep(interval / 2)
 	}
-	waitIdleSettled(t, counters, 10*interval, 10*time.Second)
+	waitIdleSettled(t, counters, 10*interval, agentDetectQuietBound+10*time.Second)
 	// One fire at the deadline. A second is allowed for a screen look that
 	// kept the pane working once.
 	if n := d.wakes.stallTicks.Load() - stallBefore; n < 1 || n > 2 {
