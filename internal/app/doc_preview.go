@@ -442,7 +442,7 @@ func (m *OS) DocPreviewClick(x, y int) {
 func docByteAtColumn(line string, col int) int {
 	cells := 0
 	for i, r := range line {
-		w := 1
+		var w int
 		if r == '\t' {
 			w = 4 - cells%4
 		} else {
@@ -478,7 +478,7 @@ func (m *OS) renderDocPreview() string {
 		header += "*  "
 	}
 	header += d.rel
-	if d.doc.Editable == false && d.doc.Reason != "" {
+	if !d.doc.Editable && d.doc.Reason != "" {
 		header += "  / read only: " + d.doc.Reason
 	}
 	lines := []string{

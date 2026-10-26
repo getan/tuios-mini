@@ -11,8 +11,11 @@ func readCPUTicks() (cpuTicks, bool) {
 		return cpuTicks{}, false
 	}
 	t := times[0]
+	// Keep the same sum without gopsutil's deprecated internal Total helper.
+	total := t.User + t.System + t.Idle + t.Nice + t.Iowait + t.Irq +
+		t.Softirq + t.Steal + t.Guest + t.GuestNice
 	return cpuTicks{
 		idle:  uint64(t.Idle * 1e6),
-		total: uint64(t.Total() * 1e6),
+		total: uint64(total * 1e6),
 	}, true
 }
