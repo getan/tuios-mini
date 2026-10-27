@@ -868,6 +868,7 @@ var ActionDescriptions = map[string]string{
 	// Prefix Mode
 	"prefix_new_window":         "Create new window",
 	"prefix_close_window":       "Close current window",
+	"prefix_toggle_pane_admin":  "Toggle admin for the focused pane (allows windows outside its folder)",
 	"prefix_rename_window":      "Rename window",
 	"prefix_settings":           "Open settings",
 	"prefix_keybinds":           "Open the keybind manager",

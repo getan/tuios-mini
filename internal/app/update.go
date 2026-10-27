@@ -1545,6 +1545,10 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.renderSkipped = false
 		return m, nil
 
+	case PaneAdminMsg:
+		m.HandlePaneAdmin(msg)
+		return m, nil
+
 	case fileOpMsg:
 		// A create, rename, delete or paste that finished on its own goroutine.
 		// The handler says what happened and asks for the listing again through

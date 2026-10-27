@@ -29,6 +29,9 @@ import (
 func (d *ActionDispatcher) registerPrefixHandlers() {
 	// Main prefix (leader, ...)
 	d.Register("prefix_new_window", handleNewWindow)
+	d.Register("prefix_toggle_pane_admin", func(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+		return o, o.ToggleFocusedPaneAdmin()
+	})
 	d.Register("prefix_close_window", handlePrefixCloseWindow)
 	d.Register("prefix_rename_window", handlePrefixRenameWindow)
 	d.Register("prefix_settings", handleOpenSettings)

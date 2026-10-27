@@ -1219,13 +1219,16 @@ func DefaultConfig() *UserConfig {
 				"restore_minimized_9": {"shift+9", "("},
 			},
 			PrefixMode: map[string][]string{
-				"prefix_new_window":    {"c"},
-				"prefix_close_window":  {"x"},
-				"prefix_rename_window": {"r"},
-				"prefix_settings":      {","},
-				"prefix_keybinds":      {"k"},
-				"prefix_next_window":   {"n", "tab"},
-				"prefix_prev_window":   {"p", "shift+tab"},
+				"prefix_new_window": {"c"},
+				// The one key here that changes a pane's authority rather than
+				// its layout. Capital, so it is never hit while moving panes.
+				"prefix_toggle_pane_admin": {"U"},
+				"prefix_close_window":      {"x"},
+				"prefix_rename_window":     {"r"},
+				"prefix_settings":          {","},
+				"prefix_keybinds":          {"k"},
+				"prefix_next_window":       {"n", "tab"},
+				"prefix_prev_window":       {"p", "shift+tab"},
 				// Walking panes from the prefix, on the arrows, which is what
 				// tmux binds and what every tmux user reaches for first.
 				//

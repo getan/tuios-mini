@@ -171,6 +171,7 @@ var leaderPaneRows = []menuRow{
 	{parts: []menuPart{{"prefix_split_vertical", "Split vertical"}}, desc: "Split vertical"},
 	{parts: []menuPart{{"prefix_rotate_split", "Rotate split"}}, desc: "Rotate split"},
 	{parts: []menuPart{{"prefix_equalize_splits", "Equalize splits"}}, desc: "Equalize splits"},
+	{parts: []menuPart{{"prefix_toggle_pane_admin", "Toggle admin"}}, desc: "Toggle pane admin"},
 	{parts: []menuPart{{"hints", "Hints"}, {"display_panes", "Pane labels"}}, desc: "Hints, labels"},
 	{parts: []menuPart{{"last_pane", "Last pane"}}, desc: "Last pane"},
 	{parts: []menuPart{{"mark_pane", "Mark pane"}}, desc: "Mark pane"},
