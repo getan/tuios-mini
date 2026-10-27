@@ -73,9 +73,23 @@ const (
 	// The Git tab's own keys. They share the files section's table because
 	// they act on the row under the cursor like the file keys do, and the
 	// cursor's row kind decides which set answers. See HandleSidebarKey.
-	sidebarActFileStage   = "file_stage"
-	sidebarActFileUnstage = "file_unstage"
-	sidebarActFileCommit  = "file_commit"
+	sidebarActFileStage      = "file_stage"
+	sidebarActFileUnstage    = "file_unstage"
+	sidebarActFileCommit     = "file_commit"
+	sidebarActFileStageAll   = "file_stage_all"
+	sidebarActFileUnstageAll = "file_unstage_all"
+	sidebarActGitShow        = "git_show"
+	sidebarActGitCopyPath    = "git_copy_path"
+	sidebarActGitDiscard     = "git_discard"
+	sidebarActFileSync       = "file_sync"
+	sidebarActGitLog         = "git_commits"
+	sidebarActGitGraph       = "git_graph"
+	sidebarActGitBranches    = "git_branches"
+	sidebarActGitTags        = "git_tags"
+	sidebarActGitStashes     = "git_stashes"
+	sidebarActGitRemotes     = "git_remotes"
+	sidebarActGitFileHistory = "git_file_history"
+	sidebarActGitRepos       = "git_repos"
 	// jump_1..jump_9 are matched by prefix; see HandleSidebarKey.
 	sidebarActJumpPrefix = "jump_"
 )
@@ -273,6 +287,10 @@ func (d *ActionDispatcher) registerHandlers() {
 		sidebarActFilePaste, sidebarActFileOpen, sidebarActFileEdit,
 		sidebarActFileCopyPath, sidebarActFileSend,
 		sidebarActFileStage, sidebarActFileUnstage, sidebarActFileCommit,
+		sidebarActFileStageAll, sidebarActFileUnstageAll,
+		sidebarActGitShow, sidebarActGitCopyPath, sidebarActGitDiscard, sidebarActFileSync,
+		sidebarActGitLog, sidebarActGitGraph, sidebarActGitBranches, sidebarActGitTags,
+		sidebarActGitStashes, sidebarActGitRemotes, sidebarActGitFileHistory, sidebarActGitRepos,
 	} {
 		d.Register(action, makeSidebarFileHandler(action))
 	}

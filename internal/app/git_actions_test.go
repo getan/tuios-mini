@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -55,6 +56,32 @@ func TestSidebarGitStageSendsTheCursorPath(t *testing.T) {
 	}
 }
 
+func TestSidebarGitStageAllSendsEveryChange(t *testing.T) {
+	m, _ := gitActionsOS(t)
+	m.gitStatus.entries = append(m.gitStatus.entries, gitStatusEntry{
+		Entry:  gitstatus.Entry{Path: "new.txt", Letter: gitstatus.Untracked},
+		Origin: m.gitStatus.Origin,
+		Root:   "/repo",
+		Index:  "untracked",
+	})
+	var calls []string
+	m.SetInboxVerbCaller(func(verb string, p map[string]any, _ time.Duration) (json.RawMessage, error) {
+		if verb != "review-stage" {
+			t.Fatalf("verb = %s", verb)
+		}
+		calls = append(calls, p["path"].(string))
+		return json.RawMessage(`{}`), nil
+	}, func() string { return "nonce" })
+
+	msg := m.SidebarGitStageAll(false)().(gitActionMsg)
+	if msg.Err != "" || msg.OK != "Staged 2 changes." {
+		t.Fatalf("stage all = %+v", msg)
+	}
+	if !slices.Equal(calls, []string{"a.go", "new.txt"}) {
+		t.Fatalf("paths = %v", calls)
+	}
+}
+
 func TestSidebarGitCommitPromptSendsTheStagedCommit(t *testing.T) {
 	m, origin := gitActionsOS(t)
 	var params map[string]any
@@ -94,5 +121,77 @@ func TestSidebarGitCommitRefusesAnEmptyMessage(t *testing.T) {
 	}
 	if m.filePrompt.Err == "" {
 		t.Fatal("the empty message was not refused in the dialog")
+	}
+}
+
+func TestSidebarGitDiscardAsksThenDiscards(t *testing.T) {
+	m, _ := gitActionsOS(t)
+	var params map[string]any
+	m.SetInboxVerbCaller(func(verb string, p map[string]any, _ time.Duration) (json.RawMessage, error) {
+		if verb != "review-discard" {
+			t.Fatalf("verb = %s", verb)
+		}
+		params = p
+		return json.RawMessage(`{}`), nil
+	}, func() string { return "nonce" })
+
+	if !m.SidebarGitDiscard() {
+		t.Fatal("no confirmation opened")
+	}
+	if !m.filePrompt.Discard || len(m.filePrompt.Paths) != 1 {
+		t.Fatalf("prompt = %+v", m.filePrompt)
+	}
+	cmd := m.FileConfirmActivate(fileConfirmRowGo)
+	if cmd == nil {
+		t.Fatal("the confirmation ran nothing")
+	}
+	msg := cmd().(gitActionMsg)
+	if msg.Err != "" {
+		t.Fatal(msg.Err)
+	}
+	if paths, ok := params["paths"].([]string); !ok || !slices.Equal(paths, []string{"a.go"}) {
+		t.Fatalf("paths = %v", params["paths"])
+	}
+}
+
+func TestSidebarGitSyncSendsTheVerb(t *testing.T) {
+	m, _ := gitActionsOS(t)
+	var params map[string]any
+	m.SetInboxVerbCaller(func(verb string, p map[string]any, _ time.Duration) (json.RawMessage, error) {
+		if verb != "review-sync" {
+			t.Fatalf("verb = %s", verb)
+		}
+		params = p
+		return json.RawMessage(`{}`), nil
+	}, func() string { return "nonce" })
+	msg := m.SidebarGitSync()().(gitActionMsg)
+	if msg.Err != "" {
+		t.Fatal(msg.Err)
+	}
+	if params["session"] != "work" || params["window"] != "w1" {
+		t.Fatalf("target = %v", params)
+	}
+}
+
+func TestGitRowMenuFollowsTheSide(t *testing.T) {
+	m, _ := gitActionsOS(t)
+	_, items := m.gitRowMenu()
+	labels := make([]string, 0, len(items))
+	for _, it := range items {
+		labels = append(labels, it.Label)
+	}
+	for _, want := range []string{"Stage", "Show changes", "Copy path", "Sync changes", "Discard changes"} {
+		if !slices.Contains(labels, want) {
+			t.Errorf("unstaged menu is missing %q in %v", want, labels)
+		}
+	}
+	m.gitStatus.entries[0].Index = "staged"
+	_, items = m.gitRowMenu()
+	labels = labels[:0]
+	for _, it := range items {
+		labels = append(labels, it.Label)
+	}
+	if !slices.Contains(labels, "Unstage") || slices.Contains(labels, "Stage") {
+		t.Fatalf("staged menu = %v", labels)
 	}
 }

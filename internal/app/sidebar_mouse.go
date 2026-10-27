@@ -1026,6 +1026,14 @@ func (m *OS) openSidebarContextMenu(hit sidebarRowHit, x, y int) {
 		// fileMenuTarget.
 		m.openFilesSectionMenu(x, y, m.fileMenuTargetFor(hit))
 		return
+	case sidebarRowGitEntry:
+		// The Git row's actions read the cursor row, so the pointer moves it
+		// first; unlike the file listing there is no carried target to hand to
+		// a row that runs after the click.
+		m.sidebarSetCursorToHit(hit)
+		cm.Target = CtxTargetGitRow
+		cm.WindowIndex = -1
+		cm.Title, cm.Items = m.gitRowMenu()
 	case sidebarRowWindow, sidebarRowAgent:
 		// The menu is about the pane the focus actually landed on, and when it
 		// landed nowhere there is no menu to open: reading the focused pane back

@@ -518,6 +518,12 @@ func routeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return handleContextMenuKey(msg, o)
 	}
 
+	// A Git history drawer is a read-only overlay opened from the rail; it owns
+	// every key while it is up, wherever it was opened from.
+	if o.GitDrawerOpen() {
+		return handleGitDrawerInput(msg, o)
+	}
+
 	// The review overlay covers the screen and owns every key while it is up,
 	// in either mode. It is opened from the Inbox and the rail, so it is
 	// checked ahead of both. See review_input.go.

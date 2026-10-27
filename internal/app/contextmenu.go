@@ -47,6 +47,9 @@ const (
 	// the whole of what the blank space can offer, and they are on the row menu
 	// too. What the menu was opened on rides in ContextMenu.File.
 	CtxTargetFileRow
+	// CtxTargetGitRow is one changed path in the Git tab. The menu acts on the
+	// rail's cursor, which the right-click moves to the row before building it.
+	CtxTargetGitRow
 )
 
 // fileMenuTarget is the listing row a files-section menu was opened on.

@@ -40,6 +40,9 @@ func (m *OS) filePromptTitle() string {
 	case filePromptRename:
 		return "rename"
 	case filePromptConfirm:
+		if m.filePrompt.Discard {
+			return "discard changes"
+		}
 		if m.filePrompt.Trash {
 			return "move to trash"
 		}

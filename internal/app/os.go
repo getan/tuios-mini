@@ -1574,6 +1574,9 @@ type OS struct {
 	// git_watch.go.
 	gitWatch    *gitWatcher
 	gitWatchGen int
+	// gitDrawer is the read-only history panel: commits, branches, stashes,
+	// tags, remotes, graph, file history, or the session's repositories.
+	gitDrawer gitDrawerState
 
 	// docPreview is the native file sheet: the document open in the content
 	// region beside the rail, its editable buffer and its save state. See

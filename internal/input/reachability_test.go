@@ -464,6 +464,9 @@ var actionsWithNoDefaultBinding = map[string]string{
 	"workspace_pill_switch": "context menu row",
 	"settings_sidebar":      "rail mouse row",
 	"rename_workspace":      "user binding",
+	"git_show":              "Git row context menu",
+	"git_copy_path":         "Git row context menu",
+	"git_discard":           "Git row context menu",
 
 	// ssh-aware splits. The palette lists each one, and a user binds a key
 	// or sets appearance.new_window_follow_ssh to make the ordinary keys follow.

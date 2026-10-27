@@ -579,6 +579,31 @@ func (m *OS) fileRowMenu(t fileMenuTarget) (string, []ContextMenuItem) {
 	)
 }
 
+// gitRowMenu is the menu for one changed path in the Git tab. The stage and
+// unstage rows follow the side the path is on; discard is last and warned.
+func (m *OS) gitRowMenu() (string, []ContextMenuItem) {
+	e, ok := m.gitEntryAtCursor()
+	if !ok {
+		return "Git", nil
+	}
+	rows := make([]ContextMenuItem, 0, 6)
+	if e.Index == "staged" {
+		rows = append(rows, m.item(glyphClose, "Unstage", "file_unstage", false))
+	} else {
+		rows = append(rows, m.item(glyphNew, "Stage", "file_stage", false))
+	}
+	rows = append(rows,
+		m.item(glyphFile, "Show changes", "git_show", false),
+		m.item(glyphCopy, "Copy path", "git_copy_path", false),
+		m.item(glyphCopy, "Sync changes", "file_sync", false),
+		separator(),
+	)
+	discard := m.item(glyphClose, "Discard changes", "git_discard", false)
+	discard.Warn = true
+	rows = append(rows, discard)
+	return printableTitle(e.Path), rows
+}
+
 // fileMenuTitle heads the menu with what it will act on: the name for a row of
 // the listing, and the folder itself when the menu names no row.
 //

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/getan/tuios-mini/internal/app"
+	"github.com/getan/tuios-mini/internal/review"
 )
 
 // handleFocusSidebar enters the rail's keyboard scope. Bound to "s" in window
@@ -69,6 +70,16 @@ func handleSidebarKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 				o.NoteAction(act)
 				return o, handleSidebarFileAction(act, o)
 			}
+		}
+	}
+
+	// Stage all, sync, and the history drawers act on the whole Git tab, so
+	// they work from the branch header or a group header too, not only a
+	// changed row.
+	if o.GitTabActive() {
+		if act := lookupAction(o, msg, o.KeybindRegistry.GetSidebarFilesAction); isGitTabAction(act) {
+			o.NoteAction(act)
+			return o, handleSidebarFileAction(act, o)
 		}
 	}
 
@@ -277,6 +288,47 @@ func handleSidebarFileAction(action string, o *app.OS) tea.Cmd {
 		return o.SidebarGitStage(true)
 	case sidebarActFileCommit:
 		o.SidebarGitCommitPrompt()
+	case sidebarActFileStageAll:
+		return o.SidebarGitStageAll(false)
+	case sidebarActFileUnstageAll:
+		return o.SidebarGitStageAll(true)
+	case sidebarActGitShow:
+		return o.SidebarGitShow()
+	case sidebarActGitCopyPath:
+		return o.SidebarGitCopyPath()
+	case sidebarActGitDiscard:
+		o.SidebarGitDiscard()
+	case sidebarActFileSync:
+		return o.SidebarGitSync()
+	case sidebarActGitLog:
+		return o.SidebarGitHistory(review.HistoryCommits)
+	case sidebarActGitGraph:
+		return o.SidebarGitHistory(review.HistoryGraph)
+	case sidebarActGitBranches:
+		return o.SidebarGitHistory(review.HistoryBranches)
+	case sidebarActGitTags:
+		return o.SidebarGitHistory(review.HistoryTags)
+	case sidebarActGitStashes:
+		return o.SidebarGitHistory(review.HistoryStashes)
+	case sidebarActGitRemotes:
+		return o.SidebarGitHistory(review.HistoryRemotes)
+	case sidebarActGitFileHistory:
+		return o.SidebarGitHistory(review.HistoryFile)
+	case sidebarActGitRepos:
+		return o.SidebarGitHistory(review.HistoryRepos)
 	}
 	return nil
+}
+
+// isGitTabAction reports whether a files-section action acts on the whole Git
+// tab: stage all, unstage all, sync, or one of the read-only history drawers.
+// They run from any row, headers included; a per-row action does not.
+func isGitTabAction(act string) bool {
+	switch act {
+	case sidebarActFileStageAll, sidebarActFileUnstageAll, sidebarActFileSync,
+		sidebarActGitLog, sidebarActGitGraph, sidebarActGitBranches, sidebarActGitTags,
+		sidebarActGitStashes, sidebarActGitRemotes, sidebarActGitFileHistory, sidebarActGitRepos:
+		return true
+	}
+	return false
 }

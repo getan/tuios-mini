@@ -116,6 +116,9 @@ type filePromptState struct {
 	// GitOrigin is the pane and repository a commit prompt acts on, captured
 	// when it opened. A status read can land while the message is being typed.
 	GitOrigin gitStatusOrigin
+	// Discard turns the confirmation into the git discard: the index and the
+	// working copy go back to HEAD, or the untracked file is removed.
+	Discard bool
 }
 
 // fileOpMsg is one finished operation on its way back to the loop.
@@ -691,6 +694,15 @@ func (m *OS) FileConfirmActivate(idx int) tea.Cmd {
 	if m.filePrompt.Kind != filePromptConfirm {
 		return nil
 	}
+	if m.filePrompt.Discard {
+		origin, paths := m.filePrompt.GitOrigin, append([]string(nil), m.filePrompt.Paths...)
+		m.closeFilePrompt()
+		if idx != fileConfirmRowGo || len(paths) == 0 {
+			return nil
+		}
+		m.filePrompt.Busy = true
+		return m.discardGitCmd(origin, paths)
+	}
 	paths, trash := m.filePrompt.Paths, m.filePrompt.Trash
 	m.closeFilePrompt()
 	if idx != fileConfirmRowGo || len(paths) == 0 {
@@ -748,6 +760,16 @@ func (m *OS) HandleFileOp(msg fileOpMsg) tea.Cmd {
 // fileConfirmQuestion is the confirmation's first line: what goes, by name.
 func (m *OS) fileConfirmQuestion() string {
 	paths := m.filePrompt.Paths
+	if m.filePrompt.Discard {
+		switch len(paths) {
+		case 0:
+			return "Discard this change?"
+		case 1:
+			return "Discard " + printableTitle(filepath.Base(paths[0])) + "?"
+		default:
+			return "Discard " + strconv.Itoa(len(paths)) + " changes?"
+		}
+	}
 	switch len(paths) {
 	case 0:
 		return "Delete this file?"
@@ -764,6 +786,9 @@ func (m *OS) fileConfirmQuestion() string {
 // whole difference between the two deletes. One says where the file goes and
 // that it can be got back; the other says it is permanent.
 func (m *OS) fileConfirmOutcome() string {
+	if m.filePrompt.Discard {
+		return "The index and working copy go back to HEAD. This cannot be undone."
+	}
 	if m.filePrompt.Trash {
 		return "The file goes to the trash. You can get it back."
 	}

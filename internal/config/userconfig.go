@@ -1778,6 +1778,23 @@ func getDefaultSidebarFilesKeybinds() map[string][]string {
 		"file_stage":   {"s"},
 		"file_unstage": {"u"},
 		"file_commit":  {"c"},
+		// Stage and unstage the whole tab. Capital, so they are not hit while
+		// moving between rows with s and u.
+		"file_stage_all":   {"A"},
+		"file_unstage_all": {"U"},
+		// Sync pulls with rebase and pushes; it needs an upstream, which the
+		// daemon checks before it runs anything.
+		"file_sync": {"G"},
+		// The read-only drawers. They open a panel, so the files-section keys
+		// are only the way in; the panel owns j/k and esc while it is up.
+		"git_commits":      {"l"},
+		"git_graph":        {"g"},
+		"git_branches":     {"b"},
+		"git_tags":         {"t"},
+		"git_stashes":      {"z"},
+		"git_remotes":      {"o"},
+		"git_file_history": {"f"},
+		"git_repos":        {"R"},
 	}
 }
 

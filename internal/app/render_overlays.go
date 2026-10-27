@@ -382,6 +382,11 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		layers = m.placeOverlayPanel(layers, "filedialog", content, geo, rows)
 	}
 
+	if m.gitDrawer.open {
+		content, geo, rows := m.renderGitDrawer()
+		layers = m.placeOverlayPanel(layers, "gitdrawer", content, geo, rows)
+	}
+
 	if m.CopyDialogOpen() {
 		content, geo, rows := m.renderCopyDialog()
 		layers = m.placeOverlayPanel(layers, overlayKindCopyDialog, content, geo, rows)

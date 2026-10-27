@@ -90,6 +90,12 @@ var exampleOutcomes = map[string]exampleOutcome{
 	// placeholder. e2e/tui/webpush_test.go registers one with a real nonce.
 	"register-push#0": {errCode: ErrVerbNotHuman, why: "only the person may register a phone, with a live nonce"},
 	"list-push#0":     {errCode: ErrVerbNotHuman, why: "only the person may list the phones, with a live nonce"},
+	// The fixture's repository has a clean index and no upstream, so these
+	// two examples can only show their refusal. The successful paths are
+	// proved against real repositories in review/commit_test.go and
+	// review/discard_test.go.
+	"review-commit#0": {errCode: ErrVerbGitFailed, why: "the fixture's worktree has nothing staged"},
+	"review-sync#0":   {errCode: ErrVerbGitFailed, why: "the fixture's branch has no upstream"},
 	"remove-push#0":   {errCode: ErrVerbNotHuman, why: "only the person may remove a phone, with a live nonce"},
 	"run-command#0":   {errCode: ErrVerbNeedsClient, why: "ToggleZoom is a client command"},
 	"set-layout#0":    {errCode: ErrVerbNeedsClient, why: "tiling is the client's arithmetic"},

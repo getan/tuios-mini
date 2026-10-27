@@ -311,7 +311,10 @@ var verbScopes = map[string]scopeKind{
 	"review-stage": scopeDeny,
 	// review-commit changes the repository's history, which a restricted
 	// connection and an agent may not do; the person's client may.
-	"review-commit": scopeDeny,
+	"review-commit":  scopeDeny,
+	"review-discard": scopeDeny,
+	"review-sync":    scopeDeny,
+	"review-history": scopeRead,
 
 	// From the checkpoint work (verb_checkpoint.go). Listing and reading a
 	// pane's checkpoints are reads of its session. A restore writes the

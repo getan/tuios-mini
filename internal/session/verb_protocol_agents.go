@@ -160,6 +160,67 @@ func agentWorkVerbs() map[string]verbEntry {
 			},
 			handler: (*Daemon).verbReviewCommit,
 		},
+		// verb_review_discard.go
+		"review-discard": {
+			description: "Throw away the index and working changes of paths. A tracked path is restored to HEAD; an untracked file is removed. There is no undo.",
+			params: []verbParam{
+				sessionParam,
+				windowParam,
+				{Name: "paths", Type: "[]string", Required: true, Description: "The files to discard, relative to the repository root."},
+				humanNonce,
+			},
+			returns: []verbParam{
+				{Name: "session", Type: "string", Description: "The session of the pane."},
+				{Name: "window", Type: "string", Description: "The pane, by id."},
+				{Name: "worktree", Type: "string", Description: "The worktree that was changed."},
+				{Name: "paths", Type: "[]string", Description: "The paths discarded."},
+			},
+			examples: []string{
+				`{"id":1,"verb":"review-discard","params":{"session":"work","window":"build","paths":["api/retry.go"]}}`,
+			},
+			handler: (*Daemon).verbReviewDiscard,
+		},
+		// verb_review_sync.go
+		"review-sync": {
+			description: "Pull the pane's branch with rebase and autostash, then push it. Refuses a branch with no upstream.",
+			params: []verbParam{
+				sessionParam,
+				windowParam,
+				humanNonce,
+			},
+			returns: []verbParam{
+				{Name: "session", Type: "string", Description: "The session of the pane."},
+				{Name: "window", Type: "string", Description: "The pane, by id."},
+				{Name: "worktree", Type: "string", Description: "The worktree that was synced."},
+				{Name: "upstream", Type: "string", Description: "The upstream branch git used."},
+				{Name: "pull", Type: "string", Description: "git pull's output, capped at 4 KiB."},
+				{Name: "push", Type: "string", Description: "git push's output, capped at 4 KiB."},
+			},
+			examples: []string{
+				`{"id":1,"verb":"review-sync","params":{"session":"work","window":"build"}}`,
+			},
+			handler: (*Daemon).verbReviewSync,
+		},
+		// verb_review_history.go
+		"review-history": {
+			description: "Read one read-only Git drawer: commits, graph, branches, tags, stashes, remotes, one file's history, or the repositories the session's panes are in.",
+			params: []verbParam{
+				sessionParam,
+				windowParam,
+				{Name: "kind", Type: "string", Required: true, Description: "commits, graph, branches, tags, stashes, remotes, file or repos.", Accepted: []string{"commits", "graph", "branches", "tags", "stashes", "remotes", "file", "repos"}},
+				{Name: "path", Type: "string", Description: "For kind file: the file, relative to the repository root."},
+				{Name: "limit", Type: "int", Description: "Rows to read, 1 to 500. Default 100.", Default: "100"},
+			},
+			returns: []verbParam{
+				{Name: "kind", Type: "string", Description: "The drawer read."},
+				{Name: "title", Type: "string", Description: "The drawer's title."},
+				{Name: "rows", Type: "[]string", Description: "One line per row, already formatted. A repos row is root, tab, window id, tab, display name."},
+			},
+			examples: []string{
+				`{"id":1,"verb":"review-history","params":{"session":"work","window":"build","kind":"commits","limit":20}}`,
+			},
+			handler: (*Daemon).verbReviewHistory,
+		},
 		"review-note": {
 			description: "Keep the review notes on a pane's changes: add one on a line or a hunk, edit, remove, list or clear them. Notes are held by the daemon per worktree, so every client and the CLI see the same ones, and follow their line as the diff moves. A note is the person's only with a live human_nonce, and a pane without admin adds or edits notes only on panes it could type into.",
 			params: []verbParam{

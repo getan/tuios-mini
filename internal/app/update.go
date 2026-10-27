@@ -1555,6 +1555,21 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.gitStatus.at = time.Time{}
 		return m, tea.Batch(m.GitStatusSyncCmd(), m.waitGitWatch())
 
+	case gitHistoryMsg:
+		if msg.Gen != m.gitDrawer.gen {
+			return m, nil
+		}
+		m.gitDrawer.loading = false
+		if msg.Err != "" {
+			m.gitDrawer.err = msg.Err
+			return m, nil
+		}
+		if msg.Title != "" {
+			m.gitDrawer.title = msg.Title
+		}
+		m.gitDrawer.rows, m.gitDrawer.selected, m.gitDrawer.scroll = msg.Rows, 0, 0
+		return m, nil
+
 	case PaneAdminMsg:
 		m.HandlePaneAdmin(msg)
 		return m, nil
