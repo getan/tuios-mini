@@ -1543,7 +1543,17 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	case GitStatusMsg:
 		m.ApplyGitStatus(msg)
 		m.renderSkipped = false
-		return m, nil
+		return m, m.syncGitWatcher()
+
+	case gitWatchMsg:
+		if m.gitWatch == nil || msg.Gen != m.gitWatch.gen {
+			return m, nil
+		}
+		// A file event makes the cached reading stale now; bypass both the
+		// interval and an in-flight read's timestamp.
+		m.gitStatus.inFlight = false
+		m.gitStatus.at = time.Time{}
+		return m, tea.Batch(m.GitStatusSyncCmd(), m.waitGitWatch())
 
 	case PaneAdminMsg:
 		m.HandlePaneAdmin(msg)

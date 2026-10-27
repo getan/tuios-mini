@@ -82,12 +82,18 @@ func (m *OS) SetProjectTab(tab int) tea.Cmd {
 // branch drift and is cheap; this walks the working tree, so it runs only while
 // the section is shown — either tab, because the Files tab colours a name (and
 // a folder holding it) from the same reading.
+//
+// The beat is a fallback now: file events start the read normally, and this
+// interval only reconciles what a watcher cannot see. See git_watch.go.
+const gitStatusFallbackInterval = 30 * time.Second
+
 func (m *OS) GitStatusSyncCmd() tea.Cmd {
 	// The Git tab is the project section's other view; a caller that selected it
 	// directly (a host, a test) asks for a reading even before the rail decides
 	// the section is visible. The Files tab needs the section to draw at all,
 	// which filesSectionEnabled already covers.
 	if !m.GitTabActive() && !m.filesSectionEnabled() {
+		m.stopGitWatcher()
 		return nil
 	}
 	w := m.GetFocusedWindow()
@@ -105,7 +111,7 @@ func (m *OS) GitStatusSyncCmd() tea.Cmd {
 	if w == nil || want.Dir == "" || want.Host != "" || want.AttachedHost != "" || want.CwdHost != "" {
 		return nil
 	}
-	if v.inFlight || time.Since(v.at) < gitRefreshInterval {
+	if v.inFlight || time.Since(v.at) < gitStatusFallbackInterval {
 		return nil
 	}
 	v.gen++

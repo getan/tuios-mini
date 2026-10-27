@@ -1567,6 +1567,13 @@ type OS struct {
 	// gitStatus is the changed-path reading the Git tab draws. Refreshed on the
 	// git section's beat, off the render path. See git_status.go.
 	gitStatus gitStatusView
+	// gitWatch watches the repository the project section shows for file
+	// events, so a status read runs when something changes instead of on a
+	// timer. Nil when the section is hidden, the pane is remote, or the OS
+	// watcher could not start; the timed read is the fallback. See
+	// git_watch.go.
+	gitWatch    *gitWatcher
+	gitWatchGen int
 
 	// docPreview is the native file sheet: the document open in the content
 	// region beside the rail, its editable buffer and its save state. See
