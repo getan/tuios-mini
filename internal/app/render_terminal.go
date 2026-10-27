@@ -143,7 +143,7 @@ func cacheRender(window *terminal.Window, content string, cols, rows, dim int) {
 	// only that may become what the hold falls back on. Caching a frame taken
 	// mid-update would make the hold present the very thing it exists to hide.
 	if window.Terminal == nil || !window.Terminal.IsSyncActive() {
-		window.SyncHoldContent = content
+		window.CacheSyncHoldLocked(content)
 	}
 	window.ContentDirty = false
 }
@@ -229,21 +229,6 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 		return window.CachedContent
 	}
 
-	// The guest has an open synchronized update (DEC 2026): it has begun a frame
-	// and does not want it seen half-drawn. The compositor holds the window's
-	// cached layer for this, but a retile, scroll, rename or palette change
-	// drops that layer and the content behind it, and the frame composed next
-	// read the emulator mid-update and presented half of it. Holding here
-	// instead of at the layer covers every path that composes a window, and
-	// costs nothing when there is a layer to hold. ContentDirty is left set, so
-	// the frame that arrives when the guest closes the update re-reads.
-	if window.SyncHoldContent != "" && window.Terminal != nil && window.Terminal.IsSyncActive() {
-		if renderTraceEnabled {
-			traceRender(window, isFocused, inTerminalMode, entryDirty, "sync-hold", window.SyncHoldContent)
-		}
-		return window.SyncHoldContent
-	}
-
 	// An unfocused window used to return its cache here unconditionally, even
 	// with ContentDirty set. That silently discarded a repaint request: the
 	// paths that mark content dirty without dropping the cache (WriteToPTY and
@@ -276,16 +261,6 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 		}
 		return window.CachedContent
 	}
-
-	// Whether the host terminal is drawing a real cursor decides only whether
-	// the cell loop paints a fake one. getRealCursor takes the focused window's
-	// read side of ioMu itself, and when this window is the focused one that is
-	// the very same lock acquired just below. w.ioMu is a sync.RWMutex, which is
-	// not reentrant for readers: once the PTY writer queues a Lock, every later
-	// RLock parks behind it, so a second RLock taken while the first is still
-	// held deadlocks against a writer that is waiting on that first one. Query
-	// it here, before the lock is taken, so the two acquisitions never nest.
-	useRealCursor := m.getRealCursor() != nil
 
 	// Hoisted deliberately. AnyOverlayOpen walks every overlay gate, and the
 	// cursor test below runs once per cell. When it built a map, asking per
@@ -324,6 +299,22 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 		window.RLockIO()
 	}
 	defer window.RUnlockIO()
+
+	// Check and sample under the SAME ioMu read lock. Checking before locking
+	// lets the parser begin an update between the check and the grid read.
+	// A hold also freezes the cursor; with no complete frame yet, draw nothing
+	// and leave its cursor invalid/hidden, never a fake cursor in the body.
+	if screen.IsSyncActive() {
+		window.UseSyncHoldCursor()
+		if renderTraceEnabled {
+			traceRender(window, isFocused, inTerminalMode, entryDirty, "sync-hold", window.SyncHoldContent)
+		}
+		return window.SyncHoldContent
+	}
+	window.CommitDisplayCursorLocked()
+	// This getter uses only display snapshots, so it does not recursively lock
+	// ioMu. It makes the fake-cursor choice from the very cursor sampled above.
+	useRealCursor := m.getDisplayCursor() != nil
 
 	// Fast path for unfocused windows: use the emulator's built-in Render()
 	// which is faster than cell-by-cell iteration. The focused window uses

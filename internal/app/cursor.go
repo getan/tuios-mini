@@ -19,6 +19,16 @@ import (
 // remember to re-emit anything, and an unfocused pane cannot reach the host
 // cursor at all.
 func (m *OS) getRealCursor() *tea.Cursor {
+	return m.realCursor(false)
+}
+
+// getDisplayCursor never resamples the parser. View uses this after choosing a
+// body (including a cached one), so its cursor cannot belong to a later frame.
+func (m *OS) getDisplayCursor() *tea.Cursor {
+	return m.realCursor(true)
+}
+
+func (m *OS) realCursor(displayed bool) *tea.Cursor {
 	// A docked session is a separate daemon pane; it can own the keyboard
 	// without changing the center session's mode or focused window.
 	sidebarWindow := m.SidebarSessionWindow()
@@ -73,11 +83,17 @@ func (m *OS) getRealCursor() *tea.Cursor {
 	// typing everywhere. The cursor from the last frame that did read it is
 	// at most one frame stale, the same trade the compositor makes for pane
 	// content.
-	pos, hidden, ok := window.GuestCursor()
+	c := window.DisplayCursor()
+	if !displayed {
+		pos, hidden, ok := window.GuestCursor()
+		c.Position, c.Hidden, c.Valid = pos, hidden, ok
+		c.Style, c.Steady, c.Color = window.CachedCursorStyle, window.CachedCursorSteady, window.CachedCursorColor
+	}
+	pos, hidden, ok := c.Position, c.Hidden, c.Valid
 	if !ok {
 		return nil
 	}
-	style, steady, col := window.CachedCursorStyle, window.CachedCursorSteady, window.CachedCursorColor
+	style, steady, col := c.Style, c.Steady, c.Color
 
 	if hidden {
 		return nil

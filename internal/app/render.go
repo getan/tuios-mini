@@ -1183,11 +1183,10 @@ func (m *OS) View() tea.View {
 	// Fast path: return cached content when frame-skip determined nothing changed.
 	// This avoids the expensive GetCanvas → ultraviolet render pipeline on idle ticks.
 	//
-	// The cursor is read fresh on every frame, the skipped ones too, so a
-	// cached frame can carry a picture-in-picture box placed for where the
-	// cursor was. Such a frame is composed again rather than reused: the box
-	// must never cover the cursor the same frame shows.
-	if m.renderSkipped && m.cachedViewContent != "" && !m.pipCoversCursor(m.getRealCursor()) {
+	// Cursor position/attributes belong to the displayed body, even on a
+	// skipped frame. Do not independently refresh them from the live parser.
+	// Layout changes can still require moving a picture-in-picture box.
+	if m.renderSkipped && m.cachedViewContent != "" && !m.pipCoversCursor(m.getDisplayCursor()) {
 		view.SetContent(m.cachedViewContent)
 	} else if !compose() {
 		return m.crashView()
@@ -1216,16 +1215,14 @@ func (m *OS) View() tea.View {
 	m.notePaneFocus()
 	view.DisableBracketedPasteMode = false
 	view.KeyboardEnhancements = m.keyboardEnhancements()
-	view.Cursor = m.getRealCursor()
-	// The emulator's cursor can move between the read the composed frame
-	// placed the picture-in-picture box by and the read above, since pane
-	// output is written on another goroutine. When the move took it under the
-	// box, the frame is composed once more, around the cursor it will show.
+	view.Cursor = m.getDisplayCursor()
+	// Composing may have committed a new body/cursor snapshot after placement
+	// was chosen. Recompose around that displayed cursor if the box covers it.
 	if m.pipCoversCursor(view.Cursor) {
 		if !compose() {
 			return m.crashView()
 		}
-		view.Cursor = m.getRealCursor()
+		view.Cursor = m.getDisplayCursor()
 	}
 	// The title of the terminal tuios runs in, when a tool set one through
 	// herdr's client.window_title.set. Empty leaves the title alone.

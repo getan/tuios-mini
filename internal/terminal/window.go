@@ -193,6 +193,11 @@ type Window struct {
 	// CachedCursorColor is the cursor colour the guest set with OSC 12, nil
 	// when it set none, so the host keeps its own.
 	CachedCursorColor color.Color
+	// displayCursor belongs to the body last read by the compositor, not the
+	// parser's live cursor. Only the render goroutine publishes it, under ioMu
+	// with the same sample as the body; cache/hold paths leave it untouched.
+	displayCursor  CursorSnapshot
+	syncHoldCursor CursorSnapshot
 	// SyncHoldContent is the last frame this window rendered from a guest that
 	// was not mid-update, kept solely so the synchronized-output hold (DEC 2026)
 	// has something complete to present. Every other cache here is invalidated
@@ -985,14 +990,74 @@ func (w *Window) GuestCursor() (pos uv.Position, hidden, ok bool) {
 			w.RUnlockIO()
 			return pos, false, false
 		}
-		w.CachedCursor = w.Terminal.CursorPosition()
-		w.CachedCursorHidden = w.Terminal.IsCursorHidden()
-		w.CachedCursorStyle, w.CachedCursorSteady = w.Terminal.CursorStyle()
-		w.CachedCursorColor = w.Terminal.GuestCursorColor()
+		if w.Terminal.IsSyncActive() {
+			// DEC 2026 holds cursor attributes as well as cells. In particular,
+			// do not cache a cursor temporarily moved into a paragraph to repaint
+			// it. Before the first complete render there is no cursor to show.
+			c := w.displayCursor
+			w.cacheCursor(c)
+			w.RUnlockIO()
+			return c.Position, c.Hidden || !c.Valid, c.Valid
+		}
+		w.cacheCursor(w.sampleCursorLocked())
 		w.RUnlockIO()
 	}
 	return w.CachedCursor, w.CachedCursorHidden, true
 }
+
+// CursorSnapshot is the cursor paired with a displayed terminal body. Version
+// advances only when the body is sampled outside an open synchronized update.
+type CursorSnapshot struct {
+	Position uv.Position
+	Hidden   bool
+	Style    vt.CursorStyle
+	Steady   bool
+	Color    color.Color
+	Valid    bool
+	Version  uint64
+}
+
+// sampleCursorLocked reads parser state. The caller holds ioMu; this method
+// deliberately acquires no lock (RWMutex readers are not reentrant).
+func (w *Window) sampleCursorLocked() CursorSnapshot {
+	style, steady := w.Terminal.CursorStyle()
+	return CursorSnapshot{
+		Position: w.Terminal.CursorPosition(), Hidden: w.Terminal.IsCursorHidden(),
+		Style: style, Steady: steady, Color: w.Terminal.GuestCursorColor(), Valid: true,
+	}
+}
+
+func (w *Window) cacheCursor(c CursorSnapshot) {
+	w.CachedCursor, w.CachedCursorHidden = c.Position, c.Hidden || !c.Valid
+	w.CachedCursorStyle, w.CachedCursorSteady, w.CachedCursorColor = c.Style, c.Steady, c.Color
+}
+
+// CommitDisplayCursorLocked pairs a cursor with the body being rendered. The
+// caller must hold ioMu through both this call and its grid read. No live
+// cursor is published if the guest is mid-update, including on a first frame.
+func (w *Window) CommitDisplayCursorLocked() {
+	if w.Terminal == nil || w.Terminal.IsSyncActive() {
+		return
+	}
+	c := w.sampleCursorLocked()
+	c.Version = w.displayCursor.Version + 1
+	w.displayCursor = c
+	w.cacheCursor(c)
+}
+
+// DisplayCursor returns the cursor paired with the last displayed body. Like
+// CachedContent, it is owned by the render goroutine, not the PTY parser.
+func (w *Window) DisplayCursor() CursorSnapshot { return w.displayCursor }
+
+// CacheSyncHoldLocked keeps the complete body and its cursor together, even
+// when the normal render caches are invalidated. Caller holds ioMu.
+func (w *Window) CacheSyncHoldLocked(content string) {
+	w.SyncHoldContent, w.syncHoldCursor = content, w.displayCursor
+}
+
+// UseSyncHoldCursor selects the cursor paired with SyncHoldContent. Both are
+// render-goroutine state; it never reads or locks the parser.
+func (w *Window) UseSyncHoldCursor() { w.displayCursor = w.syncHoldCursor }
 
 // SetHasFocus records whether this pane has focus on a screen someone could be
 // looking at. A local pane whose guest turns on focus reporting (DECSET 1004)
