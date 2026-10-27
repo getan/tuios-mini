@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"path"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -192,14 +193,44 @@ func (m *OS) fileGitToken(name string, dir bool) string {
 	if name == "" || v.Dir == "" || v.Dir != m.filesView.Dir || v.Status.Err != "" {
 		return ""
 	}
-	if dir {
-		return v.dirDeco[name]
+	// gitstatus reports paths relative to the repository root, while a row
+	// carries the name inside the listing's directory. Only a listing at the
+	// root had the two agree; inside cmd/ the file is "test.go" and the entry
+	// is "cmd/test.go", so every nested file was drawn plain while its folder
+	// turned green.
+	key := name
+	if root := v.Status.Root; root != "" && v.Dir != root {
+		if rel, err := filepath.Rel(root, v.Dir); err == nil && rel != "." {
+			key = path.Join(filepath.ToSlash(rel), name)
+		}
 	}
-	return v.fileDeco[name]
+	if dir {
+		return v.dirDeco[key]
+	}
+	return v.fileDeco[key]
 }
 
-// gitTabRows is what the Git tab draws: two tab rows, then one header per
-// non-empty group and its entries.
+// gitBranchLine is the Git tab's header: the checked-out branch and how far it
+// has drifted from its upstream. herdr-sidebar prints the same "↑N ↓M" beside
+// the branch, and it is the pair a fetch changes — the fact a person checks
+// before deciding whether there is anything to sync. No upstream prints the
+// branch alone rather than a pair of zeros.
+func gitBranchLine(st gitstatus.Status) string {
+	name := st.Branch
+	if name == "" {
+		if !st.Detached {
+			return ""
+		}
+		name = "detached"
+	}
+	if !st.HasUpstream || (st.Ahead == 0 && st.Behind == 0) {
+		return name
+	}
+	return name + " ↑" + strconv.Itoa(st.Ahead) + " ↓" + strconv.Itoa(st.Behind)
+}
+
+// gitTabRows is what the Git tab draws: the one-row tab bar, the branch and
+// its drift, then one header per non-empty group and its entries.
 func (m *OS) gitTabRows() []fileRowSpec {
 	rows := m.projectTabRows()
 	m.gitStatus.entries = m.gitStatus.entries[:0]
@@ -217,7 +248,9 @@ func (m *OS) gitTabRows() []fileRowSpec {
 		return append(rows, fileRowSpec{Note: true, Warn: true, Name: st.Err})
 	}
 	if st.Root != "" {
-		rows = append(rows, fileRowSpec{Note: true, Name: st.Branch, Key: "branch"})
+		if line := gitBranchLine(st); line != "" {
+			rows = append(rows, fileRowSpec{Note: true, Name: line, Key: "branch"})
+		}
 	}
 	add := func(title, side string, entries []gitstatus.Entry) {
 		if len(entries) == 0 {
@@ -262,7 +295,11 @@ func (v fileViewState) Otherwise() bool {
 }
 
 // ActivateGitEntry opens exactly the path and index side the drawn row names,
-// on its captured pane, not whichever pane happens to have focus now.
+// on its captured pane, not whichever pane happens to have focus now. Every
+// changed path opens the review, untracked included: the base diff writes the
+// working state as a tree, so a new file is there as an addition and review is
+// where an addition is read. It used to open the file preview instead, which
+// left the one row a person most wants to read with no diff and no notes.
 func (m *OS) ActivateGitEntry(index int) tea.Cmd {
 	if index < 0 || index >= len(m.gitStatus.entries) {
 		return nil
@@ -271,10 +308,6 @@ func (m *OS) ActivateGitEntry(index int) tea.Cmd {
 	if e.Origin.Host != "" || e.Origin.AttachedHost != "" || e.Origin.CwdHost != "" || m.AttachedHost != "" {
 		m.reviewNotify("That repository is on another machine. Attach there to review it", "info", m.Settings.NotificationDuration)
 		return nil
-	}
-	// An untracked path has no diff to review; it opens as the file it is.
-	if e.Letter == gitstatus.Untracked {
-		return m.OpenDocPreview(e.Root, e.Path, false)
 	}
 	if !m.reviewSupported() || !m.IsDaemonSession {
 		m.reviewNotify("This diff needs a local daemon with review-diff support", "info", m.Settings.NotificationDuration)

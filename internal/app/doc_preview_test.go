@@ -161,11 +161,17 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 	m, dir := previewOS(t)
 	writeFile(t, dir, "new.txt", "fresh")
 	m.filesView.Dir = dir
-	m.gitStatus = gitStatusView{
-		Dir: dir,
+	m.IsDaemonSession = true
+	origin := gitStatusOrigin{Session: "s", Window: "w1", Dir: dir}
+	m.gitStatus = gitStatusView{gen: 1, asked: origin}
+	m.ApplyGitStatus(GitStatusMsg{
+		Gen: 1, Origin: origin,
 		Status: gitstatus.Status{
-			Root:   dir,
-			Branch: "main",
+			Root:        dir,
+			Branch:      "main",
+			HasUpstream: true,
+			Ahead:       2,
+			Behind:      1,
 			Unstaged: []gitstatus.Entry{
 				{Path: "a.go", Letter: gitstatus.Modified},
 			},
@@ -173,7 +179,7 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 				{Path: "new.txt", Letter: gitstatus.Untracked},
 			},
 		},
-	}
+	})
 	m.projectTab = 1
 	rows := m.gitTabRows()
 	var labels []string
@@ -181,7 +187,7 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 		labels = append(labels, r.Name)
 	}
 	joined := strings.Join(labels, "|")
-	for _, want := range []string{"Changes 1", "Untracked 1", "a.go", "new.txt"} {
+	for _, want := range []string{"main ↑2 ↓1", "Changes 1", "Untracked 1", "a.go", "new.txt"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("the Git tab is missing %q in %q", want, joined)
 		}
@@ -192,13 +198,21 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 		t.Errorf("first row is %v, want the one-row tab bar", rows[0].Kind)
 	}
 
-	// The untracked row is the last one; it opens the file, not the review.
+	// The untracked row is the last one; it opens the review like every other
+	// changed path. The base diff writes the working state as a tree, so a new
+	// file is there as an addition.
 	last := rows[len(rows)-1]
 	if last.Kind != sidebarRowGitEntry {
 		t.Fatalf("last row is %v, want a Git entry", last.Kind)
 	}
 	if cmd := m.ActivateGitEntry(last.Index); cmd == nil {
 		t.Fatal("the untracked row opened nothing")
+	}
+	if m.docPreview.open {
+		t.Fatal("the untracked row opened the preview instead of the review")
+	}
+	if got := m.review.query.Path; got != "new.txt" {
+		t.Fatalf("untracked review path = %q", got)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/getan/tuios-mini/internal/config"
 	"github.com/getan/tuios-mini/internal/gitstatus"
+	"github.com/getan/tuios-mini/internal/theme"
 )
 
 // TestProjectTabsShareOneLineWithTwoTargets pins the layout: Files and Git are
@@ -102,6 +103,30 @@ func TestGitDecorationsRollUpToFolders(t *testing.T) {
 	}
 }
 
+// TestFileDecorationMatchesNestedListing: git reports "cmd/test.go"; the row
+// inside cmd/ says "test.go". Comparing the two by name left every nested file
+// plain while its folder wore the roll-up — the folder changed and the file did
+// not.
+func TestFileDecorationMatchesNestedListing(t *testing.T) {
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+	m.filesView.Dir = "/repo/cmd"
+	m.gitStatus = gitStatusView{
+		Dir: "/repo/cmd",
+		Status: gitstatus.Status{
+			Root:     "/repo",
+			Unstaged: []gitstatus.Entry{{Path: "cmd/test.go", Letter: gitstatus.Modified}},
+		},
+	}
+	m.gitStatus.buildDecorations()
+	if got := m.fileGitToken("test.go", false); got != "git_modified" {
+		t.Fatalf("nested file decoration = %q, want git_modified", got)
+	}
+	// A name that is not the changed one stays plain.
+	if got := m.fileGitToken("other.go", false); got != "" {
+		t.Errorf("unrelated file painted: %q", got)
+	}
+}
+
 // TestReviewVerbsDialTheHostSocket: a workspace owns its daemon, and LocalSocket
 // names it. Review (ctrl+b v) used to dial the default socket instead and fail
 // with "/tmp/tuios-501/tuios.sock: no such file" while the session was healthy.
@@ -131,31 +156,65 @@ func TestGitEntryClickRequestsAScopedReview(t *testing.T) {
 		Gen: 1, Origin: origin,
 		Status: gitstatus.Status{
 			Root: dir, Branch: "main",
-			Unstaged: []gitstatus.Entry{{Path: "a.go", Letter: gitstatus.Modified}},
+			Unstaged:  []gitstatus.Entry{{Path: "a.go", Letter: gitstatus.Modified}},
+			Untracked: []gitstatus.Entry{{Path: "new.txt", Letter: gitstatus.Untracked}},
 		},
 	})
 	m.projectTab = 1
 	rows := m.gitTabRows()
-	found := false
+	seen := map[string]bool{}
 	for _, row := range rows {
-		if row.Kind != sidebarRowGitEntry || row.Name != "a.go" {
+		if row.Kind != sidebarRowGitEntry {
 			continue
 		}
-		found = true
+		seen[row.Name] = true
 		if cmd := m.ActivateGitEntry(row.Index); cmd == nil {
-			t.Fatal("a modified file opened nothing")
+			t.Fatalf("%s opened nothing", row.Name)
 		}
 	}
-	if !found {
-		t.Fatalf("modified entry missing from %+v", rows)
+	for _, name := range []string{"a.go", "new.txt"} {
+		if !seen[name] {
+			t.Fatalf("%s missing from %+v", name, rows)
+		}
+	}
+	// The last activation (untracked) must be a review of that path, not a
+	// preview of the file.
+	if m.review.query.Path != "new.txt" || m.review.query.Index != "" {
+		t.Fatalf("untracked review query = %+v", m.review.query)
 	}
 	if m.docPreview.open {
-		t.Fatal("a tracked change opened the file preview instead of the review")
+		t.Fatal("a tracked or untracked change opened the file preview instead of the review")
 	}
-	if got := m.review.query.Path; got != "a.go" {
-		t.Fatalf("review path = %q", got)
+	// And a tracked row names the index side it came from.
+	for _, row := range rows {
+		if row.Kind == sidebarRowGitEntry && row.Name == "a.go" {
+			m.ActivateGitEntry(row.Index)
+		}
 	}
-	if m.review.query.Index == "" {
-		t.Fatal("review request did not name the index side")
+	if m.review.query.Path != "a.go" || m.review.query.Index == "" {
+		t.Fatalf("tracked review query = %+v", m.review.query)
+	}
+}
+
+// TestDocPreviewHighlightsOnFirstOpen: a fresh buffer starts at Version 0,
+// equal to the zero highlight generation, so the old gate skipped the first
+// pass and a file stayed plain until it was edited.
+func TestDocPreviewHighlightsOnFirstOpen(t *testing.T) {
+	m, dir := previewOS(t)
+	writeFile(t, dir, "sample.go", "package main\n\nfunc main() {}\n")
+	openPreview(t, m, dir, "sample.go", false)
+	m.renderDocBody(80, 10, theme.UI())
+	if !m.docPreview.hlDone {
+		t.Fatal("the first rendered frame skipped syntax highlighting")
+	}
+	spans := 0
+	for _, line := range m.docPreview.hl {
+		spans += len(line)
+	}
+	if spans == 0 {
+		t.Fatalf("Go source produced no spans: %+v", m.docPreview.hl)
+	}
+	if m.docPreview.hlVer != m.docPreview.buf.Version() {
+		t.Errorf("highlight cache version = %d, buffer = %d", m.docPreview.hlVer, m.docPreview.buf.Version())
 	}
 }

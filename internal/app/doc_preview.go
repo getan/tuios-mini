@@ -63,6 +63,11 @@ type docPreviewState struct {
 	// hlVer and hl cache the highlighted lines for one buffer version.
 	hlVer uint64
 	hl    [][]diffview.Span
+	// hlDone says a pass ran at all. A freshly opened buffer starts at
+	// Version 0, which compares equal to the zero hlVer, so the first frame
+	// skipped highlighting until the first edit. hlDone makes the gate about
+	// "has this text been tokenised", not "is the number different".
+	hlDone bool
 	// body is where the document rows were last drawn, in screen coordinates,
 	// for clicks and wheels.
 	body overlay.Rect
@@ -510,9 +515,10 @@ func (m *OS) renderDocBody(width, height int, pal overlay.Palette) []string {
 	all := strings.Split(text, "\n")
 	numW := len(strconv.Itoa(len(all))) + 2
 	d.gutter = numW
-	if d.hlVer != d.buf.Version() {
+	if !d.hlDone || d.hlVer != d.buf.Version() {
 		d.hl = diffview.Highlight(d.rel, all)
 		d.hlVer = d.buf.Version()
+		d.hlDone = true
 	}
 	cursorLine, cursorCol := m.docCursorLine()
 	if d.scroll > max(len(all)-1, 0) {
