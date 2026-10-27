@@ -175,11 +175,9 @@ func (d *Daemon) handleAttach(cs *connState, msg *Message) error {
 		return d.refuseNestedAttach(cs, msg, inside, session, insideWhy)
 	}
 
-	// Record what the attaching client's host terminal can display so shells
-	// started from now on advertise a matching terminal identity (see
-	// guestenv.TermProgram). Without this the daemon's own environment decides,
-	// and image tools inside a window fall back to block art.
-	session.SetGraphicsCapabilities(cs.kittyGraphics, cs.sixelGraphics)
+	// The session's display capabilities are recounted below, after this attach
+	// is counted: see refreshTreeOps. A control client has no display of its own
+	// and must not erase what the TUI client drawing the session said.
 
 	// Record the new client's dimensions from the attach payload. Previously
 	// these were zeroed out on the theory that 80x24 might be a bubbletea
@@ -845,7 +843,7 @@ func (d *Daemon) refreshTreeOps(sessionID string) {
 	defer session.treeOpsMu.Unlock()
 	on, scratchWS := true, true
 	animate, tuiClients := true, 0
-	images, kittyImages := false, false
+	images, kittyImages, sixelImages := false, false, false
 	d.clientsMu.RLock()
 	for _, cs := range d.clients {
 		cs.mu.Lock()
@@ -866,6 +864,9 @@ func (d *Daemon) refreshTreeOps(sessionID string) {
 			if cs.kittyGraphics {
 				kittyImages = true
 			}
+			if cs.sixelGraphics {
+				sixelImages = true
+			}
 		}
 		cs.mu.Unlock()
 	}
@@ -878,6 +879,11 @@ func (d *Daemon) refreshTreeOps(sessionID string) {
 	if tuiClients > 0 {
 		session.SetSixelAdvertised(images)
 		session.SetKittyAdvertised(kittyImages)
+		// Same union, for the identity new panes advertise. A later attach
+		// without graphics support (an agent's control connection, for one)
+		// must not turn a shell under the person's kitty terminal into
+		// TERM_PROGRAM=TUIOS.
+		session.SetGraphicsCapabilities(kittyImages, sixelImages)
 	}
 	if hook := treeOpsCounted.Load(); hook != nil {
 		(*hook)()

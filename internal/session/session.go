@@ -1524,9 +1524,10 @@ type Session struct {
 }
 
 // SetGraphicsCapabilities records the graphics protocols tuios can forward to
-// the attached client's host terminal. It is called on every attach, so the
-// most recent client wins; PTYs already running keep the environment they were
-// started with.
+// the session's attached terminals. refreshTreeOps sets it to the union over
+// the clients that draw the session, never to one late control connection's
+// empty answer; PTYs already running keep the environment they were started
+// with.
 func (s *Session) SetGraphicsCapabilities(kitty, sixel bool) {
 	s.graphicsMu.Lock()
 	defer s.graphicsMu.Unlock()

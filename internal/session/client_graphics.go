@@ -30,9 +30,8 @@ func (d *Daemon) handleClientGraphics(cs *connState, msg *Message) error {
 	if sessionID == "" {
 		return nil
 	}
-	if s := d.manager.GetSessionByID(sessionID); s != nil {
-		s.SetGraphicsCapabilities(p.KittyGraphics, p.SixelGraphics)
-	}
+	// The session's display capability is the union over its attached clients,
+	// recounted by refreshTreeOps; this client's own report must not replace it.
 	d.refreshTreeOps(sessionID)
 	return nil
 }
