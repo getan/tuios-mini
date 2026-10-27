@@ -103,12 +103,14 @@ func (m *OS) GitStatusSyncCmd() tea.Cmd {
 	}
 	v := &m.gitStatus
 	if want != v.asked {
+		m.stopGitWatcher()
 		v.gen++
 		v.asked, v.inFlight, v.at = want, false, time.Time{}
 	}
 	// Never pass a remote directory to this machine's git, even if it happens
 	// to exist here too. The remote files listing is not local read authority.
 	if w == nil || want.Dir == "" || want.Host != "" || want.AttachedHost != "" || want.CwdHost != "" {
+		m.stopGitWatcher()
 		return nil
 	}
 	if v.inFlight || time.Since(v.at) < gitStatusFallbackInterval {

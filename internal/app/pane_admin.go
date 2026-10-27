@@ -2,6 +2,9 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -32,30 +35,45 @@ func (m *OS) ToggleFocusedPaneAdmin() tea.Cmd {
 	session, window := m.SessionName, w.ID
 	call := m.inboxCaller()
 	return func() tea.Msg {
-		current := []string{"read", "write", "fan"}
-		if raw, err := call("pane-grants", nil, 5*time.Second); err == nil {
-			var res struct {
-				DefaultGrants []string `json:"default_grants"`
-			}
-			if json.Unmarshal(raw, &res) == nil && len(res.DefaultGrants) > 0 {
-				current = res.DefaultGrants
+		raw, err := call("pane-grants", nil, 5*time.Second)
+		if err != nil {
+			return PaneAdminMsg{Window: window, Err: err}
+		}
+		var defaults struct {
+			DefaultGrants *[]string `json:"default_grants"`
+		}
+		if err := json.Unmarshal(raw, &defaults); err != nil {
+			return PaneAdminMsg{Window: window, Err: err}
+		}
+		if defaults.DefaultGrants == nil {
+			return PaneAdminMsg{Window: window, Err: errors.New("daemon did not report its default grants; nothing changed")}
+		}
+		current := *defaults.DefaultGrants
+		raw, err = call("list-windows", map[string]any{"session": session}, 5*time.Second)
+		if err != nil {
+			return PaneAdminMsg{Window: window, Err: err}
+		}
+		var res struct {
+			Windows []struct {
+				WindowID string   `json:"window_id"`
+				Grants   []string `json:"grants"`
+			} `json:"windows"`
+		}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			return PaneAdminMsg{Window: window, Err: err}
+		}
+		found := false
+		for _, win := range res.Windows {
+			if win.WindowID == window {
+				found = true
+				if win.Grants != nil {
+					current = win.Grants
+				}
+				break
 			}
 		}
-		if raw, err := call("list-windows", map[string]any{"session": session}, 5*time.Second); err == nil {
-			var res struct {
-				Windows []struct {
-					WindowID string   `json:"window_id"`
-					Grants   []string `json:"grants"`
-				} `json:"windows"`
-			}
-			if json.Unmarshal(raw, &res) == nil {
-				for _, win := range res.Windows {
-					if win.WindowID == window && win.Grants != nil {
-						current = win.Grants
-						break
-					}
-				}
-			}
+		if !found {
+			return PaneAdminMsg{Window: window, Err: fmt.Errorf("pane disappeared before its grants could be read; nothing changed")}
 		}
 		if len(current) == 1 && current[0] == "none" {
 			current = nil
@@ -91,6 +109,8 @@ func (m *OS) ToggleFocusedPaneAdmin() tea.Cmd {
 // HandlePaneAdmin says what the toggle did.
 func (m *OS) HandlePaneAdmin(msg PaneAdminMsg) {
 	switch {
+	case errors.Is(msg.Err, syscall.EMFILE), errors.Is(msg.Err, syscall.ENFILE):
+		m.ShowNotification("Pane admin unchanged: the client exhausted file descriptors, not permissions. Reconnect the workspace client after updating; no grant was changed.", "error", m.Settings.NotificationDuration)
 	case msg.Err != nil:
 		m.ShowNotification("Pane admin: "+msg.Err.Error(), "error", m.Settings.NotificationDuration)
 	case msg.On:

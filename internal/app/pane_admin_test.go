@@ -2,7 +2,9 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"slices"
+	"syscall"
 	"testing"
 	"time"
 
@@ -54,6 +56,31 @@ func TestToggleFocusedPaneAdmin(t *testing.T) {
 	}
 	if sent[1]["window"] != "w1" || sent[1]["session"] != "work" {
 		t.Fatalf("target = %v", sent[1])
+	}
+}
+
+func TestPaneAdminReadFailureChangesNoGrants(t *testing.T) {
+	for _, failure := range []string{"pane-grants", "list-windows"} {
+		t.Run(failure, func(t *testing.T) {
+			m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+			m.SessionName, m.CurrentWorkspace = "work", 1
+			m.Windows = []*terminal.Window{{ID: "w1", Workspace: 1}}
+			m.FocusedWindow = 0
+			m.SetInboxVerbCaller(func(verb string, _ map[string]any, _ time.Duration) (json.RawMessage, error) {
+				if verb == failure {
+					return nil, syscall.EMFILE
+				}
+				if verb == "pane-grants" {
+					return json.RawMessage(`{"default_grants":["read"]}`), nil
+				}
+				t.Fatalf("read failure must not call %s or guess grants", verb)
+				return nil, nil
+			}, nil)
+			msg := m.ToggleFocusedPaneAdmin()().(PaneAdminMsg)
+			if !errors.Is(msg.Err, syscall.EMFILE) {
+				t.Fatalf("error = %v", msg.Err)
+			}
+		})
 	}
 }
 

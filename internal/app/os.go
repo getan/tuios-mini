@@ -2218,6 +2218,7 @@ func (m *OS) rebuildForSession(state *session.SessionState, savedWidth, savedHei
 // TUIClient.Close is idempotent, so calling Cleanup more than once is safe.
 // State should be synced to the daemon before Cleanup, on the UI goroutine.
 func (m *OS) Cleanup() {
+	m.stopGitWatcher()
 	// An SSH client whose connection closed and a browser tab that went away
 	// never pass through DetachClient, so the after-detach hook used to fire
 	// for a deliberate leader-d and for nothing else. Attach has held for every

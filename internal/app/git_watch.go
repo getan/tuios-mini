@@ -43,24 +43,41 @@ type gitWatchMsg struct{ Gen int }
 // metadata that stages, commits and branch moves rewrite without touching a
 // working file.
 type gitWatcher struct {
-	gen    int
-	root   string
-	fw     *fsnotify.Watcher
-	events chan struct{}
-	done   chan struct{}
-	once   sync.Once
+	gen        int
+	root       string
+	fw         *fsnotify.Watcher
+	stopNative func()
+	raw        chan struct{}
+	events     chan struct{}
+	done       chan struct{}
+	once       sync.Once
 }
 
 func newGitWatcher(root string, gen int) (*gitWatcher, error) {
+	w := &gitWatcher{
+		gen: gen, root: root, raw: make(chan struct{}, 1),
+		events: make(chan struct{}, 1),
+		done:   make(chan struct{}),
+	}
+	stop, native, err := nativeGitWatch(root, func() {
+		select {
+		case w.raw <- struct{}{}:
+		default:
+		}
+	})
+	if err != nil {
+		return nil, err // never fall back to per-file kqueue on macOS
+	}
+	if native {
+		w.stopNative = stop
+		go w.run()
+		return w, nil
+	}
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
-	w := &gitWatcher{
-		gen: gen, root: root, fw: fw,
-		events: make(chan struct{}, 1),
-		done:   make(chan struct{}),
-	}
+	w.fw = fw
 	addGitWatchTree(fw, root)
 	go w.run()
 	return w, nil
@@ -71,41 +88,48 @@ func newGitWatcher(root string, gen int) (*gitWatcher, error) {
 func (w *gitWatcher) close() {
 	w.once.Do(func() {
 		close(w.done)
-		_ = w.fw.Close()
+		if w.fw != nil {
+			_ = w.fw.Close()
+		}
+		if w.stopNative != nil {
+			w.stopNative()
+		}
 	})
 }
 
 func (w *gitWatcher) run() {
-	raw := make(chan struct{}, 1)
-	go func() {
-		for {
-			select {
-			case <-w.done:
-				return
-			case ev, ok := <-w.fw.Events:
-				if !ok {
-					return
-				}
-				if ev.Op == fsnotify.Chmod {
-					continue
-				}
+	raw := w.raw
+	if w.fw != nil {
+		go func() {
+			for {
 				select {
-				case raw <- struct{}{}:
-				default:
-				}
-			case _, ok := <-w.fw.Errors:
-				if !ok {
+				case <-w.done:
 					return
-				}
-				// An overflow may have dropped events; one read puts the tab
-				// back in agreement even when none of the lost events arrive.
-				select {
-				case raw <- struct{}{}:
-				default:
+				case ev, ok := <-w.fw.Events:
+					if !ok {
+						return
+					}
+					if ev.Op == fsnotify.Chmod {
+						continue
+					}
+					select {
+					case raw <- struct{}{}:
+					default:
+					}
+				case _, ok := <-w.fw.Errors:
+					if !ok {
+						return
+					}
+					// An overflow may have dropped events; one read puts the tab
+					// back in agreement even when none of the lost events arrive.
+					select {
+					case raw <- struct{}{}:
+					default:
+					}
 				}
 			}
-		}
-	}()
+		}()
+	}
 	for {
 		select {
 		case <-w.done:
