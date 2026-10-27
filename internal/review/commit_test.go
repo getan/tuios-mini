@@ -25,6 +25,11 @@ func TestCommitStaged(t *testing.T) {
 		return string(out)
 	}
 	run("init", "-q")
+	// CommitStaged starts git itself, outside the helper's cmd.Env. Give the
+	// fixture a local identity so it works on CI with no global git config.
+	run("config", "user.name", "Test")
+	run("config", "user.email", "test@example.com")
+	run("config", "commit.gpgsign", "false")
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
