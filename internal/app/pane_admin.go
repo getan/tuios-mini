@@ -99,4 +99,3 @@ func (m *OS) HandlePaneAdmin(msg PaneAdminMsg) {
 		m.ShowNotification("Admin off for pane "+shortWindowLabel(msg.Window)+".", "info", m.Settings.NotificationDuration)
 	}
 }
-
