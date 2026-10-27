@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -75,6 +76,8 @@ const (
 	filePromptRename
 	// filePromptConfirm asks a yes or no question about something destructive.
 	filePromptConfirm
+	// filePromptCommit asks for a commit message for the staged changes.
+	filePromptCommit
 )
 
 // The confirmation's two rows, in drawn order. Cancel is first and is what the
@@ -110,6 +113,9 @@ type filePromptState struct {
 	// Busy is true while an operation is running. It closes the dialog and
 	// stops a second operation starting on top of the first.
 	Busy bool
+	// GitOrigin is the pane and repository a commit prompt acts on, captured
+	// when it opened. A status read can land while the message is being typed.
+	GitOrigin gitStatusOrigin
 }
 
 // fileOpMsg is one finished operation on its way back to the loop.
@@ -565,7 +571,7 @@ func (m *OS) SidebarFilePaste() tea.Cmd {
 // editor and every name the rail draws already pass. A codepoint the chrome
 // cannot draw is one the user cannot see they typed.
 func (m *OS) FilePromptType(s string) {
-	if m.filePrompt.Kind != filePromptCreate && m.filePrompt.Kind != filePromptRename {
+	if m.filePrompt.Kind != filePromptCreate && m.filePrompt.Kind != filePromptRename && m.filePrompt.Kind != filePromptCommit {
 		return
 	}
 	add := printableRunes(s)
@@ -653,6 +659,16 @@ func (m *OS) FilePromptSubmit() tea.Cmd {
 			}
 			return fileOpMsg{OK: what + "."}
 		}
+	case filePromptCommit:
+		message := strings.TrimSpace(p.Input)
+		if message == "" {
+			m.filePrompt.Err = "A commit needs a message."
+			return nil
+		}
+		origin := p.GitOrigin
+		m.closeFilePrompt()
+		m.filePrompt.Busy = true
+		return m.commitStagedCmd(origin, message)
 	}
 	return nil
 }

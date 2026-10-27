@@ -44,6 +44,8 @@ func (m *OS) filePromptTitle() string {
 			return "move to trash"
 		}
 		return "delete permanently"
+	case filePromptCommit:
+		return "commit"
 	}
 	return ""
 }
@@ -101,11 +103,19 @@ func (m *OS) renderFileNamePrompt() (string, overlay.Geometry, []overlayRowHit) 
 		Width: width,
 		Body:  strings.Join(body, "\n"),
 		Hints: []overlay.Hint{
-			{Key: overlay.EnterKey(), Label: "save"},
+			{Key: overlay.EnterKey(), Label: m.filePromptSubmitLabel()},
 			{Key: "esc", Label: "cancel"},
 		},
 	}.Render(pal)
 	return content, geo, nil
+}
+
+// filePromptSubmitLabel is what Enter does in the open dialog.
+func (m *OS) filePromptSubmitLabel() string {
+	if m.filePrompt.Kind == filePromptCommit {
+		return "commit"
+	}
+	return "save"
 }
 
 // filePromptContext is the line above the field: where a create lands, and
@@ -114,6 +124,9 @@ func (m *OS) renderFileNamePrompt() (string, overlay.Geometry, []overlayRowHit) 
 func (m *OS) filePromptContext(width int) string {
 	if m.filePrompt.Kind == filePromptRename {
 		return "Rename " + printableTitle(m.filePrompt.Target)
+	}
+	if m.filePrompt.Kind == filePromptCommit {
+		return "Commit staged changes in " + truncPathLeft(shortenHome(m.filePrompt.Dir), max(width-4, 1))
 	}
 	return "In " + truncPathLeft(shortenHome(m.filePrompt.Dir), max(width-4, 1))
 }
@@ -129,6 +142,9 @@ func (m *OS) filePromptTargetPath(width int) string {
 func (m *OS) filePromptNote() string {
 	if m.filePrompt.Kind == filePromptCreate {
 		return "Put / at the end to make a folder."
+	}
+	if m.filePrompt.Kind == filePromptCommit {
+		return "Enter commits what is staged."
 	}
 	return "The new name goes in this folder."
 }

@@ -140,6 +140,26 @@ func agentWorkVerbs() map[string]verbEntry {
 			},
 			handler: (*Daemon).verbReviewStage,
 		},
+		// verb_review_commit.go
+		"review-commit": {
+			description: "Commit what is staged in a pane's worktree. Only the index is committed; the working tree is not staged first.",
+			params: []verbParam{
+				sessionParam,
+				windowParam,
+				{Name: "message", Type: "string", Required: true, Description: "The commit message."},
+				humanNonce,
+			},
+			returns: []verbParam{
+				{Name: "session", Type: "string", Description: "The session of the pane."},
+				{Name: "window", Type: "string", Description: "The pane, by id."},
+				{Name: "worktree", Type: "string", Description: "The worktree that was committed."},
+				{Name: "commit", Type: "string", Description: "The new commit id."},
+			},
+			examples: []string{
+				`{"id":1,"verb":"review-commit","params":{"session":"work","window":"build","message":"fix: retry once"}}`,
+			},
+			handler: (*Daemon).verbReviewCommit,
+		},
 		"review-note": {
 			description: "Keep the review notes on a pane's changes: add one on a line or a hunk, edit, remove, list or clear them. Notes are held by the daemon per worktree, so every client and the CLI see the same ones, and follow their line as the diff moves. A note is the person's only with a live human_nonce, and a pane without admin adds or edits notes only on panes it could type into.",
 			params: []verbParam{

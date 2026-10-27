@@ -60,6 +60,18 @@ func handleSidebarKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		}
 	}
 
+	// The Git tab's keys read the same table, but only the three that act on
+	// a changed row. Another file key falls through to the rail unchanged.
+	if o.SidebarCursorOnGit() {
+		if act := lookupAction(o, msg, o.KeybindRegistry.GetSidebarFilesAction); act != "" {
+			switch act {
+			case sidebarActFileStage, sidebarActFileUnstage, sidebarActFileCommit:
+				o.NoteAction(act)
+				return o, handleSidebarFileAction(act, o)
+			}
+		}
+	}
+
 	// The agent rows' own keys, the same way: consulted only while the cursor
 	// is on an agent row, and a key whose action did nothing falls through to
 	// the rail's binding for it, so r and x keep renaming and opening the menu
@@ -259,6 +271,12 @@ func handleSidebarFileAction(action string, o *app.OS) tea.Cmd {
 		return o.SidebarFilePaste()
 	case sidebarActFileSend:
 		return o.SidebarFileSend()
+	case sidebarActFileStage:
+		return o.SidebarGitStage(false)
+	case sidebarActFileUnstage:
+		return o.SidebarGitStage(true)
+	case sidebarActFileCommit:
+		o.SidebarGitCommitPrompt()
 	}
 	return nil
 }

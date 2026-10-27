@@ -603,6 +603,9 @@ var ActionDescriptions = map[string]string{
 	"file_paste":          "Files: paste into this folder",
 	"file_open":           "Files: open this folder, or copy this file's path",
 	"file_edit":           "Files: edit this text file in a new pane",
+	"file_stage":          "Git: stage this change",
+	"file_unstage":        "Git: unstage this change",
+	"file_commit":         "Git: commit the staged changes",
 	"file_copy_path":      "Files: copy the path of this file or folder",
 	"file_send":           "Files: send this file or folder to a host",
 	// The Copies panel: the copies between machines.

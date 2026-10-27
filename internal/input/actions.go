@@ -70,6 +70,12 @@ const (
 	sidebarActFileCopyPath = "file_copy_path"
 	// sidebarActFileSend sends the row's file or folder to another machine.
 	sidebarActFileSend = "file_send"
+	// The Git tab's own keys. They share the files section's table because
+	// they act on the row under the cursor like the file keys do, and the
+	// cursor's row kind decides which set answers. See HandleSidebarKey.
+	sidebarActFileStage   = "file_stage"
+	sidebarActFileUnstage = "file_unstage"
+	sidebarActFileCommit  = "file_commit"
 	// jump_1..jump_9 are matched by prefix; see HandleSidebarKey.
 	sidebarActJumpPrefix = "jump_"
 )
@@ -266,6 +272,7 @@ func (d *ActionDispatcher) registerHandlers() {
 		sidebarActFileDeleteAll, sidebarActFileCopy, sidebarActFileCut,
 		sidebarActFilePaste, sidebarActFileOpen, sidebarActFileEdit,
 		sidebarActFileCopyPath, sidebarActFileSend,
+		sidebarActFileStage, sidebarActFileUnstage, sidebarActFileCommit,
 	} {
 		d.Register(action, makeSidebarFileHandler(action))
 	}

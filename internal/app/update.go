@@ -1549,6 +1549,9 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.HandlePaneAdmin(msg)
 		return m, nil
 
+	case gitActionMsg:
+		return m, m.HandleGitAction(msg)
+
 	case fileOpMsg:
 		// A create, rename, delete or paste that finished on its own goroutine.
 		// The handler says what happened and asks for the listing again through

@@ -1773,6 +1773,11 @@ func getDefaultSidebarFilesKeybinds() map[string][]string {
 		// S sends the file or folder to another machine. Capital, because it
 		// starts a copy over a link, and one shift from nothing else here.
 		"file_send": {"S"},
+		// The Git tab's rows use the same table. s and u are git's own verbs
+		// on the row under the cursor; c opens the commit message dialog.
+		"file_stage":   {"s"},
+		"file_unstage": {"u"},
+		"file_commit":  {"c"},
 	}
 }
 
