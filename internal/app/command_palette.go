@@ -228,6 +228,18 @@ func GetCommandPaletteItems(s *config.Settings) []CommandPaletteItem {
 			},
 		},
 		{
+			// A runnable row, not one of the keybind rows that open the
+			// manager: this is the discovery path for a pane whose config
+			// predates prefix_toggle_pane_admin.
+			Name:     "Toggle admin for the focused pane",
+			Shortcut: "prefix+U",
+			Bind:     "prefix_toggle_pane_admin",
+			Category: "Window",
+			Action: func(m *OS) (*OS, tea.Cmd) {
+				return m, m.ToggleFocusedPaneAdmin()
+			},
+		},
+		{
 			Name:     "New window that runs the focused pane's ssh",
 			Shortcut: "",
 			Category: "Window",
