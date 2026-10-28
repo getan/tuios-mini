@@ -357,6 +357,7 @@ func (m *OS) Init() tea.Cmd {
 	}
 
 	cmds := []tea.Cmd{
+		m.presetSuggestionCmd(),
 		m.listenSidebarSession(),
 		m.refreshSidebarSessions(),
 		m.armTick(m.framePeriod()),
@@ -1043,6 +1044,9 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case presetSuggestionMsg:
+		m.presetHint = &msg.suggestion
+		return m, nil
 	case PrefixExpiredMsg:
 		m.ExpirePrefix(msg)
 		return m, nil

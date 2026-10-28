@@ -198,7 +198,7 @@ const tmuxConfLimit = 64 << 10
 // tmuxPrefix reads the prefix a tmux.conf sets: tmux keeps the last one. It
 // reads a regular file only, and only its first tmuxConfLimit bytes.
 func tmuxPrefix(path string) string {
-	f, err := os.Open(path) // #nosec G304 - the person's own tmux.conf, read for one line
+	f, err := openPresetConfig(path)
 	if err != nil {
 		return ""
 	}
@@ -221,32 +221,53 @@ func tmuxPrefix(path string) string {
 	return "ctrl+" + key
 }
 
-// presetSuggestion reads the home folder once per client. A served client is
-// on the operator's machine, whose home says nothing about the person, so it
-// gets no suggestion; nor does a client already on a preset.
+// presetSuggestion only reads model state: View and keyboard handlers must
+// never wait on the home directory, which may be on a slow or remote mount.
 func (m *OS) presetSuggestion() presetSuggestion {
+	if m.Client.Remote() || m.Client == ClientUnknown || m.currentPreset() != config.PresetTuios {
+		return presetSuggestion{}
+	}
 	if m.presetHint != nil {
 		return *m.presetHint
 	}
-	s := presetSuggestion{}
-	m.presetHint = &s
-	if m.Client.Remote() || m.currentPreset() != config.PresetTuios || m.Client == ClientUnknown {
-		return s
+	return presetSuggestion{label: "pick keys"}
+}
+
+type presetSuggestionMsg struct{ suggestion presetSuggestion }
+
+// presetSuggestionCmd reads the home folder once, off the UI goroutine. A
+// served client must not probe the operator's home; neither does an existing
+// preset need a suggestion. Results only change hint text, never keybindings.
+func (m *OS) presetSuggestionCmd() tea.Cmd {
+	if m.presetHint != nil {
+		return nil
 	}
+	m.presetHint = &presetSuggestion{}
+	if m.Client.Remote() || m.currentPreset() != config.PresetTuios || m.Client == ClientUnknown {
+		return nil
+	}
+	m.presetHint.label = "pick keys"
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return s
+		return nil
 	}
+	return func() tea.Msg { return presetSuggestionMsg{suggestion: readPresetSuggestion(home)} }
+}
+
+func readPresetSuggestion(home string) presetSuggestion {
+	s := presetSuggestion{}
 	exists := func(rel string) bool {
 		_, err := os.Stat(filepath.Join(home, rel))
 		return err == nil
 	}
 	for _, rel := range []string{".tmux.conf", ".config/tmux/tmux.conf"} {
-		if !exists(rel) {
+		path := filepath.Join(home, rel)
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
 			continue
 		}
 		s.preset, s.label = "tmux", "use tmux keys"
-		if s.leader = tmuxPrefix(filepath.Join(home, rel)); s.leader != "" {
+		if s.leader = tmuxPrefix(path); s.leader != "" {
 			s.label = "use tmux keys with " + s.leader
 		}
 		return s
