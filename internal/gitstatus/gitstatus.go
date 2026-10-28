@@ -92,7 +92,8 @@ func Read(ctx context.Context, dir string) Status {
 	}
 	ctx, cancel := context.WithTimeout(ctx, ReadTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "-C", root, "status",
+	// A background observation must not take index.lock to refresh stat data.
+	cmd := exec.CommandContext(ctx, "git", "--no-optional-locks", "-C", root, "status",
 		"--porcelain=v1", "-z", "--branch", "--untracked-files=all", "--renames")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -34,10 +37,62 @@ const (
 	IndexStaged   = "staged"
 )
 
-// IndexTree writes the index of the worktree at dir as a tree and returns its
-// hash. An index with a conflict cannot be written, and is an error.
+// IndexTree writes a snapshot of the index of the worktree at dir as a tree.
+// The real index and its lock are never written. An index with a conflict
+// cannot be written as a tree, and remains an error.
 func IndexTree(ctx context.Context, dir string) (string, error) {
-	out, err := git(ctx, dir, nil, "write-tree")
+	indexName, err := git(ctx, dir, nil, "rev-parse", "--git-path", "index")
+	if err != nil {
+		return "", err
+	}
+	indexPath := strings.TrimSpace(indexName)
+	if indexPath == "" {
+		return "", errors.New("git did not name an index")
+	}
+	if !filepath.IsAbs(indexPath) {
+		indexPath = filepath.Join(dir, indexPath)
+	}
+	// A split index resolves its shared base relative to the index directory.
+	// Keep this unique copy beside the real one, but disable split-index writes
+	// for it: a read must not create a new shared base in the user's repository.
+	snapshot, err := os.CreateTemp(filepath.Dir(indexPath), ".tuios-review-index-*")
+	if err != nil {
+		return "", fmt.Errorf("create index snapshot: %w", err)
+	}
+	snapshotPath := snapshot.Name()
+	defer func() {
+		_ = snapshot.Close()
+		_ = os.Remove(snapshotPath)
+		_ = os.Remove(snapshotPath + ".lock") // owned path only, never index.lock
+	}()
+	sourceIndex, err := os.Open(indexPath)
+	if os.IsNotExist(err) {
+		// Before the first add there is no index. Git treats a missing index
+		// as empty, but rejects the zero-byte file CreateTemp just made.
+		if err := snapshot.Close(); err != nil {
+			return "", fmt.Errorf("close index snapshot: %w", err)
+		}
+		if err := os.Remove(snapshotPath); err != nil {
+			return "", fmt.Errorf("initialize empty index snapshot: %w", err)
+		}
+	} else if err != nil {
+		return "", fmt.Errorf("read index snapshot: %w", err)
+	} else {
+		// Git commits an index by rename. Reading this open descriptor sees
+		// one complete version even if an external writer replaces the path.
+		_, copyErr := io.Copy(snapshot, sourceIndex)
+		closeErr := sourceIndex.Close()
+		if copyErr != nil {
+			return "", fmt.Errorf("copy index snapshot: %w", copyErr)
+		}
+		if closeErr != nil {
+			return "", fmt.Errorf("close source index: %w", closeErr)
+		}
+		if err := snapshot.Close(); err != nil {
+			return "", fmt.Errorf("close index snapshot: %w", err)
+		}
+	}
+	out, err := git(ctx, dir, []string{"GIT_INDEX_FILE=" + snapshotPath}, "-c", "core.splitIndex=false", "write-tree")
 	if err != nil {
 		return "", err
 	}
