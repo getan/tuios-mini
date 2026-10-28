@@ -111,6 +111,7 @@ func (m *OS) BindProgram(p *tea.Program) {
 // applyFrameRate sets the program's ticker to NormalFPS when it moved, and the
 // panes' render signals to the same rate.
 func (m *OS) applyFrameRate() {
+	m.applyReducedRendering()
 	fps := m.Settings.NormalFPS
 	m.setPaneFrameInterval()
 	if m.frameRate.program == nil || fps <= 0 || fps == m.frameRate.applied {
@@ -264,6 +265,9 @@ func (m *OS) framePeriod() time.Duration {
 	fps := m.Settings.NormalFPS
 	if fps <= 0 {
 		fps = config.DefaultFPS
+	}
+	if m.reducedRendering {
+		fps = min(fps, sshRenderFPS)
 	}
 	return time.Second / time.Duration(fps)
 }

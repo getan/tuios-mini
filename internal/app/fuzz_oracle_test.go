@@ -494,8 +494,11 @@ func checkGuestCellsAreNotPaintedOver(f *fuzzOS) []fuzz.Violation {
 	}
 	marks := make([]string, len(panes))
 	for i, w := range panes {
-		if w.ContentWidth() < len(paneMarker(i)) || w.ContentHeight() < 1 {
-			return nil // too small to hold a marker, so the check says nothing
+		// The VT clamps its size to 1x1, even if borders consume the whole
+		// rectangle. That synthetic cell is not visible guest-owned space.
+		// Skip only this pane, continuing to protect every drawable neighbour.
+		if w.Width-2*w.BorderOffset() < len(paneMarker(i)) || w.Height-2*w.BorderOffset() < 1 {
+			continue
 		}
 		marks[i] = paneMarker(i)
 		w.LockIO()
@@ -505,6 +508,9 @@ func checkGuestCellsAreNotPaintedOver(f *fuzzOS) []fuzz.Violation {
 	}
 	g := f.renderGrid()
 	for i, w := range panes {
+		if marks[i] == "" {
+			continue
+		}
 		x, y := w.X+w.BorderOffset(), w.Y+w.BorderOffset()
 		n := len([]rune(marks[i]))
 		// The sidebar and the dock are reserved bands, drawn above the panes by

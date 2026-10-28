@@ -92,7 +92,10 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		layers = append(layers, timeLayer)
 	}
 
-	if len(m.GetVisibleWindows()) == 0 && m.ViewContentWidth() > 0 && m.ViewUsableHeight() > 0 {
+	empty := len(m.GetVisibleWindows()) == 0 && m.ViewContentWidth() > 0 && m.ViewUsableHeight() > 0
+	if empty && m.reducedRendering {
+		layers = append(layers, m.reducedWelcome())
+	} else if empty {
 		// The same ANSI Shadow wordmark as golder's agent startup logo. The
 		// shadow strokes make the mark six rows tall and 50 columns wide; it is
 		// not bold, because a bold run can make the terminal substitute a face

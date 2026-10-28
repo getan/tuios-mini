@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -130,15 +131,18 @@ func TestARealClientKeepsItsStateInItsOwnTree(t *testing.T) {
 	}()
 
 	var mu sync.Mutex
-	drawn := 0
+	ready := false
 	go func() {
 		buf := make([]byte, 32*1024)
+		var tail string
 		for {
 			n, err := pty.Read(buf)
 			if n > 0 {
+				data := tail + string(buf[:n])
 				mu.Lock()
-				drawn += n
+				ready = ready || strings.Contains(data, "\x1b[?1049h")
 				mu.Unlock()
+				tail = data[max(0, len(data)-8):]
 			}
 			if err != nil {
 				return
@@ -146,14 +150,15 @@ func TestARealClientKeepsItsStateInItsOwnTree(t *testing.T) {
 		}
 	}()
 
-	// Wait until the client has drawn, which is when everything it scopes is in
-	// force and the first frame has been written after it.
+	// Nest-probe bytes are written BEFORE configuration is loaded. Wait for
+	// alternate-screen entry instead, after the model and its scopes are ready;
+	// any output at all raced the glyph selection on instrumented CI builds.
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		mu.Lock()
-		got := drawn
+		got := ready
 		mu.Unlock()
-		if got > 0 {
+		if got {
 			break
 		}
 		select {

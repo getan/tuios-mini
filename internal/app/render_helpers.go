@@ -866,6 +866,15 @@ func clipWindowContent(content string, x, y, viewportWidth, viewportHeight int) 
 			if ansi.StringWidth(line) > maxWidth {
 				clippedLines[i] = truncateToWidth(line, maxWidth) + "\x1b[0m"
 			}
+			// An ESC followed by a non-ASCII rune can leave a dangling escape
+			// after the left cut. The next retained character then becomes its
+			// final byte, losing a cell even though the source was valid UTF-8.
+			// Close the sequence before filling that lost cell, just as for a
+			// cut through a wide grapheme. Never fill beyond the source's width.
+			want := min(max(lineWidth(visibleLines[i])-clipLeft, 0), maxWidth)
+			if got := ansi.StringWidth(clippedLines[i]); got < want {
+				clippedLines[i] += sgrReset + strings.Repeat(" ", want-got)
+			}
 		}
 
 		return strings.Join(clippedLines, "\n"), finalX, finalY

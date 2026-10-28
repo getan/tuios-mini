@@ -140,6 +140,12 @@ func FilterMouseMotion(model tea.Model, msg tea.Msg) tea.Msg {
 	debugLogEvent(m, msg)
 
 	mouse := mm.Mouse()
+	// A reduced SSH client has no hover decoration. Stale or unsolicited
+	// button-free motion must not keep repainting the rail/overlays. A live
+	// gesture or an application requesting 1003 still owns its motion.
+	if m.reducedRendering && mouse.Button == tea.MouseNone && !m.PointerGestureActive() && !m.CaptureActive() && m.renderMouseMode() != tea.MouseModeAllMotion {
+		return nil
+	}
 	// Every motion passes this line, dropped or not, so this is where the
 	// pointer's position is kept for the things that only need to know where
 	// it is. Nothing below reads it.

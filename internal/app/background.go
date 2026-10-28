@@ -146,6 +146,9 @@ type groundMemo struct {
 // literal is parsed here and nowhere else, so the per-frame cost of an option
 // is a string comparison.
 func (m *OS) surfaceGround(which surface) ground {
+	if m.reducedRendering {
+		return ground{} // no UI-painted background; guest cell colours survive
+	}
 	setting := surfaceSetting(&m.Settings, which)
 	if setting == config.BackgroundOff {
 		return ground{}

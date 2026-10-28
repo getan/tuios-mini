@@ -87,7 +87,11 @@ func buildDockPlan(cfg *config.UserConfig) dockPlan {
 // same answer buildDockPlan gives a config file with no [dock] table.
 func (m *OS) ensureDockPlan() {
 	if m.dockPlan.placed == nil {
-		m.dockPlan = buildDockPlan(m.UserConfig)
+		if m.reducedRendering {
+			m.dockPlan = reducedDockPlan()
+		} else {
+			m.dockPlan = buildDockPlan(m.UserConfig)
+		}
 	}
 }
 

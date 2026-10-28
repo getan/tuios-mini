@@ -78,7 +78,8 @@ func (m *OS) RenameAppend(text string) {
 	if !m.Renaming() || text == "" {
 		return
 	}
-	add := printableRunes(text)
+	syncOverlayASCII(&m.Settings)
+	add := m.printableClientRunes(text)
 	// A keypress that is nothing but combining marks has no base to sit on, so
 	// it would stack an accent on whatever the field already ends with, or on
 	// the cursor. Terminals send composed text as one precomposed rune.

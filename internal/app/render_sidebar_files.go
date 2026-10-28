@@ -277,7 +277,7 @@ func (m *OS) sidebarFileRow(row fileRowSpec, cw int, pal overlay.Palette, st sid
 	// and the rail launders all three out of every other name it draws. A name
 	// that is nothing but those keeps its raw form, because a blank row is
 	// worse than a tofu box.
-	shown := printableTitle(row.Name)
+	shown := m.printableClientTitle(row.Name)
 	if shown == "" {
 		shown = row.Name
 	}

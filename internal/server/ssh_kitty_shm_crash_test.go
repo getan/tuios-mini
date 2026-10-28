@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -73,14 +72,19 @@ func TestSSHKittyShmDoesNotKillSession(t *testing.T) {
 		{pxW: 905, pxH: 400, frames: 1600},
 	}
 	tempDir := t.TempDir()
-	floodScripts := make([]string, len(shapes))
-	for si, shape := range shapes {
+	const numSessions = 8
+	floodScripts := make([]string, numSessions)
+	for si := range numSessions {
+		shape := shapes[si%len(shapes)]
 		// Several shm objects with distinct content, cycled one per frame. A real
 		// browser rotates a handful of frame buffers (terminal-browser cycles
 		// *-0-0-0.rgba .. *-0-0-7.rgba), so consecutive frames differ. The client
 		// skips a re-sent IDENTICAL bitmap (an idle optimisation), so the flood
 		// has to vary to stay a flood, which is exactly what a live stream does.
-		const buffers = 4
+		// Names are private to each session: terminals unlink t=s objects.
+		// Sharing four objects across four sessions let one terminal delete
+		// another's entire flood. Two buffers each stay below a 64MiB /dev/shm.
+		const buffers = 2
 		var script strings.Builder
 		script.WriteString("(for i in $(seq 0 " + fmt.Sprint(shape.frames-1) + "); do case $((i % " + fmt.Sprint(buffers) + ")) in\n")
 		for b := range buffers {
@@ -151,7 +155,6 @@ func TestSSHKittyShmDoesNotKillSession(t *testing.T) {
 	})
 
 	addr := net.JoinHostPort("127.0.0.1", port)
-	const numSessions = 8
 	var wg sync.WaitGroup
 	errs := make([]error, numSessions)
 	for i := range numSessions {
@@ -235,13 +238,13 @@ func runKittyFloodSession(addr, floodScript, textMarker string) error {
 	streamClosed := make(chan struct{})
 	go func() {
 		marker := []byte(textMarker)
-		gmark := []byte("\x1b_G") // kitty graphics APC introducer
+		graphicsMatched := 0
 		matched := 0
 		buf := make([]byte, 64*1024)
 		for {
 			n, rerr := stdout.Read(buf)
 			totalRead.Add(int64(n))
-			if !graphicsAPC.Load() && bytes.Contains(buf[:n], gmark) {
+			if !graphicsAPC.Load() && floodGraphicsMarker(buf[:n], &graphicsMatched) {
 				graphicsAPC.Store(true)
 			}
 			for _, b := range buf[:n] {
@@ -398,4 +401,22 @@ func runKittyFloodSession(addr, floodScript, textMarker string) error {
 		}
 		return nil
 	}
+}
+
+func floodGraphicsMarker(chunk []byte, matched *int) bool {
+	const marker = "\x1b_G"
+	for _, b := range chunk {
+		if b == marker[*matched] {
+			*matched++
+			if *matched == len(marker) {
+				*matched = 0
+				return true
+			}
+		} else if b == marker[0] {
+			*matched = 1
+		} else {
+			*matched = 0
+		}
+	}
+	return false
 }

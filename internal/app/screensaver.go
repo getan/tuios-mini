@@ -70,7 +70,7 @@ type screensaverState struct {
 
 // screensaverConfig is the [screensaver] section this client holds.
 func (m *OS) screensaverConfig() config.ScreensaverConfig {
-	if m.UserConfig == nil {
+	if m.reducedRendering || m.UserConfig == nil {
 		return config.ScreensaverConfig{}
 	}
 	return m.UserConfig.Screensaver

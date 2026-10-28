@@ -26,6 +26,12 @@ import (
 func (m *OS) InitDockComponents() tea.Cmd {
 	m.dockPlan = buildDockPlan(m.UserConfig)
 	m.dockEngine.Stop()
+	if m.reducedRendering {
+		m.dockPlan = reducedDockPlan()
+		m.dockEngine = nil
+		m.railCustom.on, m.railCustomSecond.on = false, false
+		return nil
+	}
 
 	comps := dockRefreshableComponents(m.UserConfig, m.dockPlan, m.Settings.ShowClock, &m.Settings)
 	// The rail's custom section is one more component on the same scheduler.

@@ -85,7 +85,7 @@ func (m *OS) renderFileNamePrompt() (string, overlay.Geometry, []overlayRowHit) 
 
 	// The field windows to its tail, so a name longer than the dialog scrolls
 	// left and what you are typing stays under the cursor.
-	field := fieldTail(printableRunes(m.filePrompt.Input), max(width-4, 1))
+	field := fieldTail(m.printableClientRunes(m.filePrompt.Input), max(width-4, 1))
 	body = append(body, overlay.Fill(
 		overlay.Style(bg).Render(" ")+
 			overlay.Style(bg).Foreground(pal.AccentBright).Bold(true).Render(overlay.Sigil())+
@@ -126,7 +126,7 @@ func (m *OS) filePromptSubmitLabel() string {
 // and the rail behind the dialog is the only thing saying where "here" is.
 func (m *OS) filePromptContext(width int) string {
 	if m.filePrompt.Kind == filePromptRename {
-		return "Rename " + printableTitle(m.filePrompt.Target)
+		return "Rename " + m.printableClientTitle(m.filePrompt.Target)
 	}
 	if m.filePrompt.Kind == filePromptCommit {
 		return "Commit staged changes in " + truncPathLeft(shortenHome(m.filePrompt.Dir), max(width-4, 1))

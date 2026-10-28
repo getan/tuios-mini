@@ -373,21 +373,18 @@ func (m *OS) Init() tea.Cmd {
 		ListenForNvimNavigation(m.ensureNvimNavigationChan()),
 	}
 
-	// Ask an SSH client's terminal whether it draws sixel. See sixel_probe.go.
-	if cmd := m.sixelProbe(); cmd != nil {
-		cmds = append(cmds, cmd)
-	}
-
-	// Ask the terminal whether it takes OSC 7501 reports. See
-	// host_program_status.go.
-	if cmd := m.hostProgramStatusProbe(); cmd != nil {
-		cmds = append(cmds, cmd)
-	}
-
-	// Ask the terminal for its own colours where the startup probe could not,
-	// and follow its light and dark switch. See host_colors.go.
-	if cmd := m.hostColorQueries(); cmd != nil {
-		cmds = append(cmds, cmd)
+	// Optional graphics/colour/status probes add traffic but are not needed
+	// to accept input or draw text on a reduced SSH client.
+	if !m.reducedRendering {
+		if cmd := m.sixelProbe(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		if cmd := m.hostProgramStatusProbe(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		if cmd := m.hostColorQueries(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	}
 
 	// The dock's components. Everything that used to hold the maintenance tick
@@ -840,6 +837,7 @@ type foreignSessionsChangedMsg struct{}
 // one somebody writes. One comparison, once, is the whole cost, and it answers
 // nil without allocating for a client whose rail has no files section.
 func (m *OS) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.applyReducedRendering()
 	// The frame the last View composed is stored now: write it. Nothing
 	// else changes, so the View after this message serves the same frame.
 	if _, ok := msg.(flushMsg); ok {

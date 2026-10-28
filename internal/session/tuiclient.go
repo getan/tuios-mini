@@ -599,11 +599,7 @@ func (c *TUIClient) AttachSession(name string, createNew bool, width, height int
 	}
 	c.DetachOthers = false
 
-	if err := c.send(msg); err != nil {
-		return nil, err
-	}
-
-	resp, err := c.recv()
+	resp, err := c.sendAndWaitResponse(msg, MsgAttached, MsgError)
 	if err != nil {
 		return nil, err
 	}
@@ -2554,6 +2550,12 @@ func (c *TUIClient) sendAndWaitMatching(msg *Message, accept func(*Message) bool
 			}
 			if resp.ReqID != 0 && resp.ReqID != msg.ReqID {
 				continue // the answer to an earlier request
+			}
+			if !slices.Contains(expectedTypes, resp.Type) {
+				// A reattach can still have pane-mark/layout pushes from the
+				// previous session queued before the reader starts. They are
+				// not its reply; the attached snapshot supplies the new state.
+				continue
 			}
 			if resp.ReqID == 0 && accept != nil && slices.Contains(expectedTypes, resp.Type) && !accept(resp) {
 				continue

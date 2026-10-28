@@ -2037,6 +2037,12 @@ func LoadUserConfig() (*UserConfig, error) {
 // gets back, for example, an empty [spotlight], [tape], [screenshot] and
 // [screensaver], and a beam whose radius reads as zero.
 func ParseUserConfig(data []byte) (*UserConfig, error) {
+	// The struct decoder skips unknown values without decoding their number.
+	// Validate the whole TOML document too: an overflowing integer in an unknown
+	// key otherwise makes seeding silently fail and saving changes defaults.
+	if _, err := parseLayer(data); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
 	cfg, err := parseUserConfigOnce(data)
 	if err != nil {
 		return nil, err

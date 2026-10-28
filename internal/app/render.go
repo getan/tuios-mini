@@ -587,7 +587,15 @@ func rendersBorderless(window *terminal.Window) bool {
 // renderWindowBox renders a window's content, wrapped in its border unless the
 // window is borderless. Shared by the compositor path and the fullscreen fast
 // path so both produce identical output.
-func (m *OS) renderWindowBox(window *terminal.Window, index int, isFocused bool, borderColorObj color.Color) string {
+func (m *OS) renderWindowBox(window *terminal.Window, index int, isFocused bool, borderColorObj color.Color) (result string) {
+	if window.Width < 3 || window.Height < 3 {
+		// The VT still needs at least one content cell, but a crowded layout
+		// can give the bordered pane fewer than three rows/columns. Its frame
+		// must not borrow the missing cells from the next pane's guest.
+		defer func() {
+			result, _, _ = clipWindowContent(result, 0, 0, max(window.Width, 0), max(window.Height, 0))
+		}()
+	}
 	content := m.renderTerminal(window, isFocused, m.FocusedPaneOwnsInput())
 	preShaped := !preShapedDisabled &&
 		window.RenderedCols == window.ContentWidth() &&
@@ -713,6 +721,9 @@ func (m *OS) crashView() tea.View {
 	view.SetContent(RenderCrashScreen(m.crash, m.crashNotice, m.Width, m.Height))
 	view.AltScreen = true
 	view.MouseMode = tea.MouseModeAllMotion
+	if m.reducedRendering {
+		view.MouseMode = tea.MouseModeCellMotion
+	}
 	view.ReportFocus = true
 	return view
 }
@@ -1206,10 +1217,7 @@ func (m *OS) View() tea.View {
 	// separate decision, filtered there against the guest's own mouse mode so an
 	// app that asked for less than 1003 still sees only what it asked for (#78);
 	// see guestWantsMotion.
-	view.MouseMode = tea.MouseModeAllMotion
-	if m.MouseOff {
-		view.MouseMode = tea.MouseModeNone
-	}
+	view.MouseMode = m.renderMouseMode()
 
 	view.ReportFocus = true
 	m.notePaneFocus()

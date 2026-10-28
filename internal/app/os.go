@@ -167,6 +167,9 @@ type OS struct {
 	lastFocusedID string
 	Width         int
 	Height        int
+	// reducedRendering is this client's SSH transport policy, not shared
+	// session state or a saved appearance preference.
+	reducedRendering bool
 	// Mode is a legacy tape value. It never gates keyboard, paste or mouse input.
 	// Deprecated: use InputTarget to inspect the client interaction state.
 	Mode Mode

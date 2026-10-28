@@ -677,7 +677,20 @@ func printableTitle(s string) string {
 // space the user has just typed is the last thing in the buffer, and trimming it
 // off the display makes the key look like it did nothing.
 func printableRunes(s string) string {
-	ascii := overlay.UseASCII()
+	return printableRunesWithASCII(s, overlay.UseASCII())
+}
+
+// Reduced SSH rendering changes decorations, not the user's file/name text.
+// Explicit legacy ASCII-only clients retain their previous text policy.
+func (m *OS) printableClientRunes(s string) string {
+	return printableRunesWithASCII(s, m.Settings.UseASCIIOnly && !m.reducedRendering)
+}
+
+func (m *OS) printableClientTitle(s string) string {
+	return strings.TrimSpace(m.printableClientRunes(s))
+}
+
+func printableRunesWithASCII(s string, ascii bool) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {

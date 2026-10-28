@@ -169,6 +169,9 @@ func tooltipLayer(label string, x, y, renderW int, id string) *lipgloss.Layer {
 // renderTooltip composes whichever surface's label is live. Nil when there is
 // nothing to show.
 func (m *OS) renderTooltip() *lipgloss.Layer {
+	if m.reducedRendering {
+		return nil
+	}
 	if m.Tooltip.Secondary {
 		var layer *lipgloss.Layer
 		m.withSecondaryRail(func() bool {

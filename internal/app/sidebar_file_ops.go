@@ -577,7 +577,7 @@ func (m *OS) FilePromptType(s string) {
 	if m.filePrompt.Kind != filePromptCreate && m.filePrompt.Kind != filePromptRename && m.filePrompt.Kind != filePromptCommit {
 		return
 	}
-	add := printableRunes(s)
+	add := m.printableClientRunes(s)
 	if add == "" || combiningOnly(add) {
 		return
 	}
@@ -765,7 +765,7 @@ func (m *OS) fileConfirmQuestion() string {
 		case 0:
 			return "Discard this change?"
 		case 1:
-			return "Discard " + printableTitle(filepath.Base(paths[0])) + "?"
+			return "Discard " + m.printableClientTitle(filepath.Base(paths[0])) + "?"
 		default:
 			return "Discard " + strconv.Itoa(len(paths)) + " changes?"
 		}
@@ -774,7 +774,7 @@ func (m *OS) fileConfirmQuestion() string {
 	case 0:
 		return "Delete this file?"
 	case 1:
-		return "Delete " + printableTitle(filepath.Base(paths[0])) + "?"
+		return "Delete " + m.printableClientTitle(filepath.Base(paths[0])) + "?"
 	default:
 		return "Delete " + strconv.Itoa(len(paths)) + " files?"
 	}

@@ -383,5 +383,7 @@ func NewOS(opts OSOptions) *OS {
 		os.SubscribedPTYs = make(map[string]bool)
 	}
 
+	os.reducedRendering = reducedSSHClient(opts)
+	os.applyReducedRendering()
 	return os
 }

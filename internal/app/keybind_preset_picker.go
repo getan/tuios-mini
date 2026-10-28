@@ -239,7 +239,7 @@ type presetSuggestionMsg struct{ suggestion presetSuggestion }
 // served client must not probe the operator's home; neither does an existing
 // preset need a suggestion. Results only change hint text, never keybindings.
 func (m *OS) presetSuggestionCmd() tea.Cmd {
-	if m.presetHint != nil {
+	if m.reducedRendering || m.presetHint != nil {
 		return nil
 	}
 	m.presetHint = &presetSuggestion{}
