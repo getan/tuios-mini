@@ -418,9 +418,15 @@ func (d *Daemon) verbNewWindow(cs *connState, params json.RawMessage) (any, *ver
 			"pty_id":    win.PTYID,
 			"exit_code": code,
 		}
-		sig := exitStatus.signal
+		var sig int
 		if pty != nil {
 			sig = pty.ExitSignal()
+		} else {
+			// waitPopupExit may observe the PTY's status before its onExit
+			// callback publishes the retained fields. Only read those fields
+			// when the PTY is gone, and after their publishing barrier.
+			<-exitStatus.done
+			sig = exitStatus.signal
 		}
 		if sig > 0 {
 			res["signal"] = sig
