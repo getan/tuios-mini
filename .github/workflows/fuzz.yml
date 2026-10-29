@@ -65,7 +65,12 @@ jobs:
             corpus: internal/vt.2
             targets: >-
               FuzzResizeConservesText FuzzResizeConservesTextHeights
-              FuzzKittyHeader FuzzStringPayloadRuns
+              FuzzStringPayloadRuns
+          # Equivalent public-protocol differential check, owned by this fork.
+          # Keeps the upstream VT module/pin unchanged and retains its failing
+          # sample; private PNG payload state is not a control-key mismatch.
+          - pkg: internal/vtcontract
+            targets: FuzzKittyHeader
           - pkg: internal/app
             targets: >-
               FuzzModel FuzzClipWindowContent FuzzClipWindowContentNoPanicOnEscapes
