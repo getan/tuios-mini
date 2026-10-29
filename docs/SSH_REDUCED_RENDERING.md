@@ -39,6 +39,9 @@ This is not an SSH-server configuration or a permission override.
 - Motion, spotlight, decorative clock/CPU/RAM jobs, custom dock/rail jobs and
   screen savers are disabled. Dock keeps mode/session/workspace/window controls,
   copy help, recording state and notifications. Reload cannot lift the cap.
+- Window close, minimize and zoom stay as plain monochrome Windows marks
+  (`- □ ✕`) instead of the coloured macOS traffic lights, and remain clickable.
+  These three glyphs are the only non-ASCII part of the reduced chrome.
 - Background pane output composes at at most 10 Hz. Input retains its immediate
   response window. The existing latest-state compositor is used; no unbounded
   output queue or text/escape-pattern filter is introduced.

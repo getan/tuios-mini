@@ -47,7 +47,11 @@ func (m *OS) applyReducedRendering() {
 	s.UseASCIIOnly, s.ASCIIRequested = true, true
 	s.ModalDim = 0
 	s.BorderStyle, s.BorderFocusedGradient = "ascii", ""
-	s.HideWindowButtons, s.DockCompact = true, true
+	// The controls stay, but the reduced renderer draws them as the plain
+	// monochrome marks below rather than as coloured macOS dots. A remote
+	// terminal still gets close, minimize and zoom without the traffic-light
+	// styling or its hover work.
+	s.HideWindowButtons, s.DockCompact = false, true
 	s.DockPillCaps = false
 	s.HideClock = true
 	s.ShowClock, s.ShowCPU, s.ShowRAM = false, false, false

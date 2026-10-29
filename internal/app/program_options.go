@@ -295,10 +295,10 @@ func FilterMouseMotion(model tea.Model, msg tea.Msg) tea.Msg {
 	// without its motion. Like the sidebar's, one more event is let through
 	// after the pointer leaves the controls, and that is the event that clears
 	// the reveal.
-	if m.WindowButtonHoverActive() {
+	if !m.reducedRendering && m.WindowButtonHoverActive() {
 		return msg
 	}
-	if m.Settings.WindowButtonStyle == config.WindowButtonStyleDots && !m.Settings.HideWindowButtons {
+	if !m.reducedRendering && m.Settings.WindowButtonStyle == config.WindowButtonStyleDots && !m.Settings.HideWindowButtons {
 		if m.WindowButtonContains(paneX, paneY) {
 			return msg
 		}

@@ -55,6 +55,51 @@ func TestOverlappingControlsResolveToTheirOwnWindow(t *testing.T) {
 	})
 }
 
+// TestReducedSSHKeepsPlainWindowControls is the remote-terminal version of the
+// title bar: the close, minimize and zoom actions stay, but they are drawn as
+// the monochrome Windows marks rather than the macOS traffic lights.
+func TestReducedSSHKeepsPlainWindowControls(t *testing.T) {
+	t.Setenv("SSH_CONNECTION", "fixture")
+	t.Setenv("SSH_TTY", "/dev/pts/fixture")
+	settings := config.DefaultSettings()
+	m := NewOS(OSOptions{
+		Client:     ClientSSH,
+		UserConfig: &config.UserConfig{},
+		Settings:   &settings,
+		Caps:       &HostCapabilities{Term: "xterm-256color"},
+		Width:      120,
+		Height:     40,
+	})
+	defer m.Cleanup()
+
+	if m.Settings.HideWindowButtons {
+		t.Fatal("reduced SSH hid the window controls")
+	}
+	win := &terminal.Window{ID: "ssh-buttons", Width: 60, Height: 10, Workspace: 1}
+	m.Windows = []*terminal.Window{win}
+	row, rects := drawTopBorder(t, m, win, false)
+	text := string(row)
+	if strings.Contains(text, "●") {
+		t.Fatalf("reduced SSH kept the traffic-light dot: %q", text)
+	}
+	for _, mark := range []string{"-", "□", "✕"} {
+		if !strings.Contains(text, mark) {
+			t.Errorf("reduced SSH lost the %q window mark: %q", mark, text)
+		}
+	}
+	if len(rects) != 3 {
+		t.Fatalf("controls = %d, want close, minimize and zoom", len(rects))
+	}
+	for i, want := range []WindowButtonAction{WindowButtonMinimize, WindowButtonZoom, WindowButtonClose} {
+		if rects[i].Action != want {
+			t.Errorf("control %d = %v, want %v", i, rects[i].Action, want)
+		}
+		if got, ok := m.WindowButtonIn(win.ID, rects[i].X, rects[i].Y); !ok || got != want {
+			t.Errorf("control %d is not clickable: action=%v ok=%v", i, got, ok)
+		}
+	}
+}
+
 // buttonLayoutSettings is the shipped settings with the controls set to one
 // style and one end, and the title on the top bar so it competes with them.
 func buttonLayoutSettings(style, position string) config.Settings {

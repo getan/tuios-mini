@@ -191,7 +191,9 @@ func (m *OS) buildWindowButtons(col color.Color, window *terminal.Window, isTili
 	}
 
 	var pieces []windowButtonPiece
-	if m.Settings.WindowButtonStyle == config.WindowButtonStyleDots {
+	if m.reducedRendering {
+		pieces = windowPlainPieces(col, isTiling, &m.Settings)
+	} else if m.Settings.WindowButtonStyle == config.WindowButtonStyleDots {
 		pieces = m.windowDotPieces(col, window, isTiling)
 	} else {
 		pieces = windowPillPieces(col, isTiling, &m.Settings)
@@ -209,6 +211,53 @@ func (m *OS) buildWindowButtons(col color.Color, window *terminal.Window, isTili
 		offset += w
 	}
 	return pill.String(), hits
+}
+
+// windowPlainPieces draws the controls as the plain monochrome marks a
+// Windows title bar carries: minimize, maximize, close. There are no coloured
+// discs and no pill caps, so a reduced SSH client gets the three actions
+// without the traffic-light palette, hover reveal, or cap glyphs.
+func windowPlainPieces(col color.Color, isTiling bool, s *config.Settings) []windowButtonPiece {
+	glyph := lipgloss.NewStyle().Foreground(col).Render
+	controls := []struct {
+		action WindowButtonAction
+		mark   string
+	}{
+		{WindowButtonMinimize, plainWindowMark(WindowButtonMinimize)},
+	}
+	if windowButtonsHaveZoom(isTiling, s) {
+		controls = append(controls, struct {
+			action WindowButtonAction
+			mark   string
+		}{WindowButtonZoom, plainWindowMark(WindowButtonZoom)})
+	}
+	controls = append(controls, struct {
+		action WindowButtonAction
+		mark   string
+	}{WindowButtonClose, plainWindowMark(WindowButtonClose)})
+
+	pieces := make([]windowButtonPiece, 0, len(controls))
+	for _, c := range controls {
+		// The trailing cell is part of the target, as it is in the pill
+		// style: a press just after a mark still belongs to that control.
+		pieces = append(pieces, windowButtonPiece{action: c.action, text: glyph(c.mark + " ")})
+	}
+	return pieces
+}
+
+// plainWindowMark keeps the three title-bar controls as the Windows marks even
+// when the rest of the SSH chrome is ASCII. These are the only glyphs the
+// reduced renderer keeps from the Unicode set: the line, square and cross are
+// the controls' meaning, while O and X read as letters at title-bar size.
+func plainWindowMark(action WindowButtonAction) string {
+	switch action {
+	case WindowButtonClose:
+		return config.WindowButtonCloseMark
+	case WindowButtonZoom:
+		return config.WindowButtonMaximizeMark
+	default:
+		return config.WindowButtonMinimizeMark
+	}
 }
 
 // windowPillPieces is the filled pill: dark glyphs on the border colour, capped
