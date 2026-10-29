@@ -51,6 +51,10 @@ type frameRate struct {
 	// kickWanted is set by kickFlush and cleared when flushMsg writes the
 	// frame. Only the Update goroutine touches it.
 	kickWanted bool
+	// fallbackArmed says a frameFallbackMsg is on its way. It is the last line
+	// of defence for a frame that was composed while the ticker was stopped
+	// and whose wake was lost: see armFrameFallback.
+	fallbackArmed bool
 }
 
 // cursorState is a cursor as a value, the zero value for none.
@@ -81,6 +85,14 @@ type frameDueMsg struct{}
 // idleTickerAfter is how long the client goes without composing a frame
 // before the program's frame ticker stops.
 const idleTickerAfter = 500 * time.Millisecond
+
+// frameFallbackAfter is how long after stopping the frame ticker the client
+// checks once more that nothing was left unflushed. It is deliberately slow:
+// it exists to break a lost-wake deadlock, not to poll.
+const frameFallbackAfter = 250 * time.Millisecond
+
+// frameFallbackMsg is the check armFrameFallback scheduled.
+type frameFallbackMsg struct{}
 
 // wakeTick and wakeBurst shape the ticker's first few ticks when it wakes: a
 // tick every wakeTick for wakeBurst, then the normal rate again. See noteFrame.
@@ -166,6 +178,7 @@ func (m *OS) idleFrameTicker(now time.Time) {
 	sendTick(ticker)
 	fr.idle = true
 	m.tickStats.TickerSleeps++
+	m.armFrameFallback()
 	// The end of a burst of frames is also when a flood of pane output has
 	// ended. memtrim gives the heap it left behind back, at most twice a
 	// minute and only when there is enough of it.
@@ -232,8 +245,10 @@ func (m *OS) noteFrame() {
 		// bridge), or Run has not started it yet. A ticker Run starts later
 		// runs at the fps field's rate until the next frame and idle switch.
 		fr.idle = true
+		m.armFrameFallback()
 		return
 	}
+	m.disarmFrameFallback()
 	ticker.Reset(wakeTick)
 	cancel := new(atomic.Bool)
 	fr.burst = cancel
@@ -242,6 +257,59 @@ func (m *OS) noteFrame() {
 			ticker.Reset(time.Second / time.Duration(fps))
 		}
 	})
+}
+
+// armFrameFallback schedules one check after the ticker stops. A frame that
+// was composed while the ticker was idle can leave idle=false and ticker
+// stopped if a wake was lost; the check wakes the ticker once more instead of
+// leaving the screen frozen until the next unrelated event.
+func (m *OS) armFrameFallback() {
+	fr := &m.frameRate
+	if fr.program == nil || fr.fallbackArmed {
+		return
+	}
+	fr.fallbackArmed = true
+	p := fr.program
+	time.AfterFunc(frameFallbackAfter, func() {
+		// Send returns when the program shuts down, so a timer that fires
+		// after the client exited does not hold a goroutine.
+		p.Send(frameFallbackMsg{})
+	})
+}
+
+// disarmFrameFallback cancels the effect of an armed check. The timer itself
+// stays alive; its message is ignored unless a new check armed it again.
+func (m *OS) disarmFrameFallback() {
+	m.frameRate.fallbackArmed = false
+}
+
+// handleFrameFallback is the last chance to write a frame that was composed
+// while the ticker was stopped. It is harmless when the client is genuinely
+// idle: with nothing dirty there is no frame to write.
+func (m *OS) handleFrameFallback() tea.Cmd {
+	fr := &m.frameRate
+	if !fr.fallbackArmed {
+		return nil
+	}
+	fr.fallbackArmed = false
+	if fr.program == nil {
+		return nil
+	}
+	if m.renderSkipped && !fr.kickWanted && !m.anyPaneOutput() {
+		return nil
+	}
+	fr.idle = false
+	fr.lastFrame = time.Now()
+	ticker := programTicker(fr.program)
+	if ticker == nil {
+		// No renderer to wake (the GUI bridge). Do not arm again; a later
+		// noteFrame will handle the next real message.
+		fr.idle = true
+		return nil
+	}
+	ticker.Reset(wakeTick)
+	m.renderSkipped = false
+	return nil
 }
 
 // setPaneFrameInterval gives every pane of this client its render floor: one
@@ -391,7 +459,12 @@ func flushCmd() tea.Msg { return flushMsg{} }
 // handleFlush writes the frame kickFlush asked for, if it asked, and anything
 // Bubble Tea queued while the ticker is stopped.
 func (m *OS) handleFlush() {
-	if !m.frameRate.kickWanted && !m.frameRate.idle {
+	// A frame is pending whenever View composed one outside a tick. The idle
+	// flag alone is not proof that no write is needed: a lost wake can leave
+	// idle=false while the ticker is stopped, and a composed frame would then
+	// wait for an unrelated event. renderSkipped is the authoritative "this
+	// frame still has to go out" bit.
+	if !m.frameRate.kickWanted && !m.frameRate.idle && m.renderSkipped {
 		return
 	}
 	m.frameRate.kickWanted = false

@@ -372,6 +372,9 @@ func (m *OS) Init() tea.Cmd {
 		listenForFileChange(m.fileWatchChan(), time.Time{}),
 		ListenForNvimNavigation(m.ensureNvimNavigationChan()),
 	}
+	if m.terminalRestorePending {
+		cmds = append(cmds, m.restoreTerminalStatesCmd())
+	}
 
 	// Optional graphics/colour/status probes add traffic but are not needed
 	// to accept input or draw text on a reduced SSH client.
@@ -1096,6 +1099,14 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		_, changed, due := m.takePaneOutput(time.Now())
 		m.renderSkipped = !changed
 		return m, due
+
+	case frameFallbackMsg:
+		return m, m.handleFrameFallback()
+
+	case terminalStatesMsg:
+		m.applyTerminalStates(msg)
+		m.renderSkipped = false
+		return m, nil
 
 	case GitStateMsg:
 		// The reading the git section asked for. It is applied rather than

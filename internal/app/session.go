@@ -6,12 +6,109 @@ import (
 	"slices"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/getan/tuios-mini/internal/hooks"
 	"github.com/getan/tuios-mini/internal/layout"
 	"github.com/getan/tuios-mini/internal/session"
 	"github.com/getan/tuios-mini/internal/terminal"
 	"github.com/getan/tuios-mini/internal/ui"
 )
+
+// terminalStateSnapshot is one window's answer from the daemon. The fetch
+// happens in a command goroutine; applying it happens on the Update goroutine.
+type terminalStateSnapshot struct {
+	windowID string
+	state    *session.TerminalState
+	err      error
+}
+
+// terminalStatesMsg carries the snapshots an attach restore fetched.
+type terminalStatesMsg struct {
+	gen       int
+	snapshots []terminalStateSnapshot
+}
+
+// restoreTerminalStatesCmd fetches the terminal snapshots for the attached
+// windows without holding the Update goroutine. It is armed from Init, after
+// Bubble Tea has started the input reader, so a slow pane or a large scrollback
+// cannot delay the first key. The apply step runs on Update and establishes the
+// same ordering a synchronous restore used to: snapshot first, subscribe after.
+func (m *OS) restoreTerminalStatesCmd() tea.Cmd {
+	if !m.terminalRestorePending {
+		return nil
+	}
+	type request struct {
+		windowID, ptyID string
+		have            int
+	}
+	requests := make([]request, 0, len(m.Windows))
+	for _, w := range m.Windows {
+		if w != nil && w.DaemonMode && w.PTYID != "" {
+			requests = append(requests, request{w.ID, w.PTYID, m.snapshotHave(w)})
+		}
+	}
+	gen := m.terminalRestoreGen
+	scrollback := m.SnapshotScrollback
+	client := m.DaemonClient
+	return func() tea.Msg {
+		if client == nil {
+			return terminalStatesMsg{gen: gen}
+		}
+		snapshots := make([]terminalStateSnapshot, 0, len(requests))
+		for _, req := range requests {
+			state, err := client.GetTerminalState(req.ptyID, scrollback, req.have)
+			snapshots = append(snapshots, terminalStateSnapshot{
+				windowID: req.windowID, state: state, err: err,
+			})
+		}
+		return terminalStatesMsg{gen: gen, snapshots: snapshots}
+	}
+}
+
+// applyTerminalStates installs the fetched snapshots, wires the PTY streams and
+// only then announces the attach. A stale answer is dropped: a later attach or
+// session switch owns the model now.
+func (m *OS) applyTerminalStates(msg terminalStatesMsg) {
+	if msg.gen != m.terminalRestoreGen || !m.terminalRestorePending {
+		return
+	}
+	for _, snap := range msg.snapshots {
+		w := m.windowByID(snap.windowID)
+		if w == nil || w.Terminal == nil {
+			continue
+		}
+		if snap.err != nil {
+			m.LogError("Failed to get terminal state for window %s: %v", shortID(snap.windowID), snap.err)
+			continue
+		}
+		if snap.state == nil {
+			continue
+		}
+		w.ResizeEmulatorToSnapshot(snap.state.Width, snap.state.Height)
+		m.restoreTerminalContent(w, snap.state)
+		if m.RestoredStreamSeq == nil {
+			m.RestoredStreamSeq = make(map[string]int64)
+		}
+		m.RestoredStreamSeq[w.PTYID] = snap.state.Seq
+		w.SeedAnnouncedSize(snap.state.Width, snap.state.Height)
+		m.LogInfo("Restored terminal state for window %s (%dx%d, %d scrollback lines)",
+			shortID(w.ID), snap.state.Width, snap.state.Height, snap.state.ScrollbackLen)
+	}
+	// Subscribe only after the snapshots, for the same reason the synchronous
+	// path did: a live stream must not race the blit.
+	if err := m.SetupPTYOutputHandlers(); err != nil {
+		m.LogWarn("Failed to set up PTY handlers after restore: %v", err)
+	}
+	if m.AutoTiling {
+		m.TileAllWindows()
+	}
+	m.SyncDaemonPTYDimensions()
+	m.terminalRestorePending = false
+	m.FireAttached()
+	m.MarkAllDirty()
+	m.LogInfo("Restore complete, %d windows", len(m.Windows))
+}
 
 // BuildSessionState creates a serializable SessionState from the current OS state.
 // This is called progressively during Update() to sync state to the daemon.

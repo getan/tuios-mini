@@ -243,8 +243,14 @@ func (m *OS) RestoreAttachedSession(state *session.SessionState) {
 		if err := m.RestoreFromState(state); err != nil {
 			m.LogWarn("Failed to restore session state: %v", err)
 		}
-		m.rehydrateWindows()
-		m.LogInfo("Restore complete, %d windows", len(m.Windows))
+		// The layout is now on screen, but the terminal snapshots can include
+		// scrollback from a slow or large pane. Fetch them after Run has
+		// started the input reader instead of blocking the first key behind
+		// the daemon round trip. rehydrateWindows stays available for callers
+		// that explicitly want a synchronous restore (tests, session rebuilds).
+		m.terminalRestoreGen++
+		m.terminalRestorePending = true
+		m.LogInfo("Restore scheduled, %d windows; input starts before terminal snapshots", len(m.Windows))
 	} else {
 		m.LogInfo("No existing state to restore")
 		m.adoptEmptySessionVersion(state)
@@ -257,9 +263,13 @@ func (m *OS) RestoreAttachedSession(state *session.SessionState) {
 
 	m.reportFocusChange()
 
-	// The session is now whole: state restored, PTYs wired, layout applied. A
+	// The session is now whole when there is no snapshot restore in flight: a
 	// hook that inspects the session here sees what the user is about to see.
-	m.FireAttached()
+	// The asynchronous path fires it after the snapshots and PTY subscriptions
+	// are in place, so a hook never observes half-restored panes.
+	if !m.terminalRestorePending {
+		m.FireAttached()
+	}
 }
 
 // reportFocusChange sends the focus reports for a change of the focused

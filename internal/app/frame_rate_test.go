@@ -148,4 +148,24 @@ func TestKickFlushWritesTheFrame(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+
+	// A composed frame with a stale idle flag must still be written by the
+	// flush path. Before the fix, idle=false made handleFlush a no-op even
+	// though the ticker was stopped, and the frame waited for an unrelated
+	// event.
+	p.Send("stale-idle-frame")
+	time.Sleep(20 * time.Millisecond)
+	m := &OS{}
+	m.frameRate.program = p
+	m.frameRate.idle = false
+	m.renderSkipped = false
+	m.handleFlush()
+	start = time.Now()
+	for !strings.Contains(out.String(), "stale-idle-frame") {
+		if time.Since(start) > 300*time.Millisecond {
+			t.Fatalf("a composed frame with stale idle did not write within %v; output so far %q",
+				time.Since(start), out.String())
+		}
+		time.Sleep(time.Millisecond)
+	}
 }

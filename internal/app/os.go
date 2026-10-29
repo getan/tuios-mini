@@ -1580,6 +1580,11 @@ type OS struct {
 	gitWatchGen         int
 	gitWatchPendingGen  int
 	gitWatchPendingRoot string
+	// terminalRestorePending is set when an attach restored the window layout
+	// but not the terminal snapshots yet. The snapshots are fetched by a
+	// command after the input reader is running; see restoreTerminalStatesCmd.
+	terminalRestorePending bool
+	terminalRestoreGen     int
 	// gitDrawer is the read-only history panel: commits, branches, stashes,
 	// tags, remotes, graph, file history, or the session's repositories.
 	gitDrawer gitDrawerState
