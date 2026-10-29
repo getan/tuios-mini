@@ -3,7 +3,9 @@ package app
 import (
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,17 +22,19 @@ import (
 // changed file below a directory that was skipped.
 const gitWatchDebounce = 250 * time.Millisecond
 
-// gitWatchMaxDirs bounds the worktree walk. A repository larger than this
-// falls back to the timed read for the directories beyond the cap rather than
-// spending the first frame walking every directory under a monorepo. Linux
-// also has a per-user inotify limit; a failed Add is the same fallback.
+// gitWatchMaxDirs bounds the number of watches. The directory set comes from
+// git, so an ignored tree such as .scratch never contributes; the cap is a
+// guard on inotify resources rather than on filesystem traversal. Linux also
+// has a per-user inotify limit; a failed Add is the same fallback.
 const gitWatchMaxDirs = 4096
 
-// gitWatchSkip are the directories whose contents cannot change git's answer
-// in a way worth a read, and which are the usual sources of event storms.
-// Best-effort: a change that slips through only costs one extra status read.
+// gitWatchSkip is the fallback walk's list and a guard for tracked generated
+// trees. git ls-files already honors .gitignore, so .scratch and .build
+// normally never reach here. Best-effort: a change that slips through only
+// costs one extra status read.
 var gitWatchSkip = map[string]bool{
-	".git": true, "node_modules": true, "target": true, ".venv": true,
+	".git": true, ".scratch": true, ".build": true,
+	"node_modules": true, "target": true, ".venv": true,
 	"venv": true, "dist": true, "build": true, ".idea": true,
 	".vscode": true, ".next": true, ".cache": true, "__pycache__": true,
 }
@@ -38,6 +42,16 @@ var gitWatchSkip = map[string]bool{
 // gitWatchMsg says the repository may have changed. Gen names the watcher the
 // event came from, so an event from a repository the tab has left is dropped.
 type gitWatchMsg struct{ Gen int }
+
+// gitWatcherReadyMsg carries a watcher built off the update goroutine. Gen and
+// Root are checked again when it lands: the tab may have moved on while the
+// walk was running, in which case the watcher is closed and dropped.
+type gitWatcherReadyMsg struct {
+	Gen  int
+	Root string
+	W    *gitWatcher
+	Err  error
+}
 
 // gitWatcher watches one repository: its worktree recursively, and the git
 // metadata that stages, commits and branch moves rewrite without touching a
@@ -54,6 +68,17 @@ type gitWatcher struct {
 }
 
 func newGitWatcher(root string, gen int) (*gitWatcher, error) {
+	return newGitWatcherWith(root, gen, gitWatchNetworkFS)
+}
+
+// newGitWatcherWith is newGitWatcher with the network-filesystem probe passed
+// in, so a test can exercise the fallback without a real network mount.
+func newGitWatcherWith(root string, gen int, networkFS func(string) bool) (*gitWatcher, error) {
+	if networkFS != nil && networkFS(root) {
+		// Every inotify add on NFS/CIFS/FUSE is a round trip, and the events
+		// are unreliable; the timed read is the better fallback.
+		return nil, nil
+	}
 	w := &gitWatcher{
 		gen: gen, root: root, raw: make(chan struct{}, 1),
 		events: make(chan struct{}, 1),
@@ -174,14 +199,120 @@ func (w *gitWatcher) debounce(raw <-chan struct{}) bool {
 // nothing under a skipped build directory. A `.git` file (a linked worktree or
 // a submodule) names its gitdir instead of being a directory.
 func addGitWatchTree(fw *fsnotify.Watcher, root string) {
+	addGitMetaFromWorktree(fw, root)
+	dirs, err := gitWatchDirs(root)
+	if err == nil {
+		addGitWatchDirs(fw, dirs)
+		return
+	}
+	// git itself is the fallback's only source of truth about what is ignored.
+	// Without it, walk the tree with the small skip list above.
+	walkGitWatchTree(fw, root)
+}
+
+// addGitMetaFromWorktree adds the gitdir and refs watches and skips `.git` in
+// the worktree walk. A `.git` file names a gitdir; a directory is the gitdir.
+func addGitMetaFromWorktree(fw *fsnotify.Watcher, root string) {
 	gitPath := filepath.Join(root, ".git")
-	if fi, err := os.Stat(gitPath); err == nil && fi.Mode().IsRegular() {
+	fi, err := os.Stat(gitPath)
+	if err != nil {
+		return
+	}
+	if fi.Mode().IsRegular() {
 		if data, err := os.ReadFile(gitPath); err == nil {
 			if rest, ok := strings.CutPrefix(strings.TrimSpace(string(data)), "gitdir:"); ok {
 				addGitMetaWatches(fw, strings.TrimSpace(rest))
 			}
 		}
+		return
 	}
+	if fi.IsDir() {
+		addGitMetaWatches(fw, gitPath)
+	}
+}
+
+// gitWatchDirs asks git for the paths that can change its answer instead of
+// walking the filesystem. `--cached` covers tracked files, `--others
+// --exclude-standard` covers untracked non-ignored files, and `--directory`
+// collapses an untracked tree to its top. Each file contributes its parent and
+// every ancestor so a change anywhere in a tracked tree is seen.
+func gitWatchDirs(root string) ([]string, error) {
+	cmd := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--directory")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	dirs := map[string]bool{root: true}
+	for _, entry := range strings.Split(string(out), "\x00") {
+		if entry == "" {
+			continue
+		}
+		isDir := strings.HasSuffix(entry, "/")
+		rel := strings.TrimSuffix(entry, "/")
+		if rel == "" {
+			continue
+		}
+		rel = filepath.Clean(filepath.FromSlash(rel))
+		if rel == "." || rel == ".." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		start := rel
+		if !isDir {
+			start = filepath.Dir(rel)
+		}
+		for dir := start; dir != "." && dir != ""; dir = filepath.Dir(dir) {
+			if gitWatchSkippedPath(dir) {
+				continue
+			}
+			dirs[filepath.Join(root, dir)] = true
+		}
+	}
+	paths := make([]string, 0, len(dirs))
+	for dir := range dirs {
+		paths = append(paths, dir)
+	}
+	// Parents before children, so a capped watch set still covers the shallow
+	// trees that see the most events. Lexical order breaks ties deterministically.
+	sort.Slice(paths, func(i, j int) bool {
+		di := strings.Count(paths[i], string(filepath.Separator))
+		dj := strings.Count(paths[j], string(filepath.Separator))
+		if di != dj {
+			return di < dj
+		}
+		return paths[i] < paths[j]
+	})
+	return paths, nil
+}
+
+// gitWatchSkippedPath reports whether any component of rel is in gitWatchSkip.
+// A descendant of a skipped directory is skipped too, while its ancestors are
+// still admitted.
+func gitWatchSkippedPath(rel string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		if part != "" && gitWatchSkip[part] {
+			return true
+		}
+	}
+	return false
+}
+
+// addGitWatchDirs adds the directory set from gitWatchDirs, bounded by the
+// existing watch cap. Add failures (the inotify limit) leave the timed read in
+// place for the directories not watched.
+func addGitWatchDirs(fw *fsnotify.Watcher, dirs []string) {
+	added := 0
+	for _, dir := range dirs {
+		if added >= gitWatchMaxDirs {
+			return
+		}
+		_ = fw.Add(dir)
+		added++
+	}
+}
+
+// walkGitWatchTree is the fallback when git cannot list the repository: a
+// bounded walk that skips the known event-storm directories.
+func walkGitWatchTree(fw *fsnotify.Watcher, root string) {
 	added := 0
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {
@@ -189,7 +320,6 @@ func addGitWatchTree(fw *fsnotify.Watcher, root string) {
 		}
 		if path != root {
 			if d.Name() == ".git" {
-				addGitMetaWatches(fw, path)
 				return fs.SkipDir
 			}
 			if gitWatchSkip[d.Name()] {
@@ -221,29 +351,44 @@ func addGitMetaWatches(fw *fsnotify.Watcher, gitDir string) {
 // project section is showing. It returns the command that waits for the next
 // event, or nil when there is nothing to watch.
 func (m *OS) syncGitWatcher() tea.Cmd {
-	if !m.GitTabActive() && !m.filesSectionEnabled() {
-		m.stopGitWatcher()
-		return nil
-	}
-	origin := m.gitStatus.Origin
-	root := m.gitStatus.Status.Root
-	if root == "" || origin.Host != "" || origin.AttachedHost != "" || origin.CwdHost != "" {
+	root, ok := m.gitWatchTarget()
+	if !ok {
 		m.stopGitWatcher()
 		return nil
 	}
 	if m.gitWatch != nil && m.gitWatch.root == root {
 		return nil
 	}
-	m.stopGitWatcher()
-	m.gitWatchGen++
-	w, err := newGitWatcher(root, m.gitWatchGen)
-	if err != nil {
-		// The timed read remains; a filesystem without a watcher behaves as
-		// it did before this file existed.
+	if m.gitWatchPendingGen != 0 && m.gitWatchPendingRoot == root {
+		// A creation for this root is already off the update goroutine.
 		return nil
 	}
-	m.gitWatch = w
-	return m.waitGitWatch()
+	m.stopGitWatcher()
+	gen := m.gitWatchGen
+	m.gitWatchPendingGen, m.gitWatchPendingRoot = gen, root
+	// newGitWatcher walks the worktree and registers one watch per directory.
+	// On a network filesystem that is seconds of stat latency, so it must run
+	// in the command's goroutine, never in Update.
+	return func() tea.Msg {
+		w, err := newGitWatcher(root, gen)
+		return gitWatcherReadyMsg{Gen: gen, Root: root, W: w, Err: err}
+	}
+}
+
+// gitWatchTarget is the repository the project section should be watching, or
+// false when it should not watch one. It is the same rule syncGitWatcher used
+// to apply inline; the ready handler asks it again because the tab can move
+// while a creation is in flight.
+func (m *OS) gitWatchTarget() (string, bool) {
+	if !m.GitTabActive() && !m.filesSectionEnabled() {
+		return "", false
+	}
+	origin := m.gitStatus.Origin
+	root := m.gitStatus.Status.Root
+	if root == "" || origin.Host != "" || origin.AttachedHost != "" || origin.CwdHost != "" {
+		return "", false
+	}
+	return root, true
 }
 
 func (m *OS) stopGitWatcher() {
@@ -251,6 +396,11 @@ func (m *OS) stopGitWatcher() {
 		m.gitWatch.close()
 		m.gitWatch = nil
 	}
+	// Invalidate a creation still in flight as well: its ready message carries
+	// the old generation and is closed on arrival.
+	m.gitWatchGen++
+	m.gitWatchPendingGen = 0
+	m.gitWatchPendingRoot = ""
 }
 
 // waitGitWatch blocks until the watcher has an event or is closed. One waiter

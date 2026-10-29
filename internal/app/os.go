@@ -1573,10 +1573,13 @@ type OS struct {
 	// gitWatch watches the repository the project section shows for file
 	// events, so a status read runs when something changes instead of on a
 	// timer. Nil when the section is hidden, the pane is remote, or the OS
-	// watcher could not start; the timed read is the fallback. See
-	// git_watch.go.
-	gitWatch    *gitWatcher
-	gitWatchGen int
+	// watcher could not start; the timed read is the fallback. Creation runs
+	// off the update goroutine, so a pending set is recorded here until its
+	// gitWatcherReadyMsg arrives. See git_watch.go.
+	gitWatch            *gitWatcher
+	gitWatchGen         int
+	gitWatchPendingGen  int
+	gitWatchPendingRoot string
 	// gitDrawer is the read-only history panel: commits, branches, stashes,
 	// tags, remotes, graph, file history, or the session's repositories.
 	gitDrawer gitDrawerState

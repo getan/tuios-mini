@@ -836,7 +836,21 @@ type foreignSessionsChangedMsg struct{}
 // state sync, and a hook in each of those would be a hook missing from the next
 // one somebody writes. One comparison, once, is the whole cost, and it answers
 // nil without allocating for a client whose rail has no files section.
+const slowUpdateThreshold = 100 * time.Millisecond
+
+// reportSlowUpdate leaves a trace when one message holds the only event loop
+// long enough to be felt as a freeze. The log buffer is the client's existing
+// diagnostic sink; without this a multi-second walk can leave no evidence.
+func (m *OS) reportSlowUpdate(msg tea.Msg, d time.Duration) {
+	if d <= slowUpdateThreshold {
+		return
+	}
+	m.LogWarn("SLOW_UPDATE %T dur=%s", msg, d)
+}
+
 func (m *OS) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	started := time.Now()
+	defer func() { m.reportSlowUpdate(msg, time.Since(started)) }()
 	m.applyReducedRendering()
 	// The frame the last View composed is stored now: write it. Nothing
 	// else changes, so the View after this message serves the same frame.
@@ -1546,6 +1560,32 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.ApplyGitStatus(msg)
 		m.renderSkipped = false
 		return m, m.syncGitWatcher()
+
+	case gitWatcherReadyMsg:
+		if msg.Gen == m.gitWatchPendingGen {
+			m.gitWatchPendingGen, m.gitWatchPendingRoot = 0, ""
+		}
+		if msg.Err != nil {
+			if msg.W != nil {
+				msg.W.close()
+			}
+			return m, nil
+		}
+		if msg.W == nil {
+			return m, nil
+		}
+		// The tab or the repository may have moved while the walk ran. A
+		// stale watcher has no waiter, so close it rather than leak it.
+		root, ok := m.gitWatchTarget()
+		if msg.Gen != m.gitWatchGen || !ok || msg.Root != root {
+			msg.W.close()
+			return m, nil
+		}
+		if m.gitWatch != nil {
+			m.gitWatch.close()
+		}
+		m.gitWatch = msg.W
+		return m, m.waitGitWatch()
 
 	case gitWatchMsg:
 		if m.gitWatch == nil || msg.Gen != m.gitWatch.gen {
