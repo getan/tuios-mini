@@ -232,22 +232,34 @@ func layoutBorderRow(badge, pill string, width int, col color.Color, isTop bool,
 		return buttonBorderRow{pillStart: -1}
 	}
 
-	// A bar with no controls leaves the badge where it has always been, since
-	// there is nothing for it to make room for.
-	pillLeft := pill != "" && s.WindowButtonPosition == config.WindowButtonPositionLeft
+	// A bar with no controls still puts the badge at the end opposite the
+	// configured control pill. Hiding the buttons (the reduced SSH chrome)
+	// must not move the name from the right end to the left.
+	controlsLeft := s.WindowButtonPosition == config.WindowButtonPositionLeft
 	if s.WindowTitleAlign != "" && s.WindowTitleAlign != "auto" {
-		return alignedBorderRow(badge, pill, padding, pillLeft, render, fill, cornerLeft, cornerRight, s.WindowTitleAlign)
+		row := alignedBorderRow(badge, pill, padding, controlsLeft, render, fill, cornerLeft, cornerRight, s.WindowTitleAlign)
+		if pill == "" {
+			row.pillStart = -1
+		}
+		return row
 	}
 	middle := render(strings.Repeat(fill, padding))
-	if pillLeft {
+	pillStart := 1 + lipgloss.Width(badge) + padding
+	if controlsLeft {
+		pillStart = 1
+	}
+	if pill == "" {
+		pillStart = -1
+	}
+	if controlsLeft {
 		return buttonBorderRow{
 			text:      render(cornerLeft) + pill + middle + badge + render(cornerRight),
-			pillStart: 1,
+			pillStart: pillStart,
 		}
 	}
 	return buttonBorderRow{
 		text:      render(cornerLeft) + badge + middle + pill + render(cornerRight),
-		pillStart: 1 + lipgloss.Width(badge) + padding,
+		pillStart: pillStart,
 	}
 }
 
