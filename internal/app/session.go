@@ -95,11 +95,10 @@ func (m *OS) applyTerminalStates(msg terminalStatesMsg) {
 		m.LogInfo("Restored terminal state for window %s (%dx%d, %d scrollback lines)",
 			shortID(w.ID), snap.state.Width, snap.state.Height, snap.state.ScrollbackLen)
 	}
-	// Subscribe only after the snapshots, for the same reason the synchronous
-	// path did: a live stream must not race the blit.
-	if err := m.SetupPTYOutputHandlers(); err != nil {
-		m.LogWarn("Failed to set up PTY handlers after restore: %v", err)
-	}
+	// Input handlers were wired before the fetch; only the output streams were
+	// waiting. Subscribe now, after the blit, for the same reason the
+	// synchronous path did: a live stream must not race the snapshot.
+	m.subscribeRestoredPTYs()
 	if m.AutoTiling {
 		m.TileAllWindows()
 	}
@@ -108,6 +107,35 @@ func (m *OS) applyTerminalStates(msg terminalStatesMsg) {
 	m.FireAttached()
 	m.MarkAllDirty()
 	m.LogInfo("Restore complete, %d windows", len(m.Windows))
+}
+
+// SetupPTYInputHandlers wires every daemon window's input, resize and response
+// paths without subscribing its output. Attach calls it before fetching the
+// terminal snapshots, so a slow snapshot cannot keep the first key from
+// reaching the pane; applyTerminalStates subscribes the visible panes after
+// the snapshot is blitted.
+func (m *OS) SetupPTYInputHandlers() {
+	if m.DaemonClient == nil {
+		return
+	}
+	m.SubscribedPTYs = make(map[string]bool)
+	m.paneRequests = nil
+	for _, w := range m.Windows {
+		if w.DaemonMode && w.PTYID != "" {
+			m.wireDaemonPTY(w, func() {})
+		}
+	}
+}
+
+// subscribeRestoredPTYs starts the output stream for the panes this client can
+// see. The same visibility rule as SetupPTYOutputHandlers applies: hidden
+// workspaces subscribe when they are shown.
+func (m *OS) subscribeRestoredPTYs() {
+	for _, w := range m.Windows {
+		if w.DaemonMode && w.PTYID != "" && w.Workspace == m.CurrentWorkspace {
+			m.subscribeToPTY(w, m.RestoredStreamSeq[w.PTYID])
+		}
+	}
 }
 
 // BuildSessionState creates a serializable SessionState from the current OS state.

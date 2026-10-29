@@ -243,6 +243,11 @@ func (m *OS) RestoreAttachedSession(state *session.SessionState) {
 		if err := m.RestoreFromState(state); err != nil {
 			m.LogWarn("Failed to restore session state: %v", err)
 		}
+		// Input must reach the panes while their snapshots are still being
+		// fetched. Wire the daemon write/resize/response paths now; output is
+		// subscribed only after the snapshot, preserving the blit-before-stream
+		// ordering.
+		m.SetupPTYInputHandlers()
 		// The layout is now on screen, but the terminal snapshots can include
 		// scrollback from a slow or large pane. Fetch them after Run has
 		// started the input reader instead of blocking the first key behind

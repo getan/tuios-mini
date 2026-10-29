@@ -1580,6 +1580,9 @@ type OS struct {
 	gitWatchGen         int
 	gitWatchPendingGen  int
 	gitWatchPendingRoot string
+	// gitStartupDone ends the startup gate that keeps git status and branch
+	// reads off the first frame. It is set by gitStartupMsg.
+	gitStartupDone bool
 	// terminalRestorePending is set when an attach restored the window layout
 	// but not the terminal snapshots yet. The snapshots are fetched by a
 	// command after the input reader is running; see restoreTerminalStatesCmd.

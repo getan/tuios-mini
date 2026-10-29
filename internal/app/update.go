@@ -375,6 +375,13 @@ func (m *OS) Init() tea.Cmd {
 	if m.terminalRestorePending {
 		cmds = append(cmds, m.restoreTerminalStatesCmd())
 	}
+	if m.frameRate.program == nil {
+		m.gitStartupDone = true
+	} else {
+		cmds = append(cmds, tea.Tick(gitStartupDelay, func(time.Time) tea.Msg {
+			return gitStartupMsg{}
+		}))
+	}
 
 	// Optional graphics/colour/status probes add traffic but are not needed
 	// to accept input or draw text on a reduced SSH client.
@@ -1571,6 +1578,12 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.ApplyGitStatus(msg)
 		m.renderSkipped = false
 		return m, m.syncGitWatcher()
+
+	case gitStartupMsg:
+		m.gitStartupDone = true
+		m.gitStatus.at = time.Time{}
+		m.gitView.at = time.Time{}
+		return m, tea.Batch(m.GitSyncCmd(), m.GitStatusSyncCmd())
 
 	case gitWatcherReadyMsg:
 		if msg.Gen == m.gitWatchPendingGen {

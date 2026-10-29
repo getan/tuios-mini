@@ -77,6 +77,9 @@ func (m *OS) gitSectionEnabled() bool {
 // a section that asked recently enough, which is every message on an idle
 // client.
 func (m *OS) GitSyncCmd() tea.Cmd {
+	if !m.gitStartupReady() {
+		return nil
+	}
 	if !m.gitSectionEnabled() {
 		return nil
 	}

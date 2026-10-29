@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,12 @@ import (
 	"github.com/getan/tuios-mini/internal/gitstatus"
 	"github.com/getan/tuios-mini/internal/review"
 )
+
+// gitTabMaxEntries bounds the rows the Git tab builds in one frame: one
+// screenful plus a little scroll, not the whole repository. A very large
+// changed set would otherwise allocate and draw every row before the next key
+// is handled; the remainder is reported instead.
+const gitTabMaxEntries = 50
 
 // The project section's Git tab: the changed paths of the pane's repository,
 // grouped by index side, with the same letters and inks the files tree uses.
@@ -54,11 +61,29 @@ type gitStatusView struct {
 	dirDeco  map[string]string
 }
 
+// gitStartupDelay keeps the Git tab's first status read and watcher off the
+// startup path. The first frame and the input reader are what a person is
+// waiting for; a repository on a slow mount can wait two seconds for its
+// branch and changed-path reading without being noticed.
+const gitStartupDelay = 2 * time.Second
+
+// gitStartupMsg is the end of that delay.
+type gitStartupMsg struct{}
+
+// gitStartupReady reports whether the startup gate lets git work begin.
+func (m *OS) gitStartupReady() bool {
+	return m.gitStartupDone || m.frameRate.program == nil
+}
+
 // GitStatusMsg carries a finished reading back to the loop.
 type GitStatusMsg struct {
 	Gen    uint64
 	Origin gitStatusOrigin
 	Status gitstatus.Status
+	// FileDeco and DirDeco are the path decorations built in the command
+	// goroutine. Keeping the fold off Update matters for a repository with a
+	// large changed set: the status itself is already read off the loop.
+	FileDeco, DirDeco map[string]string
 }
 
 // GitTabActive reports whether the project section is showing changes.
@@ -88,6 +113,9 @@ func (m *OS) SetProjectTab(tab int) tea.Cmd {
 const gitStatusFallbackInterval = 30 * time.Second
 
 func (m *OS) GitStatusSyncCmd() tea.Cmd {
+	if !m.gitStartupReady() {
+		return nil
+	}
 	// The Git tab is the project section's other view; a caller that selected it
 	// directly (a host, a test) asks for a reading even before the rail decides
 	// the section is visible. The Files tab needs the section to draw at all,
@@ -120,7 +148,12 @@ func (m *OS) GitStatusSyncCmd() tea.Cmd {
 	gen := v.gen
 	v.inFlight, v.at = true, time.Now()
 	return func() tea.Msg {
-		return GitStatusMsg{Gen: gen, Origin: want, Status: gitstatus.Read(context.Background(), want.Dir)}
+		status := gitstatus.Read(context.Background(), want.Dir)
+		fileDeco, dirDeco := gitDecorations(status)
+		return GitStatusMsg{
+			Gen: gen, Origin: want, Status: status,
+			FileDeco: fileDeco, DirDeco: dirDeco,
+		}
 	}
 }
 
@@ -131,7 +164,12 @@ func (m *OS) ApplyGitStatus(msg GitStatusMsg) {
 		return
 	}
 	v.Dir, v.Status, v.Origin, v.inFlight = msg.Origin.Dir, msg.Status, msg.Origin, false
-	v.buildDecorations()
+	v.fileDeco, v.dirDeco = msg.FileDeco, msg.DirDeco
+	if v.fileDeco == nil && v.dirDeco == nil {
+		// A caller that did not run through GitStatusSyncCmd (a test, or an
+		// older host message) still gets a usable view.
+		v.buildDecorations()
+	}
 }
 
 // gitDecorationStrength ranks the tokens so a directory wears the most urgent
@@ -167,28 +205,34 @@ func strongerGitToken(a, b string) string {
 // directory above it, so a folder whose contents changed is visible even when
 // the changed file is not on screen.
 func (v *gitStatusView) buildDecorations() {
-	v.fileDeco, v.dirDeco = nil, nil
-	if v.Status.Err != "" || v.Status.Root == "" {
-		return
+	v.fileDeco, v.dirDeco = gitDecorations(v.Status)
+}
+
+// gitDecorations is buildDecorations without a view, so the fold can run in
+// the status command's goroutine.
+func gitDecorations(status gitstatus.Status) (fileDeco, dirDeco map[string]string) {
+	if status.Err != "" || status.Root == "" {
+		return nil, nil
 	}
-	v.fileDeco = make(map[string]string)
-	v.dirDeco = make(map[string]string)
+	fileDeco = make(map[string]string)
+	dirDeco = make(map[string]string)
 	add := func(entries []gitstatus.Entry) {
 		for _, e := range entries {
 			token := e.Letter.ColorToken()
 			if token == "" {
 				continue
 			}
-			v.fileDeco[e.Path] = strongerGitToken(v.fileDeco[e.Path], token)
+			fileDeco[e.Path] = strongerGitToken(fileDeco[e.Path], token)
 			for dir := path.Dir(e.Path); dir != "." && dir != "/"; dir = path.Dir(dir) {
-				v.dirDeco[dir] = strongerGitToken(v.dirDeco[dir], token)
+				dirDeco[dir] = strongerGitToken(dirDeco[dir], token)
 			}
 		}
 	}
-	add(v.Status.Conflicts)
-	add(v.Status.Staged)
-	add(v.Status.Unstaged)
-	add(v.Status.Untracked)
+	add(status.Conflicts)
+	add(status.Staged)
+	add(status.Unstaged)
+	add(status.Untracked)
+	return fileDeco, dirDeco
 }
 
 // fileGitToken is the ink a Files-tab row wears: the entry's own status for a
@@ -266,6 +310,9 @@ func (m *OS) gitTabRows() []fileRowSpec {
 		}
 		rows = append(rows, fileRowSpec{Note: true, Name: title + " " + strconv.Itoa(len(entries)), Key: title})
 		for _, e := range entries {
+			if len(m.gitStatus.entries) >= gitTabMaxEntries {
+				return
+			}
 			m.gitStatus.entries = append(m.gitStatus.entries, gitStatusEntry{
 				Entry: e, Origin: m.gitStatus.Origin, Root: st.Root, Index: side,
 			})
@@ -283,6 +330,12 @@ func (m *OS) gitTabRows() []fileRowSpec {
 	add("Untracked", "", st.Untracked)
 	if st.Empty() {
 		return append(rows, fileRowSpec{Note: true, Name: "clean"})
+	}
+	if total, drawn := st.Changed(), len(m.gitStatus.entries); drawn < total {
+		rows = append(rows, fileRowSpec{
+			Note: true,
+			Name: fmt.Sprintf("%d more changed paths not drawn", total-drawn),
+		})
 	}
 	return rows
 }
