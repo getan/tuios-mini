@@ -320,6 +320,10 @@ type Daemon struct {
 	// sessions on daemon start. Sessions can still be brought back on demand
 	// with the resurrect verb.
 	disableAutoRestore bool
+	// deferLocalMaintenance keeps the local-only sweeps off the startup path.
+	// An SSH-backed workspace sets it: the first frame and input matter more
+	// than clearing stale files, and those sweeps may walk a network home.
+	deferLocalMaintenance bool
 
 	// foreground and logFile are the logging settings this daemon was started
 	// with. Run installs them; see logsink.go.
@@ -869,6 +873,11 @@ type DaemonConfig struct {
 	DisableSignalHandling bool
 	// DisableAutoRestore skips restoring saved sessions on daemon start.
 	DisableAutoRestore bool
+	// DeferLocalMaintenance moves the local-only startup sweeps (resurrection
+	// residue, orphan history, stash and paste caches) into the background.
+	// It is for an embedded workspace whose first frame must not wait for a
+	// filesystem walk, especially over SSH with a network home.
+	DeferLocalMaintenance bool
 	// ScrollbackLines is how many lines of history every pane the daemon makes
 	// keeps, from appearance.scrollback_lines. Zero means the default. A pane
 	// takes it when it is made and keeps it, so a change applies to panes made
@@ -1031,6 +1040,7 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 		version:               cfg.Version,
 		profile:               cfg.Profile,
 		disableAutoRestore:    cfg.DisableAutoRestore,
+		deferLocalMaintenance: cfg.DeferLocalMaintenance,
 		foreground:            cfg.Foreground,
 		logFile:               cfg.LogFile,
 		logSink:               cfg.LogSink,
@@ -1152,6 +1162,29 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 // localOnly reports whether this daemon runs the embedded workspace profile
 // rather than the standalone product. See Profile.
 func (d *Daemon) localOnly() bool { return d != nil && d.profile.LocalOnly() }
+
+// backgroundLocalMaintenance is the local-only startup sweep, run after Start
+// has returned. It touches only files the daemon owns and no live session, so
+// the first attach and first frame do not wait for a network home.
+func (d *Daemon) backgroundLocalMaintenance() {
+	start := time.Now()
+	cleanResurrectionDirIn(d.stateRoot)
+	d.stash.sweep()
+	d.pastes.sweep()
+	d.logLine(DebugBasic, "startup: local maintenance (background) %s", time.Since(start))
+}
+
+// backgroundDropHistory is dropHistoryWhenOff off the startup path, with the
+// cost kept in the daemon log beside the other startup phases.
+func (d *Daemon) backgroundDropHistory() {
+	start := time.Now()
+	d.dropHistoryWhenOff()
+	d.logLine(DebugBasic, "startup: history cleanup (background) %s", time.Since(start))
+}
+
+func (d *Daemon) traceWindowStartup(phase string, elapsed time.Duration) {
+	d.logLine(DebugBasic, "startup: %s %s", phase, elapsed)
+}
 
 // setupFederation builds the host table and the link manager. Nothing is dialed
 // here; Start launches the supervisors.
@@ -1595,43 +1628,62 @@ func (d *Daemon) Start() error {
 	}
 
 	d.logLine(DebugBasic, "TUIOS daemon started on %s (PID %d)", socketPath, os.Getpid())
+	startupAt := time.Now()
 
 	// Sweep the previous daemon's leftovers before reading the directory. Runs
 	// whether or not auto-restore is on, since the residue is there either way.
 	// Only this daemon's own state directory is swept: a daemon with one of its
 	// own must never clean another's.
-	cleanResurrectionDirIn(d.stateRoot)
+	//
+	// A local-only workspace behind SSH defers this whole block: it walks the
+	// state root (including orphan history and the archive) and can be slow on a
+	// network home, while nothing in it is needed before the first frame.
+	if d.deferLocalMaintenance && d.localOnly() {
+		go d.backgroundLocalMaintenance()
+	} else {
+		cleanResurrectionDirIn(d.stateRoot)
 
-	// The stash root is cleared before anything is served. A daemon that was
-	// killed rather than stopped could not delete its own stashed files, so this
-	// is where they go. A restored session does not get its old stash back, for
-	// the same reason it does not get its old mail: its panes are new processes.
-	d.stash.sweep()
-	// ssh agent links a killed daemon left go before a session is restored.
-	// See ssh_agent_follow.go. Both followings are forwarding features of the
-	// standalone product: they move a client's agent and display into panes, and
-	// a workspace host is one process with one environment for its own panes.
-	// A local-only daemon neither follows nor sweeps, since it never made a link.
-	if !d.localOnly() {
-		d.startSSHAgent()
-		d.startDisplayFollow()
+		// The stash root is cleared before anything is served. A daemon that was
+		// killed rather than stopped could not delete its own stashed files, so this
+		// is where they go. A restored session does not get its old stash back, for
+		// the same reason it does not get its old mail: its panes are new processes.
+		d.stash.sweep()
+		// ssh agent links a killed daemon left go before a session is restored.
+		// See ssh_agent_follow.go. Both followings are forwarding features of the
+		// standalone product: they move a client's agent and display into panes, and
+		// a workspace host is one process with one environment for its own panes.
+		// A local-only daemon neither follows nor sweeps, since it never made a link.
+		if !d.localOnly() {
+			d.startSSHAgent()
+			d.startDisplayFollow()
+		}
+		// Pasted images a killed daemon left behind go once they are past their
+		// TTL. A standalone client may share the directory, so only expired
+		// ones are taken.
+		d.pastes.sweep()
 	}
-	// Pasted images a killed daemon left behind go once they are past their
-	// TTL. A standalone client may share the directory, so only expired
-	// ones are taken.
-	d.pastes.sweep()
 
 	// Restore sessions saved before the previous shutdown/crash before we start
 	// accepting clients, so an attach immediately after start finds them. Runs
 	// synchronously; a single corrupt file is archived and skipped, never fatal.
-	d.dropHistoryWhenOff()
+	if d.deferLocalMaintenance && d.localOnly() {
+		go d.backgroundDropHistory()
+	} else {
+		phase := time.Now()
+		d.dropHistoryWhenOff()
+		d.logLine(DebugBasic, "startup: history cleanup %s", time.Since(phase))
+	}
 	if !d.disableAutoRestore {
+		phase := time.Now()
 		d.restoreAllSessions()
+		d.logLine(DebugBasic, "startup: restore sessions %s", time.Since(phase))
 	}
 
 	// The Inbox comes back after the sessions do, since what it keeps is
 	// decided by which sessions and panes came back.
+	phase := time.Now()
 	d.attention.load(d.stateRoot.attentionPath(), d.attentionLive)
+	d.logLine(DebugBasic, "startup: attention.load %s", time.Since(phase))
 	// A default that widened while the daemon was down is said now, when
 	// the Inbox can show it.
 	d.checkGrantsSinceLastRun()
@@ -1639,14 +1691,19 @@ func (d *Daemon) Start() error {
 	d.noteHostProblems(d.configProblems())
 	// Mail still waiting for another machine comes back with its Inbox items,
 	// and goes when that machine's link comes up.
+	phase = time.Now()
 	d.outbox.load(d.stateRoot.outboxPath())
+	d.logLine(DebugBasic, "startup: outbox.load %s", time.Since(phase))
 	// Review notes come back for the panes that came back.
+	phase = time.Now()
 	d.reviewNotes.load(d.stateRoot.reviewNotesPath(), func(window string) bool { return d.sessionOfWindow(window) != "" })
+	d.logLine(DebugBasic, "startup: reviewNotes.load %s", time.Since(phase))
 
 	// The resume offers the restore found are opened only now, after the saved
 	// Inbox items took their ids, so an offer never shares an id with one.
 	d.applyResumeOffers(d.pendingResumes)
 	d.pendingResumes = nil
+	d.logLine(DebugBasic, "startup: daemon.Start total %s", time.Since(startupAt))
 
 	// Everything below is the standalone product around the core, and a
 	// local-only daemon starts none of it. Each one is a supervisor, a follower

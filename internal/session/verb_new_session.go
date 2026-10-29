@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"time"
 )
 
 // new-session creates a session from the control surface.
@@ -94,6 +95,7 @@ func (d *Daemon) verbNewSession(cs *connState, params json.RawMessage) (any, *ve
 	}
 	cfg := callerSessionConfig(cs)
 	cfg.Space = space
+	createAt := time.Now()
 	sess, err := d.manager.CreateSession(name, cfg, width, height)
 	if err != nil {
 		// The name check above is racy by nature, so the manager's own refusal
@@ -108,6 +110,7 @@ func (d *Daemon) verbNewSession(cs *connState, params json.RawMessage) (any, *ve
 		}
 		return nil, newVerbError(ErrVerbInternal, "could not create the session: "+err.Error())
 	}
+	d.logLine(DebugBasic, "startup: new-session CreateSession %s", time.Since(createAt))
 
 	// The directory is the session's, not only its first window's: a window
 	// opened in it later with nothing to inherit starts there too.
@@ -132,6 +135,7 @@ func (d *Daemon) verbNewSession(cs *connState, params json.RawMessage) (any, *ve
 
 	sessionID := sess.ID
 	onExit := func(ptyID string) { d.notifyPTYClosed(sessionID, ptyID) }
+	windowAt := time.Now()
 	win, bverr, err := d.addWindowFor(cs, "new-session", sess, NewWindowOptions{
 		Title:     p.WindowName,
 		Name:      p.WindowName,
@@ -150,6 +154,7 @@ func (d *Daemon) verbNewSession(cs *connState, params json.RawMessage) (any, *ve
 		return nil, newVerbError(ErrVerbInternal,
 			"the session was created but its first window could not start: "+err.Error())
 	}
+	d.logLine(DebugBasic, "startup: new-session first window %s", time.Since(windowAt))
 
 	displayName := win.Title
 	if p.WindowName != "" {

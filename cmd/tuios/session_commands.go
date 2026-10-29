@@ -377,7 +377,8 @@ func runDaemonSessionOn(host, sessionName string, createNew bool) error {
 	// Written first, so it has reached any pane it is going to reach by the
 	// time the attach arrives. See session/nest_probe.go.
 	var probe session.NestProbe
-	if host == "" && session.NestProbeSafe(os.Getenv("TERM")) {
+	if host == "" && os.Getenv("SSH_CONNECTION") == "" && os.Getenv("SSH_TTY") == "" &&
+		session.NestProbeSafe(os.Getenv("TERM")) {
 		probe = session.WriteNestProbe(os.Stdout)
 	}
 

@@ -304,6 +304,9 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 	defer runScope.close()
+	trace := beginStartupTrace(runScope.stateDir)
+	defer trace.close()
+	trace.mark("scope.open")
 
 	// Written before the attach, so it has reached any pane it is going to
 	// reach by the time the attach arrives. A workspace drawn inside a pane of
@@ -311,7 +314,7 @@ func Run(ctx context.Context, opts Options) error {
 	// see internal/session/nest_probe.go. A terminal that would print the
 	// sequence instead gets none (NestProbeSafe).
 	var probe session.NestProbe
-	if session.NestProbeSafe(os.Getenv("TERM")) {
+	if !sshTerminalEnvironment() && session.NestProbeSafe(os.Getenv("TERM")) {
 		probe = session.WriteNestProbe(out)
 	}
 
@@ -322,6 +325,7 @@ func Run(ctx context.Context, opts Options) error {
 	defer func() { config.Global = previousSettings }()
 
 	userConfig := loadAndApply(opts)
+	trace.mark("config.load")
 
 	app.SetInputHandler(input.HandleInput)
 	keybindRegistry := config.NewKeybindRegistry(userConfig)
@@ -342,9 +346,11 @@ func Run(ctx context.Context, opts Options) error {
 	}
 
 	clientCaps := app.ClientCapabilitiesOf(app.GetHostCapabilities())
+	trace.mark("capabilities")
 	if err := client.ConnectSocket(opts.Socket, opts.Version, width, height, clientCaps); err != nil {
 		return fmt.Errorf("workspace: %w", err)
 	}
+	trace.mark("socket.connect")
 
 	state, err := client.AttachSession(opts.Session, opts.CreateSession, width, height)
 	if err != nil {
@@ -352,6 +358,7 @@ func Run(ctx context.Context, opts Options) error {
 		return fmt.Errorf("workspace: attach to session %q: %w", opts.Session, err)
 	}
 	client.StartReadLoop()
+	trace.mark("session.attach")
 
 	prw := app.NewPostRenderWriter(out)
 	initialOS := app.NewOS(app.OSOptions{
@@ -380,10 +387,12 @@ func Run(ctx context.Context, opts Options) error {
 	initialOS.PostRenderWriter = prw
 	// Sixel images follow the frame they sit on, in the same write.
 	initialOS.ConnectFrameWriter(prw)
+	trace.mark("model.build")
 
 	// Everything the daemon sends an attached client, queued for Update.
 	initialOS.WireDaemonClient(client)
 	initialOS.RestoreAttachedSession(state)
+	trace.mark("model.restore")
 
 	// The shared list, then the one option that is this transport's: the
 	// writer every frame and every graphics sequence serializes on. A client
@@ -394,6 +403,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	p := tea.NewProgram(initialOS, programOptions...)
 	initialOS.BindProgram(p)
+	trace.mark("program.new")
 
 	stopSignals := func() {}
 	if !opts.DisableSignalHandling {
@@ -418,8 +428,10 @@ func Run(ctx context.Context, opts Options) error {
 
 	// See withoutHardTabs: tmux drops the background under a tab.
 	restoreTabs := withoutHardTabs(in)
+	trace.mark("program.run")
 	finalModel, runErr := p.Run()
 	restoreTabs()
+	trace.mark("program.exit")
 
 	reason := app.ExitNormal
 	// The client may have switched sessions since it attached, so the name to
@@ -465,6 +477,14 @@ func Run(ctx context.Context, opts Options) error {
 		return ctx.Err()
 	}
 	return exitResult(exitSession, reason)
+}
+
+// sshTerminalEnvironment reports a local process whose terminal is reached
+// over OpenSSH. The reduced SSH renderer already uses this same rule; here it
+// also suppresses the nest probe, which would otherwise write a query the
+// remote terminal answers after the client has stopped reading.
+func sshTerminalEnvironment() bool {
+	return os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != ""
 }
 
 // exitResult is the reason the client stopped, as an error for the ones that

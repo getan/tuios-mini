@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/getan/tuios-mini/internal/worktree"
 	"github.com/google/uuid"
@@ -277,6 +278,9 @@ type NewWindowOptions struct {
 	// WindowState.Kind. With no Command, its program is the placeholder.
 	Kind string
 	URI  string
+	// trace receives the phases of a daemon-created window. It is set by
+	// addWindowFor for the daemon's startup log; a client restore leaves it nil.
+	trace func(string, time.Duration)
 }
 
 // WindowKinds are the kinds a window can be. Empty is "terminal".
@@ -295,6 +299,10 @@ func PlaceholderCommand(kind, uri string) []string {
 // window created on the current workspace and moved is visible on the wrong
 // workspace for as long as the two calls take, which an attached client renders.
 func (s *Session) AddDaemonWindowWith(opts NewWindowOptions, onExit func(ptyID string)) (WindowState, error) {
+	totalAt := time.Now()
+	if opts.trace != nil {
+		defer func() { opts.trace("window.total", time.Since(totalAt)) }()
+	}
 	if opts.Kind == "terminal" {
 		opts.Kind = ""
 	}
@@ -401,6 +409,7 @@ func (s *Session) AddDaemonWindowWith(opts NewWindowOptions, onExit func(ptyID s
 		}
 	}
 
+	ptyAt := time.Now()
 	pty, err := s.createPTY(ptyWidth, ptyHeight, ptySpawn{
 		windowID: windowID, cwd: cwd, command: opts.Command, env: opts.Env, host: opts.Host,
 		onExit: onExit, stdout: opts.stdout, extraFiles: opts.extraFiles, grants: opts.Grants, keepOpen: opts.keepOpen,
@@ -408,6 +417,9 @@ func (s *Session) AddDaemonWindowWith(opts NewWindowOptions, onExit func(ptyID s
 	})
 	if err != nil {
 		return WindowState{}, err
+	}
+	if opts.trace != nil {
+		opts.trace("window.pty", time.Since(ptyAt))
 	}
 	if windowSpawnedHook != nil {
 		windowSpawnedHook(pty)
@@ -420,6 +432,7 @@ func (s *Session) AddDaemonWindowWith(opts NewWindowOptions, onExit func(ptyID s
 	first := len(s.GetState().Windows) == 0
 	var detected *WorktreeInfo
 	if first {
+		worktreeAt := time.Now()
 		detectIn := cwd
 		if detectIn == "" {
 			detectIn, _ = pty.ProcessCwd()
@@ -427,9 +440,13 @@ func (s *Session) AddDaemonWindowWith(opts NewWindowOptions, onExit func(ptyID s
 		if info, ok := worktree.Detect(detectIn); ok {
 			detected = &WorktreeInfo{Info: info}
 		}
+		if opts.trace != nil {
+			opts.trace("window.worktree", time.Since(worktreeAt))
+		}
 	}
 
 	var win WindowState
+	stateAt := time.Now()
 	err = s.mutateState(func(state *SessionState) error {
 		// One scratch terminal per session, checked under the state lock so
 		// two calls that race cannot both add one.
@@ -537,6 +554,9 @@ func (s *Session) AddDaemonWindowWith(opts NewWindowOptions, onExit func(ptyID s
 		}
 		return nil
 	})
+	if opts.trace != nil {
+		opts.trace("window.state", time.Since(stateAt))
+	}
 	markAdded()
 	if err != nil {
 		// The shell started for a window that was refused has no owner.

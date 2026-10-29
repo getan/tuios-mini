@@ -182,7 +182,14 @@ func NewOS(opts OSOptions) *OS {
 	// next client to connect.
 	caps := opts.Caps
 	if caps == nil {
-		caps = GetHostCapabilities()
+		if reducedSSHClient(opts) {
+			// The reduced SSH renderer is text-only. Asking the host terminal
+			// what it can do costs a round trip before the first frame, and a
+			// late answer is exactly what ends up in the shell after exit.
+			caps = PassiveHostCapabilities()
+		} else {
+			caps = GetHostCapabilities()
+		}
 	}
 
 	// The appearance seed for this session. Nil means the process globals; a

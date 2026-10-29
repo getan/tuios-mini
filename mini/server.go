@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/getan/tuios-mini/internal/config"
 	"github.com/getan/tuios-mini/internal/guestenv"
@@ -279,6 +280,10 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 		dc.LogSink = log.write
 	}
 	dc.DisableAutoRestore = true
+	// A workspace reached over SSH starts its cleanup after the first frame.
+	// The sweeps walk the state root, which may be a network home; none of them
+	// is needed to create the session or draw it.
+	dc.DeferLocalMaintenance = sshTerminalEnvironment()
 	dc.DisableSignalHandling = true
 	dc.PreferredShell = cfg.Shell
 	if cfg.StopWhenEmpty {
@@ -295,17 +300,23 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	dc.HerdrProtocol = config.HerdrProtocolOff
 
 	daemon := session.NewDaemon(dc)
+	startupAt := time.Now()
 	if err := daemon.Start(); err != nil {
 		s.closeLog()
 		return nil, fmt.Errorf("mini: start daemon: %w", err)
 	}
 	s.daemon = daemon
 	if log != nil {
+		log.write("info", fmt.Sprintf("startup: daemon.Start %s", time.Since(startupAt)))
 		log.write("info", fmt.Sprintf("session %q requested on %s", cfg.Session, cfg.SocketPath))
 	}
+	createAt := time.Now()
 	if err := s.createSession(ctx, cfg); err != nil {
 		s.Stop()
 		return nil, err
+	}
+	if log != nil {
+		log.write("info", fmt.Sprintf("startup: createSession %s (total %s)", time.Since(createAt), time.Since(startupAt)))
 	}
 	// A cancel before the daemon finished starting still stops it: the select
 	// takes ctx.Done or the server's own Done, so a Stop from a caller returns
@@ -324,7 +335,12 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 // from false.
 func ptr[T any](v T) *T { return &v }
 
+func sshTerminalEnvironment() bool {
+	return os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != ""
+}
+
 func (s *Server) createSession(ctx context.Context, cfg Config) error {
+	dialAt := time.Now()
 	c, err := control.DialRetry(ctx, s.socket)
 	if err != nil {
 		if cerr := ctx.Err(); cerr != nil {
@@ -333,6 +349,9 @@ func (s *Server) createSession(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("mini: connect to the daemon on %s: %w", s.socket, err)
 	}
 	defer c.Close()
+	if s.log != nil {
+		s.log.write("info", fmt.Sprintf("startup: control dial %s", time.Since(dialAt)))
+	}
 	params := map[string]any{
 		"name": cfg.Session, "width": cfg.Width, "height": cfg.Height, "window": true,
 	}
@@ -342,12 +361,16 @@ func (s *Server) createSession(ctx context.Context, cfg Config) error {
 	if len(cfg.Command) > 0 {
 		params["command"] = cfg.Command
 	}
+	callAt := time.Now()
 	if _, err := c.Call(ctx, "new-session", params); err != nil {
 		var de *control.Error
 		if errors.As(err, &de) && de.Code == "session_exists" {
 			return nil
 		}
 		return fmt.Errorf("mini: create session %q: %w", cfg.Session, err)
+	}
+	if s.log != nil {
+		s.log.write("info", fmt.Sprintf("startup: new-session verb %s", time.Since(callAt)))
 	}
 	return nil
 }

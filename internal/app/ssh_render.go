@@ -51,6 +51,10 @@ func (m *OS) applyReducedRendering() {
 	s.DockPillCaps = false
 	s.HideClock = true
 	s.ShowClock, s.ShowCPU, s.ShowRAM = false, false, false
+	// Keep the rail's one-column marks, but only as the ASCII fallbacks below
+	// them: file icons are off, and UseASCIIOnly makes the folder, file and
+	// terminal glyphs the text set. Turning the glyph column off entirely would
+	// hide the only visible mark a file row has.
 	s.SidebarMarquee, s.SidebarShowGlyphs = false, true
 	s.SidebarFileIcons, s.SidebarFileIconColors = false, false
 	s.FocusFollowsMouse, s.ZoomAnimation = false, false

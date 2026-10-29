@@ -216,6 +216,7 @@ func (d *Daemon) addWindowFor(cs *connState, verb string, sess *Session, opts Ne
 		}
 		opts.Bounded, opts.Bound = bounded, bound
 	}
+	opts.trace = d.traceWindowStartup
 	win, err := sess.AddDaemonWindowWith(opts, onExit)
 	return win, nil, err
 }

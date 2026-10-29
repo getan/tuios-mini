@@ -131,6 +131,12 @@ func GetHostCapabilities() *HostCapabilities {
 	if caps := clientCapabilities.Load(); caps != nil {
 		return caps
 	}
+	// An SSH terminal gets the passive answer even on a path that did not
+	// reach NewOS first. The reduced renderer does not use graphics, and a
+	// query left in the tty is what a later shell reads as input.
+	if sshTerminalEnvironment() {
+		return PassiveHostCapabilities()
+	}
 	if caps := cachedCapabilities.Load(); caps != nil {
 		return caps
 	}
@@ -205,6 +211,25 @@ func DetectHostCapabilities() *HostCapabilities {
 		writeCapabilitiesDebug(caps)
 	}
 
+	return caps
+}
+
+// PassiveHostCapabilities is DetectHostCapabilities without the terminal
+// probe. It reads TERM, TERM_PROGRAM, COLORTERM and the window size, then
+// falls back to a text-only terminal.
+//
+// It is for a reduced SSH client: the probe opens /dev/tty, writes queries and
+// waits for an answer before the first frame. On a remote link that is both a
+// startup delay and a source of replies that arrive after the client has
+// stopped reading them. SSH does not need the answer to draw text, and the
+// reduced renderer does not use kitty or sixel graphics anyway.
+func PassiveHostCapabilities() *HostCapabilities {
+	caps := &HostCapabilities{Term: os.Getenv("TERM")}
+	detectTerminalName(caps)
+	detectTrueColor(caps)
+	queryTerminalSize(caps)
+	setDefaultCellSize(caps)
+	applyEnvironmentOverrides(caps)
 	return caps
 }
 
