@@ -12,6 +12,12 @@ import (
 
 func TestGitWatcherReportsAWorktreeWrite(t *testing.T) {
 	dir := t.TempDir()
+	// The Linux watcher asks git for the directory set; an empty directory
+	// outside a repository yields no watch at all. Make this a real worktree
+	// so the test exercises the same path a pane does.
+	if err := exec.Command("git", "init", "-q", dir).Run(); err != nil {
+		t.Skipf("git init unavailable: %v", err)
+	}
 	w, err := newGitWatcher(dir, 1)
 	if err != nil {
 		t.Skipf("no filesystem watcher here: %v", err)
