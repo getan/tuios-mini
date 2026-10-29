@@ -103,9 +103,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Run the mutator on a toolchain that carries the golang/go#75804 fix.
+      # Go 1.26 cancels fuzzing with a race that reports "-fuzztime" expiry as
+      # "context deadline exceeded" even when no input failed (the 2026-10-29
+      # run failed progstatus/FuzzParse at exactly 60.12s with an empty corpus
+      # artifact). The fix landed for 1.27 and is not yet in a 1.26 release.
+      # The module still supports its go.mod floor; only the CI fuzzer is newer.
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: "1.27.3"
           cache-dependency-path: |
             go.sum
             vt/go.sum
@@ -180,7 +186,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: "1.27.3" # golang/go#75804 fix; see the fuzz job above
           cache-dependency-path: |
             go.sum
             vt/go.sum

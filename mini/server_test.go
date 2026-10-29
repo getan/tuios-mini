@@ -92,6 +92,7 @@ type windowList struct {
 		DisplayName   string `json:"display_name"`
 		ForegroundCmd string `json:"foreground_cmd"`
 		AtPrompt      bool   `json:"at_prompt"`
+		CommandSeq    uint64 `json:"command_seq"`
 	} `json:"windows"`
 	FocusedWindowID string `json:"focused_window_id"`
 	Total           int    `json:"total"`
@@ -192,6 +193,15 @@ func TestMiniDaemonVerbs(t *testing.T) {
 	if !strings.Contains(content.Content, "HELLO-MINI") {
 		t.Fatalf("capture-pane = %q, want HELLO-MINI", content.Content)
 	}
+	// window-output also matches the command's own echo on the prompt line. The
+	// shell marks that echo prompt -> running only once it executes, so waiting
+	// for the prompt here could still see the pre-echo state and let run race the
+	// command-started mark (the -race job failed exactly that way). Wait for the
+	// command to finish first, then for the prompt that follows it.
+	call[waitResult](t, c, "wait-for", map[string]any{
+		"session": "work", "window": first, "condition": "command-finished",
+		"command_seq": wl.Windows[0].CommandSeq, "timeout": 5000,
+	})
 
 	waitAtPrompt(t, c, first)
 	ran := call[runResult](t, c, "run", map[string]any{
