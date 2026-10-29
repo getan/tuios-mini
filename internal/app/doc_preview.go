@@ -73,6 +73,10 @@ type docPreviewState struct {
 	body overlay.Rect
 	// gutter is the line-number column width of the last frame.
 	gutter int
+	// selecting is a drag that started on the document; selectAnchor is the
+	// byte offset it started at. The buffer owns the actual selection.
+	selecting    bool
+	selectAnchor int
 }
 
 // docOpenMsg is a finished read.
@@ -420,6 +424,7 @@ func (m *OS) DocPreviewContains(x, y int) bool {
 // DocPreviewClick places the caret on the clicked row and column.
 func (m *OS) DocPreviewClick(x, y int) {
 	d := &m.docPreview
+	d.selecting = false
 	if d.buf == nil || !m.DocPreviewContains(x, y) {
 		return
 	}
@@ -427,19 +432,78 @@ func (m *OS) DocPreviewClick(x, y int) {
 	if !d.body.Contains(x, y) {
 		return
 	}
-	line := d.scroll + (y - d.body.Y0)
-	lines := strings.Split(d.buf.Text(), "\n")
-	if line < 0 || line >= len(lines) {
+	pos, ok := m.docPreviewPos(x, y, false)
+	if !ok {
 		return
+	}
+	d.buf.SetCursor(pos)
+	d.selecting, d.selectAnchor = true, pos
+	d.edit = d.doc.Editable
+}
+
+// DocPreviewDrag extends the selection made by the press. The pointer may
+// leave the body while the button is still down; the endpoint is clamped to
+// the document, which is what a drag past the last line should select.
+func (m *OS) DocPreviewDrag(x, y int) bool {
+	d := &m.docPreview
+	if !d.open || !d.selecting || d.buf == nil {
+		return false
+	}
+	if pos, ok := m.docPreviewPos(x, y, true); ok {
+		d.buf.Select(d.selectAnchor, pos)
+	}
+	return true
+}
+
+// DocPreviewRelease finishes a drag and copies a non-empty selection. It
+// reports whether it consumed the release, so the input layer does not hand
+// the same button-up to a pane behind the sheet.
+func (m *OS) DocPreviewRelease(x, y int) (tea.Cmd, bool) {
+	d := &m.docPreview
+	if !d.selecting {
+		return nil, false
+	}
+	d.selecting = false
+	if d.buf == nil {
+		return nil, true
+	}
+	if pos, ok := m.docPreviewPos(x, y, true); ok {
+		d.buf.Select(d.selectAnchor, pos)
+	}
+	if d.buf.Collapsed() {
+		return nil, true
+	}
+	start, end := d.buf.Selection()
+	text := d.buf.Text()[start:end]
+	if text == "" {
+		return nil, true
+	}
+	return m.CopyToClipboard(text), true
+}
+
+// docPreviewPos maps a screen cell to a byte offset in the document. clamp
+// pulls a drag endpoint outside the body back to its nearest row and column.
+func (m *OS) docPreviewPos(x, y int, clamp bool) (int, bool) {
+	d := &m.docPreview
+	if d.buf == nil {
+		return 0, false
+	}
+	if !clamp && !d.body.Contains(x, y) {
+		return 0, false
+	}
+	lines := strings.Split(d.buf.Text(), "\n")
+	line := d.scroll + (y - d.body.Y0)
+	if clamp {
+		line = min(max(line, 0), max(len(lines)-1, 0))
+	} else if line < 0 || line >= len(lines) {
+		return 0, false
 	}
 	col := max(x-d.body.X0-d.gutter, 0)
 	off := 0
 	for i := 0; i < line; i++ {
 		off += len(lines[i]) + 1
 	}
-	pos := docByteAtColumn(lines[line], col)
-	d.buf.SetCursor(off + pos)
-	d.edit = d.doc.Editable
+	return off + docByteAtColumn(lines[line], col), true
 }
 
 // docByteAtColumn maps a display column to a byte offset in line, expanding

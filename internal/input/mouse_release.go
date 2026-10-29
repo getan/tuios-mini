@@ -58,6 +58,12 @@ func handleMouseRelease(msg tea.MouseReleaseMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// Reset pointer shape on release
 	o.ResetPointerShape()
 
+	// A document drag owns its release, even when the pointer left the sheet:
+	// the endpoint is clamped to the document and the selected text is copied.
+	if cmd, handled := o.DocPreviewRelease(msg.Mouse().X, msg.Mouse().Y); handled {
+		return o, cmd
+	}
+
 	// A rail session's tracked mouse click needs its matching release. The
 	// center pane must not receive a release for a press it never saw.
 	if mouse := msg.Mouse(); mouse.Button != tea.MouseRight {

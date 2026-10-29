@@ -157,6 +157,59 @@ func TestDocPreviewClickPlacesTheCaret(t *testing.T) {
 	}
 }
 
+func TestDocPreviewMouseDragSelectsAndCopies(t *testing.T) {
+	m, dir := previewOS(t)
+	writeFile(t, dir, "a.txt", "alpha\nbravo\ncharlie")
+	openPreview(t, m, dir, "a.txt", true)
+	m.GetCanvas(true)
+
+	d := &m.docPreview
+	x := d.body.X0 + d.gutter
+	y := d.body.Y0
+	m.DocPreviewClick(x, y)
+	if !d.selecting {
+		t.Fatal("the press did not start a document drag")
+	}
+	if !m.DocPreviewDrag(x+5, y) {
+		t.Fatal("the motion did not extend the document selection")
+	}
+	cmd, handled := m.DocPreviewRelease(x+5, y)
+	if !handled {
+		t.Fatal("the release was not consumed by the document drag")
+	}
+	if d.selecting {
+		t.Fatal("the document drag stayed active after release")
+	}
+	start, end := d.buf.Selection()
+	if got, want := d.buf.Text()[start:end], "alpha"; got != want {
+		t.Fatalf("selected %q, want %q", got, want)
+	}
+	if cmd == nil {
+		t.Fatal("a non-empty selection produced no clipboard command")
+	}
+}
+
+func TestDocPreviewClickWithoutDragCopiesNothing(t *testing.T) {
+	m, dir := previewOS(t)
+	writeFile(t, dir, "a.txt", "alpha")
+	openPreview(t, m, dir, "a.txt", false)
+	m.GetCanvas(true)
+
+	d := &m.docPreview
+	x, y := d.body.X0+d.gutter, d.body.Y0
+	m.DocPreviewClick(x, y)
+	cmd, handled := m.DocPreviewRelease(x, y)
+	if !handled {
+		t.Fatal("the release was not consumed")
+	}
+	if cmd != nil {
+		t.Fatal("a plain click copied something")
+	}
+	if !d.buf.Collapsed() {
+		t.Fatal("a plain click left a selection")
+	}
+}
+
 func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 	m, dir := previewOS(t)
 	writeFile(t, dir, "new.txt", "fresh")

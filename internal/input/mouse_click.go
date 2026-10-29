@@ -68,7 +68,9 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// not, so the rail's own rows keep working while the sheet is up. Overlay
 	// panels above it were asked first.
 	if o.DocPreviewOpen() && o.DocPreviewContains(X, Y) {
-		o.DocPreviewClick(X, Y)
+		if msg.Button == tea.MouseLeft {
+			o.DocPreviewClick(X, Y)
+		}
 		return o, nil
 	}
 
