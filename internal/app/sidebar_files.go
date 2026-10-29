@@ -148,8 +148,8 @@ const fileRetryInterval = time.Second
 // stalling the loop. It is about memory and about the answer being useful: a
 // build tree, a node_modules or a maildir can hold six figures of names, the
 // rail can show about thirty at a time, and every name past the cap is one
-// nobody scrolls to.
-const fileViewMaxEntries = 2000
+// nobody scrolls to. The read is one directory, never a recursive walk.
+const fileViewMaxEntries = 500
 
 // fileListMsg is one finished directory read on its way back to the loop.
 type fileListMsg struct {

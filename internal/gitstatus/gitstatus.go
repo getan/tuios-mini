@@ -93,8 +93,13 @@ func Read(ctx context.Context, dir string) Status {
 	ctx, cancel := context.WithTimeout(ctx, ReadTimeout)
 	defer cancel()
 	// A background observation must not take index.lock to refresh stat data.
+	// normal, not all: an untracked directory is one entry instead of a walk
+	// through every file below it. A workspace whose pane starts in a large
+	// home or scratch tree must not enumerate that tree just to refresh the
+	// rail. Tracked paths and untracked files at the directory's own level are
+	// still reported.
 	cmd := exec.CommandContext(ctx, "git", "--no-optional-locks", "-C", root, "status",
-		"--porcelain=v1", "-z", "--branch", "--untracked-files=all", "--renames")
+		"--porcelain=v1", "-z", "--branch", "--untracked-files=normal", "--renames")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

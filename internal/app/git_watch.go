@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -13,6 +14,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/fsnotify/fsnotify"
 )
+
+// gitWatchListTimeout bounds the one `git ls-files` a watcher creation runs.
+// A repository on a slow or enormous tree must not spend that time; the timed
+// status read remains the fallback.
+const gitWatchListTimeout = 3 * time.Second
 
 // The Git tab used to ask git again every two seconds while it was visible.
 // This watches the repository instead: an edit, a stage, a commit or a branch
@@ -201,13 +207,13 @@ func (w *gitWatcher) debounce(raw <-chan struct{}) bool {
 func addGitWatchTree(fw *fsnotify.Watcher, root string) {
 	addGitMetaFromWorktree(fw, root)
 	dirs, err := gitWatchDirs(root)
-	if err == nil {
-		addGitWatchDirs(fw, dirs)
+	if err != nil {
+		// git could not list the tree in time (or is absent). Do not fall back
+		// to a recursive WalkDir: a home or scratch tree with six figures of
+		// files is exactly what this guard exists for. The timed read remains.
 		return
 	}
-	// git itself is the fallback's only source of truth about what is ignored.
-	// Without it, walk the tree with the small skip list above.
-	walkGitWatchTree(fw, root)
+	addGitWatchDirs(fw, dirs)
 }
 
 // addGitMetaFromWorktree adds the gitdir and refs watches and skips `.git` in
@@ -237,7 +243,9 @@ func addGitMetaFromWorktree(fw *fsnotify.Watcher, root string) {
 // collapses an untracked tree to its top. Each file contributes its parent and
 // every ancestor so a change anywhere in a tracked tree is seen.
 func gitWatchDirs(root string) ([]string, error) {
-	cmd := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--directory")
+	ctx, cancel := context.WithTimeout(context.Background(), gitWatchListTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--directory")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -308,31 +316,6 @@ func addGitWatchDirs(fw *fsnotify.Watcher, dirs []string) {
 		_ = fw.Add(dir)
 		added++
 	}
-}
-
-// walkGitWatchTree is the fallback when git cannot list the repository: a
-// bounded walk that skips the known event-storm directories.
-func walkGitWatchTree(fw *fsnotify.Watcher, root string) {
-	added := 0
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || !d.IsDir() {
-			return nil
-		}
-		if path != root {
-			if d.Name() == ".git" {
-				return fs.SkipDir
-			}
-			if gitWatchSkip[d.Name()] {
-				return fs.SkipDir
-			}
-		}
-		if added >= gitWatchMaxDirs {
-			return fs.SkipAll
-		}
-		_ = fw.Add(path)
-		added++
-		return nil
-	})
 }
 
 // addGitMetaWatches watches the paths a stage, commit or branch move rewrites.
