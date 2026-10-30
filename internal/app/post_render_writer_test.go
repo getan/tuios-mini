@@ -69,3 +69,18 @@ func TestPostRenderWriterDoesNotNestBrackets(t *testing.T) {
 		t.Errorf("synchronized update closed %d times, want 1: %q", n, got)
 	}
 }
+
+func TestPostRenderWriterDropsTheKittyCapabilityQueryWhenAsked(t *testing.T) {
+	w, read := writerToFile(t)
+	w.SetFilterKittyQuery(true)
+	if _, err := w.Write([]byte("\x1b[?uFRAME")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got := read()
+	if strings.Contains(got, "\x1b[?u") {
+		t.Fatalf("Kitty query reached the host: %q", got)
+	}
+	if !strings.Contains(got, "FRAME") {
+		t.Fatalf("the frame was lost: %q", got)
+	}
+}

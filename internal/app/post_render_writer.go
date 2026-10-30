@@ -29,6 +29,10 @@ type PostRenderWriter struct {
 	*os.File
 	mu      sync.Mutex
 	pending []byte
+	// filterKittyQuery drops the CSI ? u host capability query. SSH terminals
+	// can answer it after the client has stopped reading, leaving the reply in
+	// the shell as text; the workspace turns this off for its remote terminal.
+	filterKittyQuery bool
 	// frameHook returns output that must follow each frame: the sixel
 	// images drawn on it. It runs only for the renderer's writes, not for
 	// WriteHost, because it answers for the frame being written. See
@@ -46,6 +50,15 @@ func (w *PostRenderWriter) SetFrameHook(fn func(frame []byte) []byte) {
 
 func NewPostRenderWriter(f *os.File) *PostRenderWriter {
 	return &PostRenderWriter{File: f}
+}
+
+// SetFilterKittyQuery drops Bubble Tea's Kitty keyboard capability query from
+// host output. It is used for SSH sessions, where the reply can outlive the
+// client's input reader and be printed by the shell.
+func (w *PostRenderWriter) SetFilterKittyQuery(on bool) {
+	w.mu.Lock()
+	w.filterKittyQuery = on
+	w.mu.Unlock()
 }
 
 // frameSyncBegin and frameSyncEnd bracket a synchronized update (DEC private
@@ -87,6 +100,10 @@ func (w *PostRenderWriter) write(p []byte, frame bool) (n int, err error) {
 
 	pending := w.pending
 	w.pending = nil
+	if w.filterKittyQuery {
+		p = bytes.ReplaceAll(p, []byte("\x1b[?u"), nil)
+		pending = bytes.ReplaceAll(pending, []byte("\x1b[?u"), nil)
+	}
 	if frame && w.frameHook != nil {
 		if after := w.frameHook(p); len(after) > 0 {
 			pending = append(pending, after...)
