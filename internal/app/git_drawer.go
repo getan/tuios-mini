@@ -23,6 +23,9 @@ type gitDrawerState struct {
 	scroll   int
 	loading  bool
 	err      string
+	// parent is the commits list a commit detail was opened from. Esc on the
+	// detail restores this state without asking the daemon for the list again.
+	parent *gitDrawerState
 }
 
 // gitHistoryMsg is one drawer's answer. Gen drops an answer for a drawer the
@@ -118,6 +121,8 @@ func gitDrawerTitle(kind review.HistoryKind) string {
 		return "file history"
 	case review.HistoryRepos:
 		return "repositories"
+	case review.HistoryCommit:
+		return "commit"
 	}
 	return "git"
 }
@@ -150,14 +155,29 @@ func (m *OS) GitDrawerEdge(last bool) {
 
 // GitDrawerClose closes the drawer and invalidates an answer still in flight.
 func (m *OS) GitDrawerClose() {
+	if parent := m.gitDrawer.parent; parent != nil {
+		m.gitDrawer = *parent
+		return
+	}
 	m.gitDrawer = gitDrawerState{gen: m.gitDrawer.gen + 1}
 }
 
-// GitDrawerActivate chooses a repository row: it focuses a pane showing that
-// repository, so the Git tab reads it next. The other drawers are read-only.
+// GitDrawerActivate chooses a repository row, or opens the commit under the
+// cursor. The commit detail is fetched only after this explicit choice, so a
+// long commits list never pays for patches nobody asked to read.
 func (m *OS) GitDrawerActivate() tea.Cmd {
 	d := &m.gitDrawer
-	if d.kind != review.HistoryRepos || d.selected < 0 || d.selected >= len(d.rows) {
+	if d.selected < 0 || d.selected >= len(d.rows) {
+		return nil
+	}
+	if d.kind == review.HistoryCommits {
+		fields := strings.Fields(d.rows[d.selected])
+		if len(fields) == 0 {
+			return nil
+		}
+		return m.openGitCommitDetail(fields[0])
+	}
+	if d.kind != review.HistoryRepos {
 		return nil
 	}
 	parts := strings.Split(d.rows[d.selected], "\t")
@@ -171,6 +191,39 @@ func (m *OS) GitDrawerActivate() tea.Cmd {
 	m.FocusWindow(idx)
 	m.GitDrawerClose()
 	return m.GitStatusSyncCmd()
+}
+
+func (m *OS) openGitCommitDetail(ref string) tea.Cmd {
+	origin := m.gitStatus.Origin
+	if origin.Session == "" {
+		return nil
+	}
+	parent := m.gitDrawer
+	m.gitDrawer.gen++
+	gen := m.gitDrawer.gen
+	m.gitDrawer = gitDrawerState{
+		open: true, gen: gen, kind: review.HistoryCommit,
+		title: "commit " + ref, loading: true, parent: &parent,
+	}
+	call := m.inboxCaller()
+	params := map[string]any{
+		"session": origin.Session, "window": origin.Window,
+		"kind": string(review.HistoryCommit), "ref": ref, "limit": 500,
+	}
+	return func() tea.Msg {
+		raw, err := call("review-history", params, 15*time.Second)
+		if err != nil {
+			return gitHistoryMsg{Gen: gen, Err: err.Error()}
+		}
+		var res struct {
+			Title string   `json:"title"`
+			Rows  []string `json:"rows"`
+		}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			return gitHistoryMsg{Gen: gen, Err: err.Error()}
+		}
+		return gitHistoryMsg{Gen: gen, Title: res.Title, Rows: res.Rows}
+	}
 }
 
 func gitDrawerVisibleRows() int { return 20 }

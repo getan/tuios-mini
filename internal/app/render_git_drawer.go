@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/getan/tuios-mini/internal/overlay"
+	"github.com/getan/tuios-mini/internal/review"
 	"github.com/getan/tuios-mini/internal/theme"
 )
 
@@ -34,7 +35,7 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		end := min(d.scroll+visible, len(d.rows))
 		for i := d.scroll; i < end; i++ {
 			line := d.rows[i]
-			if d.kind == "repos" || strings.Contains(line, "\t") {
+			if d.kind == review.HistoryRepos {
 				line = strings.SplitN(line, "\t", 2)[0]
 			}
 			marker := "  "
@@ -52,8 +53,14 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		{Key: "j/k", Label: "move"},
 		{Key: "esc/ctrl+c", Label: "close"},
 	}
-	if d.kind == "repos" {
+	if d.kind == review.HistoryCommits {
+		hints = append([]overlay.Hint{{Key: "enter", Label: "open"}}, hints...)
+	}
+	if d.kind == review.HistoryRepos {
 		hints = append([]overlay.Hint{{Key: "enter", Label: "focus pane"}}, hints...)
+	}
+	if d.kind == review.HistoryCommit {
+		hints[len(hints)-1].Label = "back"
 	}
 	content, geo := overlay.Dialog{
 		Title: "git · " + d.title,

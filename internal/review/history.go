@@ -20,6 +20,7 @@ const (
 	HistoryRemotes  HistoryKind = "remotes"
 	HistoryFile     HistoryKind = "file"
 	HistoryRepos    HistoryKind = "repos"
+	HistoryCommit   HistoryKind = "commit"
 )
 
 // HistoryResult is one drawer's rows, already formatted for the overlay.
@@ -71,6 +72,9 @@ func History(ctx context.Context, dir string, kind HistoryKind, path string, lim
 	if err != nil {
 		return HistoryResult{}, err
 	}
+	if kind == HistoryRemotes {
+		return HistoryResult{Kind: kind, Title: title, Rows: remoteRows(out, limit)}, nil
+	}
 	rows := make([]string, 0, limit)
 	for _, line := range strings.Split(out, "\n") {
 		if line = strings.TrimRight(line, "\r"); line != "" {
@@ -81,6 +85,72 @@ func History(ctx context.Context, dir string, kind HistoryKind, path string, lim
 		}
 	}
 	return HistoryResult{Kind: kind, Title: title, Rows: rows}, nil
+}
+
+// CommitDetail reads one commit only after the person asks for it. The list
+// drawer carries just the short hash; the patch, stat and message are fetched
+// here on the second-level open, never while the commits drawer is loading.
+func CommitDetail(ctx context.Context, dir, ref string, limit int) (HistoryResult, error) {
+	if err := ValidRef(ref); err != nil {
+		return HistoryResult{}, err
+	}
+	if limit < 1 || limit > 500 {
+		limit = 500
+	}
+	out, err := git(ctx, dir, nil,
+		"show", "--no-color", "--date=short", "--decorate=short",
+		"--format=commit %H%nAuthor: %an <%ae>%nDate:   %ad%n%n    %s%n",
+		"--stat", "--patch", "--find-renames", ref,
+	)
+	if err != nil {
+		return HistoryResult{}, err
+	}
+	rows := make([]string, 0, limit)
+	for _, line := range strings.Split(out, "\n") {
+		if line = strings.TrimRight(line, "\r"); line != "" {
+			rows = append(rows, line)
+		}
+		if len(rows) >= limit {
+			break
+		}
+	}
+	title := "commit " + ref
+	if len(title) > 20 {
+		title = title[:20]
+	}
+	return HistoryResult{Kind: HistoryCommit, Title: title, Rows: rows}, nil
+}
+
+// remoteRows turns `git remote -v` into one row per name and URL. Git prints
+// fetch and push separately, which made the drawer show "origin" twice; the
+// address is the useful part, and a remote whose push URL differs keeps both
+// addresses with the direction that uses each one.
+func remoteRows(out string, limit int) []string {
+	rows := make([]string, 0, 4)
+	seen := map[string]bool{}
+	named := map[string]bool{}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(strings.TrimRight(line, "\r"))
+		if len(fields) < 2 {
+			continue
+		}
+		name, address := fields[0], fields[1]
+		key := name + "\x00" + address
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		row := name + "  " + address
+		if named[name] && len(fields) > 2 {
+			row += " (" + strings.Trim(fields[2], "()") + ")"
+		}
+		named[name] = true
+		rows = append(rows, row)
+		if len(rows) >= limit {
+			break
+		}
+	}
+	return rows
 }
 
 // TopLevel is the repository root a directory is inside, or an error when it

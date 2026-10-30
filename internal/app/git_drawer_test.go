@@ -47,3 +47,26 @@ func TestGitDrawerVisibleRowsStayInTheWindow(t *testing.T) {
 		t.Fatalf("scroll %d did not follow the selection", m.gitDrawer.scroll)
 	}
 }
+
+func TestGitDrawerCommitOpensALazyDetail(t *testing.T) {
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+	m.gitStatus.Origin.Session = "session"
+	m.gitDrawer = gitDrawerState{
+		open: true, kind: review.HistoryCommits,
+		rows: []string{"abc123 2026-10-30 Author subject"},
+	}
+	m.GitDrawerActivate()
+	if m.gitDrawer.kind != review.HistoryCommit || !m.gitDrawer.loading {
+		t.Fatalf("drawer = %#v, want a loading commit detail", m.gitDrawer)
+	}
+	if len(m.gitDrawer.rows) != 0 {
+		t.Fatalf("commit rows were fetched before the detail opened: %#v", m.gitDrawer.rows)
+	}
+	if m.gitDrawer.parent == nil || m.gitDrawer.parent.kind != review.HistoryCommits {
+		t.Fatal("the commits list was not kept as the detail's parent")
+	}
+	m.GitDrawerClose()
+	if m.gitDrawer.kind != review.HistoryCommits || len(m.gitDrawer.rows) != 1 {
+		t.Fatalf("closing the detail lost the commits list: %#v", m.gitDrawer)
+	}
+}

@@ -14,6 +14,7 @@ type reviewHistoryParams struct {
 	Window  string `json:"window"`
 	Kind    string `json:"kind"`
 	Path    string `json:"path"`
+	Ref     string `json:"ref"`
 	Limit   int    `json:"limit"`
 }
 
@@ -41,6 +42,17 @@ func (d *Daemon) verbReviewHistory(cs *connState, params json.RawMessage) (any, 
 	}
 	ctx, cancel := context.WithTimeout(d.ctx, 15*time.Second)
 	defer cancel()
+	if kind == review.HistoryCommit {
+		res, err := review.CommitDetail(ctx, repo.root, p.Ref, p.Limit)
+		if err != nil {
+			return nil, hintedVerbError(ErrVerbGitFailed, err.Error(), &VerbHint{
+				Detail: "Nothing was changed. The drawer is read-only.",
+			})
+		}
+		return map[string]any{
+			"type": "review_history", "kind": res.Kind, "title": res.Title, "rows": res.Rows,
+		}, nil
+	}
 	res, err := review.History(ctx, repo.root, kind, p.Path, p.Limit)
 	if err != nil {
 		return nil, hintedVerbError(ErrVerbGitFailed, err.Error(), &VerbHint{
