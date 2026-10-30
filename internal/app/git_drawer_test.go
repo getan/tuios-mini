@@ -96,3 +96,19 @@ func TestGitDrawerDetailKinds(t *testing.T) {
 		})
 	}
 }
+
+func TestGitHistoryOriginFollowsTheFocusedPane(t *testing.T) {
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+	m.SessionName = "session"
+	m.CurrentWorkspace = 1
+	m.Windows = []*terminal.Window{
+		{ID: "old", Workspace: 1, Cwd: "/old"},
+		{ID: "current", Workspace: 1, Cwd: "/current"},
+	}
+	m.FocusedWindow = 1
+	m.gitStatus.Origin = gitStatusOrigin{Session: "session", Window: "old", Dir: "/old"}
+	origin, ok := m.gitHistoryOrigin()
+	if !ok || origin.Window != "current" || origin.Dir != "/current" {
+		t.Fatalf("history origin = %#v, %v; want the focused pane", origin, ok)
+	}
+}

@@ -23,6 +23,9 @@ type gitDrawerState struct {
 	scroll   int
 	loading  bool
 	err      string
+	// origin is the pane the history request was opened for. A status refresh
+	// after a focus change must not retarget a detail opened from this drawer.
+	origin gitStatusOrigin
 	// parent is the commits list a commit detail was opened from. Esc on the
 	// detail restores this state without asking the daemon for the list again.
 	parent *gitDrawerState
@@ -60,8 +63,8 @@ func (m *OS) SidebarGitHistory(kind review.HistoryKind) tea.Cmd {
 	if !m.GitTabActive() {
 		return nil
 	}
-	origin := m.gitStatus.Origin
-	if origin.Session == "" {
+	origin, ok := m.gitHistoryOrigin()
+	if !ok || origin.Session == "" {
 		m.ShowNotification("No repository to read yet.", "info", m.Settings.NotificationDuration)
 		return nil
 	}
@@ -77,7 +80,7 @@ func (m *OS) SidebarGitHistory(kind review.HistoryKind) tea.Cmd {
 	m.gitDrawer.gen++
 	gen := m.gitDrawer.gen
 	m.gitDrawer = gitDrawerState{
-		open: true, gen: gen, kind: kind, title: gitDrawerTitle(kind), loading: true,
+		open: true, gen: gen, kind: kind, title: gitDrawerTitle(kind), loading: true, origin: origin,
 	}
 	call := m.inboxCaller()
 	params := map[string]any{
@@ -198,7 +201,10 @@ func (m *OS) GitDrawerActivate() tea.Cmd {
 }
 
 func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
-	origin := m.gitStatus.Origin
+	origin := m.gitDrawer.origin
+	if origin.Session == "" {
+		origin = m.gitStatus.Origin
+	}
 	if origin.Session == "" {
 		return nil
 	}
@@ -228,6 +234,22 @@ func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 		}
 		return gitHistoryMsg{Gen: gen, Title: res.Title, Rows: res.Rows}
 	}
+}
+
+// gitHistoryOrigin is the pane the Git tab is about right now. gitStatus.Origin
+// is the pane of the last completed status read, so it lags a focus move and
+// can still name a pane that is not in a repository. The focused window is the
+// same identity the status read is about to ask for, and the daemon resolves
+// the repository from that window.
+func (m *OS) gitHistoryOrigin() (gitStatusOrigin, bool) {
+	w := m.GetFocusedWindow()
+	if w == nil {
+		return gitStatusOrigin{}, false
+	}
+	return gitStatusOrigin{
+		Session: m.SessionName, Window: w.ID, Dir: m.paneDir(w),
+		Host: w.Host, AttachedHost: m.AttachedHost, CwdHost: w.CwdHost,
+	}, true
 }
 
 // gitDrawerDetail maps a list row to its second-level kind and ref. Repos are
