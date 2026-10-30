@@ -84,6 +84,9 @@ func (m *OS) GitSyncCmd() tea.Cmd {
 		return nil
 	}
 	want := m.filesWantDir()
+	if target, ok := m.gitTargetOrigin(); ok {
+		want = target.Dir
+	}
 	if want == "" {
 		// No pane, or a pane that has never said where it is. The section has
 		// nothing to be about, and holding the last repository on screen would

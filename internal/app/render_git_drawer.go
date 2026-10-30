@@ -57,7 +57,7 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		hints = append([]overlay.Hint{{Key: "enter", Label: "open"}}, hints...)
 	}
 	if d.kind == review.HistoryRepos {
-		hints = append([]overlay.Hint{{Key: "enter", Label: "focus pane"}}, hints...)
+		hints = append([]overlay.Hint{{Key: "enter", Label: "select repo"}}, hints...)
 	}
 	if gitDrawerIsDetail(d.kind) {
 		hints[len(hints)-1].Label = "back"

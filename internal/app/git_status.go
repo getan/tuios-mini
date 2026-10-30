@@ -32,6 +32,10 @@ const gitTabMaxEntries = 50
 type gitStatusOrigin struct {
 	Session, Window, Dir        string
 	Host, AttachedHost, CwdHost string
+	// External is set for a repository the person opened by path. It has no
+	// pane, so writes that need a pane stay unavailable; status and history are
+	// still read locally.
+	External bool
 }
 
 // gitStatusEntry is a drawn row, including the index side and source it named
@@ -89,6 +93,56 @@ type GitStatusMsg struct {
 // GitTabActive reports whether the project section is showing changes.
 func (m *OS) GitTabActive() bool { return m.projectTab == 1 }
 
+// gitTargetOrigin is the explicitly chosen Git tab repository, when its pane
+// is still present. An empty origin means the tab follows the focused pane as
+// it did before a repository was chosen.
+func (m *OS) gitTargetOrigin() (gitStatusOrigin, bool) {
+	t := m.gitTarget
+	if t.Dir == "" {
+		return gitStatusOrigin{}, false
+	}
+	if t.Window == "" {
+		if !t.External {
+			return gitStatusOrigin{}, false
+		}
+		return t, true
+	}
+	if m.windowIndexByID(t.Window) < 0 {
+		return gitStatusOrigin{}, false
+	}
+	return t, true
+}
+
+// SetGitTarget points the Git tab at a repository independently of focus.
+func (m *OS) setGitTarget(dir, windowID string) bool {
+	idx := m.windowIndexByID(windowID)
+	if idx < 0 || dir == "" {
+		return false
+	}
+	w := m.Windows[idx]
+	m.gitTarget = gitStatusOrigin{
+		Session: m.SessionName, Window: w.ID, Dir: dir,
+		Host: w.Host, CwdHost: w.CwdHost, AttachedHost: m.AttachedHost,
+	}
+	m.gitStatus.at = time.Time{}
+	m.gitView.at = time.Time{}
+	return true
+}
+
+func (m *OS) setGitTargetExternal(dir string) {
+	m.gitTarget = gitStatusOrigin{Dir: dir, External: true}
+	m.gitStatus.at = time.Time{}
+	m.gitView.at = time.Time{}
+}
+
+func (m *OS) gitTargetIsExternal() (string, bool) {
+	t, ok := m.gitTargetOrigin()
+	if !ok || !t.External {
+		return "", false
+	}
+	return t.Dir, true
+}
+
 // SetProjectTab switches the project section between files (0) and git (1).
 func (m *OS) SetProjectTab(tab int) tea.Cmd {
 	if tab < 0 || tab > 1 || tab == m.projectTab {
@@ -124,9 +178,10 @@ func (m *OS) GitStatusSyncCmd() tea.Cmd {
 		m.stopGitWatcher()
 		return nil
 	}
-	w := m.GetFocusedWindow()
 	want := gitStatusOrigin{Session: m.SessionName, Dir: m.filesWantDir(), AttachedHost: m.AttachedHost}
-	if w != nil {
+	if target, ok := m.gitTargetOrigin(); ok {
+		want = target
+	} else if w := m.GetFocusedWindow(); w != nil {
 		want.Window, want.Host, want.CwdHost = w.ID, w.Host, w.CwdHost
 	}
 	v := &m.gitStatus
@@ -137,7 +192,8 @@ func (m *OS) GitStatusSyncCmd() tea.Cmd {
 	}
 	// Never pass a remote directory to this machine's git, even if it happens
 	// to exist here too. The remote files listing is not local read authority.
-	if w == nil || want.Dir == "" || want.Host != "" || want.AttachedHost != "" || want.CwdHost != "" {
+	if want.Dir == "" || want.Host != "" || want.AttachedHost != "" || want.CwdHost != "" ||
+		(want.Window == "" && !want.External) {
 		m.stopGitWatcher()
 		return nil
 	}
@@ -368,6 +424,7 @@ var gitTabHistoryKinds = []review.HistoryKind{
 	review.HistoryRemotes,
 	review.HistoryStashes,
 	review.HistoryTags,
+	review.HistoryRepos,
 }
 
 func gitTabHistoryLabel(kind review.HistoryKind) string {
@@ -384,6 +441,8 @@ func gitTabHistoryLabel(kind review.HistoryKind) string {
 		return "Stashes"
 	case review.HistoryTags:
 		return "Tags"
+	case review.HistoryRepos:
+		return "Repositories"
 	}
 	return "History"
 }
@@ -411,6 +470,9 @@ func (v fileViewState) Otherwise() bool {
 // left the one row a person most wants to read with no diff and no notes.
 func (m *OS) ActivateGitEntry(index int) tea.Cmd {
 	if index < 0 || index >= len(m.gitStatus.entries) {
+		return nil
+	}
+	if m.gitExternalReadOnly() {
 		return nil
 	}
 	e := m.gitStatus.entries[index]

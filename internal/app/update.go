@@ -14,6 +14,7 @@ import (
 	"github.com/getan/tuios-mini/internal/federation"
 	"github.com/getan/tuios-mini/internal/hooks"
 	"github.com/getan/tuios-mini/internal/plural"
+	"github.com/getan/tuios-mini/internal/review"
 	"github.com/getan/tuios-mini/internal/session"
 	"github.com/getan/tuios-mini/internal/tape"
 	"github.com/getan/tuios-mini/internal/terminal"
@@ -1633,7 +1634,11 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		if msg.Title != "" {
 			m.gitDrawer.title = msg.Title
 		}
-		m.gitDrawer.rows, m.gitDrawer.selected, m.gitDrawer.scroll = msg.Rows, 0, 0
+		rows := msg.Rows
+		if m.gitDrawer.kind == review.HistoryRepos {
+			rows = append([]string{gitRepoOpenRow}, rows...)
+		}
+		m.gitDrawer.rows, m.gitDrawer.selected, m.gitDrawer.scroll = rows, 0, 0
 		return m, nil
 
 	case PaneAdminMsg:

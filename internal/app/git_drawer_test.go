@@ -11,6 +11,7 @@ import (
 func TestGitDrawerMoveAndRepositoryChoice(t *testing.T) {
 	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
 	m.CurrentWorkspace = 1
+	m.SessionName = "session"
 	m.Windows = []*terminal.Window{{ID: "w1", Workspace: 1}, {ID: "w2", Workspace: 1}}
 	m.FocusedWindow = 0
 	m.gitDrawer = gitDrawerState{
@@ -31,8 +32,11 @@ func TestGitDrawerMoveAndRepositoryChoice(t *testing.T) {
 	if m.gitDrawer.open {
 		t.Fatal("the repository choice left the drawer open")
 	}
-	if m.FocusedWindow != 1 {
-		t.Fatalf("focused window = %d, want the pane showing the chosen repo", m.FocusedWindow)
+	if m.gitTarget.Window != "w2" {
+		t.Fatalf("git target = %q, want the chosen repository's pane", m.gitTarget.Window)
+	}
+	if m.FocusedWindow != 0 {
+		t.Fatal("choosing a repository moved the terminal focus")
 	}
 }
 
@@ -110,5 +114,17 @@ func TestGitHistoryOriginFollowsTheFocusedPane(t *testing.T) {
 	origin, ok := m.gitHistoryOrigin()
 	if !ok || origin.Window != "current" || origin.Dir != "/current" {
 		t.Fatalf("history origin = %#v, %v; want the focused pane", origin, ok)
+	}
+}
+
+func TestExternalGitTargetDoesNotNeedAPane(t *testing.T) {
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+	m.setGitTargetExternal("/tmp/external-repo")
+	target, ok := m.gitTargetOrigin()
+	if !ok || !target.External || target.Dir != "/tmp/external-repo" {
+		t.Fatalf("external target = %#v, %v", target, ok)
+	}
+	if target.Window != "" || target.Session != "" {
+		t.Fatalf("external target acquired a pane identity: %#v", target)
 	}
 }

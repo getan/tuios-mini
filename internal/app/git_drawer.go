@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"time"
@@ -30,6 +31,8 @@ type gitDrawerState struct {
 	// detail restores this state without asking the daemon for the list again.
 	parent *gitDrawerState
 }
+
+const gitRepoOpenRow = "＋ Open repository..."
 
 // gitHistoryMsg is one drawer's answer. Gen drops an answer for a drawer the
 // person has already closed or replaced.
@@ -64,8 +67,12 @@ func (m *OS) SidebarGitHistory(kind review.HistoryKind) tea.Cmd {
 		return nil
 	}
 	origin, ok := m.gitHistoryOrigin()
-	if !ok || origin.Session == "" {
+	if !ok || (origin.Session == "" && !origin.External) {
 		m.ShowNotification("No repository to read yet.", "info", m.Settings.NotificationDuration)
+		return nil
+	}
+	if origin.External && kind == review.HistoryRepos {
+		m.OpenGitRepoPrompt()
 		return nil
 	}
 	path := ""
@@ -81,6 +88,9 @@ func (m *OS) SidebarGitHistory(kind review.HistoryKind) tea.Cmd {
 	gen := m.gitDrawer.gen
 	m.gitDrawer = gitDrawerState{
 		open: true, gen: gen, kind: kind, title: gitDrawerTitle(kind), loading: true, origin: origin,
+	}
+	if origin.External {
+		return m.localGitHistoryCmd(gen, kind, path)
 	}
 	call := m.inboxCaller()
 	params := map[string]any{
@@ -100,6 +110,19 @@ func (m *OS) SidebarGitHistory(kind review.HistoryKind) tea.Cmd {
 			Rows  []string `json:"rows"`
 		}
 		if err := json.Unmarshal(raw, &res); err != nil {
+			return gitHistoryMsg{Gen: gen, Err: err.Error()}
+		}
+		return gitHistoryMsg{Gen: gen, Title: res.Title, Rows: res.Rows}
+	}
+}
+
+func (m *OS) localGitHistoryCmd(gen uint64, kind review.HistoryKind, path string) tea.Cmd {
+	dir := m.gitDrawer.origin.Dir
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		res, err := review.History(ctx, dir, kind, path, 100)
+		if err != nil {
 			return gitHistoryMsg{Gen: gen, Err: err.Error()}
 		}
 		return gitHistoryMsg{Gen: gen, Title: res.Title, Rows: res.Rows}
@@ -173,9 +196,9 @@ func (m *OS) GitDrawerClose() {
 	m.gitDrawer = gitDrawerState{gen: m.gitDrawer.gen + 1}
 }
 
-// GitDrawerActivate chooses a repository row, or opens the commit under the
-// cursor. The commit detail is fetched only after this explicit choice, so a
-// long commits list never pays for patches nobody asked to read.
+// GitDrawerActivate selects a repository or opens the history row under the
+// cursor. Details are fetched only after this explicit choice, so a long list
+// never pays for patches nobody asked to read.
 func (m *OS) GitDrawerActivate() tea.Cmd {
 	d := &m.gitDrawer
 	if d.selected < 0 || d.selected >= len(d.rows) {
@@ -187,17 +210,21 @@ func (m *OS) GitDrawerActivate() tea.Cmd {
 	if d.kind != review.HistoryRepos {
 		return nil
 	}
+	if d.rows[d.selected] == gitRepoOpenRow {
+		m.GitDrawerClose()
+		m.OpenGitRepoPrompt()
+		return nil
+	}
 	parts := strings.Split(d.rows[d.selected], "\t")
 	if len(parts) < 2 {
 		return nil
 	}
-	idx := m.windowIndexByID(parts[1])
-	if idx < 0 {
+	if !m.setGitTarget(parts[0], parts[1]) {
+		m.ShowNotification("That repository's pane is gone.", "warning", m.Settings.NotificationDuration)
 		return nil
 	}
-	m.FocusWindow(idx)
 	m.GitDrawerClose()
-	return m.GitStatusSyncCmd()
+	return tea.Batch(m.GitStatusSyncCmd(), m.GitSyncCmd())
 }
 
 func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
@@ -206,7 +233,9 @@ func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 		origin = m.gitStatus.Origin
 	}
 	if origin.Session == "" {
-		return nil
+		if !origin.External {
+			return nil
+		}
 	}
 	parent := m.gitDrawer
 	m.gitDrawer.gen++
@@ -214,6 +243,9 @@ func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 	m.gitDrawer = gitDrawerState{
 		open: true, gen: gen, kind: kind,
 		title: gitDrawerTitle(kind) + " " + ref, loading: true, parent: &parent,
+	}
+	if origin.External {
+		return m.localGitDetailCmd(gen, kind, ref, origin.Dir)
 	}
 	call := m.inboxCaller()
 	params := map[string]any{
@@ -236,12 +268,27 @@ func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 	}
 }
 
+func (m *OS) localGitDetailCmd(gen uint64, kind review.HistoryKind, ref, dir string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		res, err := review.HistoryDetail(ctx, dir, kind, ref, 500)
+		if err != nil {
+			return gitHistoryMsg{Gen: gen, Err: err.Error()}
+		}
+		return gitHistoryMsg{Gen: gen, Title: res.Title, Rows: res.Rows}
+	}
+}
+
 // gitHistoryOrigin is the pane the Git tab is about right now. gitStatus.Origin
 // is the pane of the last completed status read, so it lags a focus move and
 // can still name a pane that is not in a repository. The focused window is the
 // same identity the status read is about to ask for, and the daemon resolves
 // the repository from that window.
 func (m *OS) gitHistoryOrigin() (gitStatusOrigin, bool) {
+	if target, ok := m.gitTargetOrigin(); ok {
+		return target, true
+	}
 	w := m.GetFocusedWindow()
 	if w == nil {
 		return gitStatusOrigin{}, false

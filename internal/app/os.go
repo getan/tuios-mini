@@ -1570,6 +1570,11 @@ type OS struct {
 	// gitStatus is the changed-path reading the Git tab draws. Refreshed on the
 	// git section's beat, off the render path. See git_status.go.
 	gitStatus gitStatusView
+	// gitTarget is the repository the Git tab was explicitly pointed at. It is
+	// independent of pane focus and workspace: choosing a repository in the
+	// Repositories drawer keeps the tab there until another is chosen. Zero
+	// means follow the focused pane.
+	gitTarget gitStatusOrigin
 	// gitWatch watches the repository the project section shows for file
 	// events, so a status read runs when something changes instead of on a
 	// timer. Nil when the section is hidden, the pane is remote, or the OS

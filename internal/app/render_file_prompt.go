@@ -49,6 +49,8 @@ func (m *OS) filePromptTitle() string {
 		return "delete permanently"
 	case filePromptCommit:
 		return "commit"
+	case filePromptGitRepo:
+		return "git repository"
 	}
 	return ""
 }
@@ -118,6 +120,9 @@ func (m *OS) filePromptSubmitLabel() string {
 	if m.filePrompt.Kind == filePromptCommit {
 		return "commit"
 	}
+	if m.filePrompt.Kind == filePromptGitRepo {
+		return "open"
+	}
 	return "save"
 }
 
@@ -130,6 +135,9 @@ func (m *OS) filePromptContext(width int) string {
 	}
 	if m.filePrompt.Kind == filePromptCommit {
 		return "Commit staged changes in " + truncPathLeft(shortenHome(m.filePrompt.Dir), max(width-4, 1))
+	}
+	if m.filePrompt.Kind == filePromptGitRepo {
+		return "Open repository at this path"
 	}
 	return "In " + truncPathLeft(shortenHome(m.filePrompt.Dir), max(width-4, 1))
 }
@@ -148,6 +156,9 @@ func (m *OS) filePromptNote() string {
 	}
 	if m.filePrompt.Kind == filePromptCommit {
 		return "Enter commits what is staged."
+	}
+	if m.filePrompt.Kind == filePromptGitRepo {
+		return "Absolute path to a Git worktree; reading is local."
 	}
 	return "The new name goes in this folder."
 }

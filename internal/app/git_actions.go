@@ -16,6 +16,16 @@ type gitActionMsg struct {
 	Err string
 }
 
+// gitExternalReadOnly says why an action that needs a pane is unavailable in
+// the external repository the Git tab is reading.
+func (m *OS) gitExternalReadOnly() bool {
+	if _, ok := m.gitTargetIsExternal(); !ok {
+		return false
+	}
+	m.ShowNotification("External repository is read-only here; stage, commit, discard and sync need a pane repository.", "info", m.Settings.NotificationDuration)
+	return true
+}
+
 // SidebarCursorOnGit reports whether the rail's cursor is on a changed-path
 // row of the Git tab. The file actions consult their own section first; this
 // is the same gate for the Git tab's own keys.
@@ -41,6 +51,9 @@ func (m *OS) gitEntryAtCursor() (gitStatusEntry, bool) {
 // index moves: a stage is the same verb the review uses, so a file staged here
 // and one staged from the diff are the same index entry.
 func (m *OS) SidebarGitStage(unstage bool) tea.Cmd {
+	if m.gitExternalReadOnly() {
+		return nil
+	}
 	e, ok := m.gitEntryAtCursor()
 	if !ok {
 		m.ShowNotification("Put the cursor on a changed file first.", "info", m.Settings.NotificationDuration)
@@ -85,6 +98,9 @@ func (m *OS) SidebarGitStage(unstage bool) tea.Cmd {
 // the first refusal stops the batch and names its path.
 func (m *OS) SidebarGitStageAll(unstage bool) tea.Cmd {
 	if !m.GitTabActive() {
+		return nil
+	}
+	if m.gitExternalReadOnly() {
 		return nil
 	}
 	targets := make([]gitStatusEntry, 0, len(m.gitStatus.entries))
@@ -140,6 +156,9 @@ func (m *OS) SidebarGitCommitPrompt() bool {
 	if !m.GitTabActive() {
 		return false
 	}
+	if m.gitExternalReadOnly() {
+		return true
+	}
 	if m.filePrompt.Busy {
 		m.ShowNotification("Wait for the last file action to finish.", "info", m.Settings.NotificationDuration)
 		return true
@@ -160,6 +179,9 @@ func (m *OS) SidebarGitCommitPrompt() bool {
 // and working changes. Nothing is discarded until the dialog's second row is
 // chosen.
 func (m *OS) SidebarGitDiscard() bool {
+	if m.gitExternalReadOnly() {
+		return true
+	}
 	e, ok := m.gitEntryAtCursor()
 	if !ok {
 		m.ShowNotification("Put the cursor on a changed file first.", "info", m.Settings.NotificationDuration)
@@ -217,6 +239,9 @@ func (m *OS) SidebarGitCopyPath() tea.Cmd {
 // SidebarGitSync pulls with rebase and pushes. It needs an upstream; the daemon
 // says so when there is none.
 func (m *OS) SidebarGitSync() tea.Cmd {
+	if m.gitExternalReadOnly() {
+		return nil
+	}
 	origin := m.gitStatus.Origin
 	if origin.Session == "" {
 		m.ShowNotification("No repository to sync yet.", "info", m.Settings.NotificationDuration)

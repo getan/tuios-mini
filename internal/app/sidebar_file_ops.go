@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/getan/tuios-mini/internal/config"
 	"github.com/getan/tuios-mini/internal/listnav"
+	"github.com/getan/tuios-mini/internal/review"
 )
 
 // # File actions on the rail
@@ -78,6 +80,8 @@ const (
 	filePromptConfirm
 	// filePromptCommit asks for a commit message for the staged changes.
 	filePromptCommit
+	// filePromptGitRepo asks for a path to open as the Git tab's repository.
+	filePromptGitRepo
 )
 
 // The confirmation's two rows, in drawn order. Cancel is first and is what the
@@ -240,6 +244,22 @@ func (m *OS) SidebarFileCreate() {
 		return
 	}
 	m.filePrompt = filePromptState{Kind: filePromptCreate, Dir: m.fileActionDir()}
+}
+
+// OpenGitRepoPrompt asks for a repository path without giving the Git tab a
+// pane or workspace dependency. The path is opened read-only: status and
+// history work locally, while operations that need a pane stay on pane repos.
+func (m *OS) OpenGitRepoPrompt() {
+	if !m.GitTabActive() {
+		return
+	}
+	input := ""
+	if target, ok := m.gitTargetOrigin(); ok {
+		input = target.Dir
+	} else {
+		input = m.filesWantDir()
+	}
+	m.filePrompt = filePromptState{Kind: filePromptGitRepo, Input: input}
 }
 
 // SidebarFileRename opens the rename prompt on the cursor row, seeded with the
@@ -574,7 +594,8 @@ func (m *OS) SidebarFilePaste() tea.Cmd {
 // editor and every name the rail draws already pass. A codepoint the chrome
 // cannot draw is one the user cannot see they typed.
 func (m *OS) FilePromptType(s string) {
-	if m.filePrompt.Kind != filePromptCreate && m.filePrompt.Kind != filePromptRename && m.filePrompt.Kind != filePromptCommit {
+	if m.filePrompt.Kind != filePromptCreate && m.filePrompt.Kind != filePromptRename &&
+		m.filePrompt.Kind != filePromptCommit && m.filePrompt.Kind != filePromptGitRepo {
 		return
 	}
 	add := m.printableClientRunes(s)
@@ -672,6 +693,38 @@ func (m *OS) FilePromptSubmit() tea.Cmd {
 		m.closeFilePrompt()
 		m.filePrompt.Busy = true
 		return m.commitStagedCmd(origin, message)
+	case filePromptGitRepo:
+		raw := strings.TrimSpace(p.Input)
+		if raw == "" {
+			m.filePrompt.Err = "A repository path is required."
+			return nil
+		}
+		if strings.HasPrefix(raw, "~/") {
+			if home, err := os.UserHomeDir(); err == nil {
+				raw = filepath.Join(home, raw[2:])
+			}
+		}
+		dir, err := filepath.Abs(raw)
+		if err != nil {
+			m.filePrompt.Err = err.Error()
+			return nil
+		}
+		info, err := os.Stat(dir)
+		if err != nil || !info.IsDir() {
+			m.filePrompt.Err = "That path is not a directory."
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		root, err := review.TopLevel(ctx, dir)
+		cancel()
+		if err != nil || root == "" {
+			m.filePrompt.Err = "That directory is not inside a Git repository."
+			return nil
+		}
+		m.closeFilePrompt()
+		m.setGitTargetExternal(root)
+		m.ShowNotification("External repository: browsing is read-only here; stage, commit, discard and sync need a pane repository.", "info", m.Settings.NotificationDuration)
+		return tea.Batch(m.GitStatusSyncCmd(), m.GitSyncCmd())
 	}
 	return nil
 }
