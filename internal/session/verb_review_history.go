@@ -42,8 +42,9 @@ func (d *Daemon) verbReviewHistory(cs *connState, params json.RawMessage) (any, 
 	}
 	ctx, cancel := context.WithTimeout(d.ctx, 15*time.Second)
 	defer cancel()
-	if kind == review.HistoryCommit {
-		res, err := review.CommitDetail(ctx, repo.root, p.Ref, p.Limit)
+	switch kind {
+	case review.HistoryCommit, review.HistoryBranch, review.HistoryTag, review.HistoryStash, review.HistoryRemote:
+		res, err := review.HistoryDetail(ctx, repo.root, kind, p.Ref, p.Limit)
 		if err != nil {
 			return nil, hintedVerbError(ErrVerbGitFailed, err.Error(), &VerbHint{
 				Detail: "Nothing was changed. The drawer is read-only.",

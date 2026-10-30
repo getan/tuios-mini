@@ -70,3 +70,29 @@ func TestGitDrawerCommitOpensALazyDetail(t *testing.T) {
 		t.Fatalf("closing the detail lost the commits list: %#v", m.gitDrawer)
 	}
 }
+
+func TestGitDrawerDetailKinds(t *testing.T) {
+	tests := []struct {
+		name string
+		kind review.HistoryKind
+		row  string
+		want review.HistoryKind
+		ref  string
+	}{
+		{"commit", review.HistoryCommits, "abc123 2026-10-30 Author subject", review.HistoryCommit, "abc123"},
+		{"file", review.HistoryFile, "def456 2026-10-30 Author subject", review.HistoryCommit, "def456"},
+		{"graph", review.HistoryGraph, "* abc7890 (HEAD -> main) subject", review.HistoryCommit, "abc7890"},
+		{"branch", review.HistoryBranches, "feature origin/feature 2026-10-30 subject", review.HistoryBranch, "feature"},
+		{"tag", review.HistoryTags, "v1.2.3 2026-10-30", review.HistoryTag, "v1.2.3"},
+		{"stash", review.HistoryStashes, "stash@{0} 2026-10-30 WIP", review.HistoryStash, "stash@{0}"},
+		{"remote", review.HistoryRemotes, "upstream  https://example.com/repo.git", review.HistoryRemote, "upstream"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kind, ref := gitDrawerDetail(tt.kind, tt.row)
+			if kind != tt.want || ref != tt.ref {
+				t.Fatalf("detail = %q %q, want %q %q", kind, ref, tt.want, tt.ref)
+			}
+		})
+	}
+}

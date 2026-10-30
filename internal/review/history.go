@@ -21,6 +21,10 @@ const (
 	HistoryFile     HistoryKind = "file"
 	HistoryRepos    HistoryKind = "repos"
 	HistoryCommit   HistoryKind = "commit"
+	HistoryBranch   HistoryKind = "branch"
+	HistoryTag      HistoryKind = "tag"
+	HistoryStash    HistoryKind = "stash"
+	HistoryRemote   HistoryKind = "remote"
 )
 
 // HistoryResult is one drawer's rows, already formatted for the overlay.
@@ -119,6 +123,97 @@ func CommitDetail(ctx context.Context, dir, ref string, limit int) (HistoryResul
 		title = title[:20]
 	}
 	return HistoryResult{Kind: HistoryCommit, Title: title, Rows: rows}, nil
+}
+
+// HistoryDetail opens the second level of a Git drawer. A branch, tag or
+// stash shows the commit it points at; a remote shows its configured URLs and
+// tracking refs. None of this is read until the person chooses a row.
+func HistoryDetail(ctx context.Context, dir string, kind HistoryKind, ref string, limit int) (HistoryResult, error) {
+	if err := ValidRef(ref); err != nil {
+		return HistoryResult{}, err
+	}
+	if limit < 1 || limit > 500 {
+		limit = 500
+	}
+	switch kind {
+	case HistoryCommit:
+		return CommitDetail(ctx, dir, ref, limit)
+	case HistoryBranch, HistoryTag, HistoryStash:
+		out, err := git(ctx, dir, nil,
+			"show", "--no-color", "--date=short", "--decorate=short",
+			"--format=commit %H%nAuthor: %an <%ae>%nDate:   %ad%n%n    %s%n",
+			"--stat", "--patch", "--find-renames", ref,
+		)
+		if err != nil {
+			return HistoryResult{}, err
+		}
+		return HistoryResult{
+			Kind: kind, Title: string(kind) + " " + ref,
+			Rows: linesFromOutput(out, limit),
+		}, nil
+	case HistoryRemote:
+		return remoteDetail(ctx, dir, ref, limit)
+	default:
+		return HistoryResult{}, fmt.Errorf("unknown history detail kind %q", kind)
+	}
+}
+
+func remoteDetail(ctx context.Context, dir, name string, limit int) (HistoryResult, error) {
+	out, err := git(ctx, dir, nil, "remote", "-v")
+	if err != nil {
+		return HistoryResult{}, err
+	}
+	rows := make([]string, 0, 8)
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(strings.TrimRight(line, "\r"))
+		if len(fields) < 2 || fields[0] != name {
+			continue
+		}
+		row := fields[1]
+		if len(fields) > 2 {
+			row += " " + fields[2]
+		}
+		rows = append(rows, row)
+	}
+	refs, err := git(ctx, dir, nil,
+		"for-each-ref", "--format=%(refname:short) %(objectname:short) %(subject)",
+		"refs/remotes/"+name,
+	)
+	if err != nil {
+		return HistoryResult{}, err
+	}
+	if len(refs) > 0 {
+		rows = append(rows, "")
+		rows = append(rows, "tracking refs")
+		rows = append(rows, linesFromOutput(refs, limit-len(rows))...)
+	}
+	return HistoryResult{Kind: HistoryRemote, Title: "remote " + name, Rows: truncateRows(rows, limit)}, nil
+}
+
+func linesFromOutput(out string, limit int) []string {
+	if limit < 0 {
+		limit = 0
+	}
+	rows := make([]string, 0, limit)
+	for _, line := range strings.Split(out, "\n") {
+		if line = strings.TrimRight(line, "\r"); line != "" {
+			rows = append(rows, line)
+		}
+		if len(rows) >= limit {
+			break
+		}
+	}
+	return rows
+}
+
+func truncateRows(rows []string, limit int) []string {
+	if limit < 0 {
+		limit = 0
+	}
+	if len(rows) > limit {
+		return rows[:limit]
+	}
+	return rows
 }
 
 // remoteRows turns `git remote -v` into one row per name and URL. Git prints

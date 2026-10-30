@@ -53,13 +53,13 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		{Key: "j/k", Label: "move"},
 		{Key: "esc/ctrl+c", Label: "close"},
 	}
-	if d.kind == review.HistoryCommits {
+	if gitDrawerHasDetail(d.kind) {
 		hints = append([]overlay.Hint{{Key: "enter", Label: "open"}}, hints...)
 	}
 	if d.kind == review.HistoryRepos {
 		hints = append([]overlay.Hint{{Key: "enter", Label: "focus pane"}}, hints...)
 	}
-	if d.kind == review.HistoryCommit {
+	if gitDrawerIsDetail(d.kind) {
 		hints[len(hints)-1].Label = "back"
 	}
 	content, geo := overlay.Dialog{
@@ -80,4 +80,22 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		}
 	}
 	return content, geo, rows
+}
+
+func gitDrawerHasDetail(kind review.HistoryKind) bool {
+	switch kind {
+	case review.HistoryCommits, review.HistoryGraph, review.HistoryBranches,
+		review.HistoryTags, review.HistoryStashes, review.HistoryRemotes, review.HistoryFile:
+		return true
+	}
+	return false
+}
+
+func gitDrawerIsDetail(kind review.HistoryKind) bool {
+	switch kind {
+	case review.HistoryCommit, review.HistoryBranch, review.HistoryTag,
+		review.HistoryStash, review.HistoryRemote:
+		return true
+	}
+	return false
 }

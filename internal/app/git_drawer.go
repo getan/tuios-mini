@@ -123,6 +123,14 @@ func gitDrawerTitle(kind review.HistoryKind) string {
 		return "repositories"
 	case review.HistoryCommit:
 		return "commit"
+	case review.HistoryBranch:
+		return "branch"
+	case review.HistoryTag:
+		return "tag"
+	case review.HistoryStash:
+		return "stash"
+	case review.HistoryRemote:
+		return "remote"
 	}
 	return "git"
 }
@@ -170,12 +178,8 @@ func (m *OS) GitDrawerActivate() tea.Cmd {
 	if d.selected < 0 || d.selected >= len(d.rows) {
 		return nil
 	}
-	if d.kind == review.HistoryCommits {
-		fields := strings.Fields(d.rows[d.selected])
-		if len(fields) == 0 {
-			return nil
-		}
-		return m.openGitCommitDetail(fields[0])
+	if kind, ref := gitDrawerDetail(d.kind, d.rows[d.selected]); kind != "" {
+		return m.openGitDetail(kind, ref)
 	}
 	if d.kind != review.HistoryRepos {
 		return nil
@@ -193,7 +197,7 @@ func (m *OS) GitDrawerActivate() tea.Cmd {
 	return m.GitStatusSyncCmd()
 }
 
-func (m *OS) openGitCommitDetail(ref string) tea.Cmd {
+func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 	origin := m.gitStatus.Origin
 	if origin.Session == "" {
 		return nil
@@ -202,13 +206,13 @@ func (m *OS) openGitCommitDetail(ref string) tea.Cmd {
 	m.gitDrawer.gen++
 	gen := m.gitDrawer.gen
 	m.gitDrawer = gitDrawerState{
-		open: true, gen: gen, kind: review.HistoryCommit,
-		title: "commit " + ref, loading: true, parent: &parent,
+		open: true, gen: gen, kind: kind,
+		title: gitDrawerTitle(kind) + " " + ref, loading: true, parent: &parent,
 	}
 	call := m.inboxCaller()
 	params := map[string]any{
 		"session": origin.Session, "window": origin.Window,
-		"kind": string(review.HistoryCommit), "ref": ref, "limit": 500,
+		"kind": string(kind), "ref": ref, "limit": 500,
 	}
 	return func() tea.Msg {
 		raw, err := call("review-history", params, 15*time.Second)
@@ -224,6 +228,46 @@ func (m *OS) openGitCommitDetail(ref string) tea.Cmd {
 		}
 		return gitHistoryMsg{Gen: gen, Title: res.Title, Rows: res.Rows}
 	}
+}
+
+// gitDrawerDetail maps a list row to its second-level kind and ref. Repos are
+// navigation, not a detail: choosing one focuses the pane that owns it.
+func gitDrawerDetail(kind review.HistoryKind, row string) (review.HistoryKind, string) {
+	switch kind {
+	case review.HistoryCommits, review.HistoryFile:
+		fields := strings.Fields(row)
+		if len(fields) > 0 {
+			return review.HistoryCommit, fields[0]
+		}
+	case review.HistoryGraph:
+		for _, field := range strings.Fields(row) {
+			field = strings.Trim(field, "*|\\/ ")
+			if len(field) >= 7 && strings.Trim(field, "0123456789abcdefABCDEF") == "" {
+				return review.HistoryCommit, field
+			}
+		}
+	case review.HistoryBranches:
+		fields := strings.Fields(row)
+		if len(fields) > 0 {
+			return review.HistoryBranch, fields[0]
+		}
+	case review.HistoryTags:
+		fields := strings.Fields(row)
+		if len(fields) > 0 {
+			return review.HistoryTag, fields[0]
+		}
+	case review.HistoryStashes:
+		fields := strings.Fields(row)
+		if len(fields) > 0 {
+			return review.HistoryStash, fields[0]
+		}
+	case review.HistoryRemotes:
+		fields := strings.Fields(row)
+		if len(fields) > 0 {
+			return review.HistoryRemote, fields[0]
+		}
+	}
+	return "", ""
 }
 
 func gitDrawerVisibleRows() int { return 20 }
