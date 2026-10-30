@@ -254,7 +254,7 @@ func TestWhichKeyFitsNarrowScreens(t *testing.T) {
 		{"tape", func(m *OS) { m.TapePrefixActive = true }},
 		{"layout", func(m *OS) { m.LayoutPrefixActive = true }},
 	}
-	positions := []string{"top-left", "top-right", "bottom-left", "bottom-right", "center"}
+	positions := []string{"popup"}
 
 	oldPos := config.Global.WhichKeyPosition
 	defer func() { config.Global.WhichKeyPosition = oldPos }()

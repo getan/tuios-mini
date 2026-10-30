@@ -304,6 +304,11 @@ func (m *OS) gitTabRows() []fileRowSpec {
 			rows = append(rows, fileRowSpec{Note: true, Name: line, Key: "branch"})
 		}
 	}
+	rows = append(rows, fileRowSpec{
+		Kind: sidebarRowGitCommit,
+		Key:  "commit",
+		Name: "Commit changes",
+	})
 	add := func(title, side string, entries []gitstatus.Entry) {
 		if len(entries) == 0 {
 			return
@@ -329,7 +334,8 @@ func (m *OS) gitTabRows() []fileRowSpec {
 	add("Changes", review.IndexUnstaged, st.Unstaged)
 	add("Untracked", "", st.Untracked)
 	if st.Empty() {
-		return append(rows, fileRowSpec{Note: true, Name: "clean"})
+		rows = append(rows, fileRowSpec{Note: true, Name: "clean"})
+		return appendGitHistoryRows(rows)
 	}
 	if total, drawn := st.Changed(), len(m.gitStatus.entries); drawn < total {
 		rows = append(rows, fileRowSpec{
@@ -337,7 +343,49 @@ func (m *OS) gitTabRows() []fileRowSpec {
 			Name: fmt.Sprintf("%d more changed paths not drawn", total-drawn),
 		})
 	}
+	return appendGitHistoryRows(rows)
+}
+
+// appendGitHistoryRows adds the source-control drawer's read-only views in the
+// same order as the Herdr sidebar: history after the changed paths, reachable
+// by clicking a row rather than by remembering a prefix chord.
+func appendGitHistoryRows(rows []fileRowSpec) []fileRowSpec {
+	for i, kind := range gitTabHistoryKinds {
+		rows = append(rows, fileRowSpec{
+			Kind:  sidebarRowGitHistory,
+			Index: i,
+			Key:   "history:" + string(kind),
+			Name:  gitTabHistoryLabel(kind),
+		})
+	}
 	return rows
+}
+
+var gitTabHistoryKinds = []review.HistoryKind{
+	review.HistoryGraph,
+	review.HistoryCommits,
+	review.HistoryBranches,
+	review.HistoryRemotes,
+	review.HistoryStashes,
+	review.HistoryTags,
+}
+
+func gitTabHistoryLabel(kind review.HistoryKind) string {
+	switch kind {
+	case review.HistoryGraph:
+		return "Graph"
+	case review.HistoryCommits:
+		return "Commits"
+	case review.HistoryBranches:
+		return "Branches"
+	case review.HistoryRemotes:
+		return "Remotes"
+	case review.HistoryStashes:
+		return "Stashes"
+	case review.HistoryTags:
+		return "Tags"
+	}
+	return "History"
 }
 
 // projectTabRows is the tab bar every project view starts with. It is one row:

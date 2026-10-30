@@ -290,7 +290,7 @@ func (m *OS) GetDockbarContentYPosition() int {
 		return 0
 	}
 
-	return m.Height - 1
+	return m.Height - 1 - keyBarHeight
 }
 
 // GetTimeYPosition returns the Y position of the time display
@@ -494,6 +494,9 @@ func (m *OS) OwnLayoutReserve() session.LayoutReserve {
 	default:
 		r.Bottom = m.Settings.DockHeight()
 	}
+	// The keybar is a reserved row of its own, below the panes and, when the
+	// dock is at the bottom, below the dock too.
+	r.Bottom += keyBarHeight
 	return r
 }
 

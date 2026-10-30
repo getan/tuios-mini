@@ -230,6 +230,8 @@ func (m *OS) overlayRowHover(kind string, idx int) {
 		// run one: the dialog is answered by a click or by enter, and a pointer
 		// crossing the rows on its way somewhere else must not delete a file.
 		m.filePrompt.Selected = idx
+	case "gitdrawer":
+		m.GitDrawerMove(idx - m.gitDrawer.selected)
 	}
 }
 
@@ -513,6 +515,9 @@ func (m *OS) overlayRowClick(kind string, row overlayRowHit, lx, ly int) tea.Cmd
 		// A click opens the entry in full, exactly like enter on it.
 		m.LogSelected = row.Idx
 		m.LogViewerOpenSelected()
+	case "gitdrawer":
+		m.GitDrawerMove(row.Idx - m.gitDrawer.selected)
+		return m.GitDrawerActivate()
 	}
 	return nil
 }

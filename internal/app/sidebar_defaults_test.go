@@ -49,8 +49,8 @@ func TestDefaultSidebarOnNarrowTerminals(t *testing.T) {
 			if c.wantRail > 0 && m.GetContentWidth() < config.SidebarMinPaneFloor {
 				t.Errorf("pane width %d is below the floor %d", m.GetContentWidth(), config.SidebarMinPaneFloor)
 			}
-			if m.GetTopMargin() != m.Settings.DockHeight() || m.GetBottomMargin() != 0 {
-				t.Errorf("dock margins top=%d bottom=%d, want the dock on top", m.GetTopMargin(), m.GetBottomMargin())
+			if m.GetTopMargin() != m.Settings.DockHeight() || m.GetBottomMargin() != keyBarHeight {
+				t.Errorf("dock margins top=%d bottom=%d, want the dock on top and the keybar below", m.GetTopMargin(), m.GetBottomMargin())
 			}
 		})
 	}

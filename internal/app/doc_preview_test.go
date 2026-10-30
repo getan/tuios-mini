@@ -251,12 +251,19 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 		t.Errorf("first row is %v, want the one-row tab bar", rows[0].Kind)
 	}
 
-	// The untracked row is the last one; it opens the review like every other
+	// The untracked row is the last changed path, although the clickable
+	// history drawer now follows it. It opens the review like every other
 	// changed path. The base diff writes the working state as a tree, so a new
 	// file is there as an addition.
 	last := rows[len(rows)-1]
+	for i := len(rows) - 1; i >= 0; i-- {
+		if rows[i].Kind == sidebarRowGitEntry {
+			last = rows[i]
+			break
+		}
+	}
 	if last.Kind != sidebarRowGitEntry {
-		t.Fatalf("last row is %v, want a Git entry", last.Kind)
+		t.Fatalf("last changed row is %v, want a Git entry", last.Kind)
 	}
 	if cmd := m.ActivateGitEntry(last.Index); cmd == nil {
 		t.Fatal("the untracked row opened nothing")
@@ -266,6 +273,15 @@ func TestGitTabGroupsChangesAndOpensUntracked(t *testing.T) {
 	}
 	if got := m.review.query.Path; got != "new.txt" {
 		t.Fatalf("untracked review path = %q", got)
+	}
+	historyRows := 0
+	for _, row := range rows {
+		if row.Kind == sidebarRowGitHistory {
+			historyRows++
+		}
+	}
+	if historyRows < 2 {
+		t.Errorf("the Git tab has %d clickable history rows, want graph/commits and the rest", historyRows)
 	}
 }
 

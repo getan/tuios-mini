@@ -99,6 +99,12 @@ const (
 	// sidebarRowGitEntry is one changed path in the Git tab. It carries the
 	// entry's index in the flattened list in WindowIndex.
 	sidebarRowGitEntry
+	// sidebarRowGitHistory is the Git tab's clickable drawer entry. It opens
+	// the commit history without requiring the keyboard shortcut.
+	sidebarRowGitHistory
+	// sidebarRowGitCommit is the Git tab's clickable commit control. It opens
+	// the same commit prompt the keyboard shortcut does.
+	sidebarRowGitCommit
 	// sidebarRowHostSession is one session on another machine. Activating it
 	// opens that session in this client over the link, and on a host that is
 	// not up it asks for the link first (host_open.go). It carries the host
@@ -2440,7 +2446,8 @@ func sidebarFileRowIndex(nav []sidebarNavRow, name string) (int, bool) {
 	for i, r := range nav {
 		if r.Kind != sidebarRowFileUp && r.Kind != sidebarRowFileEntry &&
 			r.Kind != sidebarRowProjectFiles && r.Kind != sidebarRowProjectGit &&
-			r.Kind != sidebarRowGitEntry {
+			r.Kind != sidebarRowGitEntry && r.Kind != sidebarRowGitHistory &&
+			r.Kind != sidebarRowGitCommit {
 			continue
 		}
 		if first < 0 {

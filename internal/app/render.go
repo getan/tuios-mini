@@ -425,6 +425,7 @@ func (m *OS) GetCanvas(render bool) *frameCanvas {
 			dockLayer := m.renderDock()
 			layers = append(layers, dockLayer)
 		}
+		layers = append(layers, m.renderKeybar())
 
 		// The hover label rides above the panes and the dock both. It is composed
 		// last so it reads the rectangles this pass recorded rather than the
@@ -1071,7 +1072,7 @@ func (m *OS) buildFullscreenFrame(window *terminal.Window) string {
 		if m.Settings.DockbarPosition != "hidden" {
 			dockStr, _ = m.renderDockString()
 		}
-		return m.paintFullscreenFrame(window, boxContent, dockStr, m.Settings.DockbarPosition)
+		return m.paintFullscreenFrame(window, boxContent, dockStr, m.keybarLine(), m.Settings.DockbarPosition)
 	}
 	frame := boxContent
 	if m.Settings.DockbarPosition != "hidden" {
@@ -1082,6 +1083,7 @@ func (m *OS) buildFullscreenFrame(window *terminal.Window) string {
 			frame = boxContent + "\n" + dockStr
 		}
 	}
+	frame += "\n" + m.keybarLine()
 	// The picture-in-picture view, on top of the pane. renderPiP also records
 	// where it went, or that it is not drawn, for clicks.
 	if l := m.renderPiP(); l != nil {

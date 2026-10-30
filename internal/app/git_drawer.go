@@ -37,6 +37,20 @@ type gitHistoryMsg struct {
 // GitDrawerOpen reports whether a Git drawer owns the keyboard.
 func (m *OS) GitDrawerOpen() bool { return m.gitDrawer.open }
 
+// OpenGitHistory is the mouse-facing entry to the same drawer the
+// git_commits action opens.
+func (m *OS) OpenGitHistory() tea.Cmd {
+	return m.OpenGitHistoryKind(1)
+}
+
+// OpenGitHistoryKind opens the history row at index in gitTabHistoryKinds.
+func (m *OS) OpenGitHistoryKind(index int) tea.Cmd {
+	if index < 0 || index >= len(gitTabHistoryKinds) {
+		return nil
+	}
+	return m.SidebarGitHistory(gitTabHistoryKinds[index])
+}
+
 // SidebarGitHistory reads one drawer for the repository the Git tab shows.
 // File history needs a changed row under the cursor; the other kinds do not.
 func (m *OS) SidebarGitHistory(kind review.HistoryKind) tea.Cmd {

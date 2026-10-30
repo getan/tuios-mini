@@ -42,6 +42,44 @@ func (m *OS) modeLegend() []overlay.Hint {
 	return nil
 }
 
+// normalModeLegend is the always-on, Zellij-style hint strip. It teaches the
+// few keys that cover daily work instead of making the user memorise the whole
+// leader menu; the full menu is still behind the leader key.
+func (m *OS) normalModeLegend() []overlay.Hint {
+	if m.KeybindRegistry == nil || m.PrefixActive {
+		return nil
+	}
+	key := func(action string) string {
+		if keys := m.KeybindRegistry.GetKeys(action); len(keys) > 0 {
+			return keys[0]
+		}
+		return ""
+	}
+	hint := func(action, label string, priority overlay.HintPriority) overlay.Hint {
+		return overlay.Hint{Key: key(action), Label: label, Priority: priority}
+	}
+	if m.SidebarFocused {
+		return []overlay.Hint{
+			{Key: "enter", Label: "open", Priority: overlay.HintEssential},
+			{Key: "?", Label: "help", Priority: overlay.HintEssential},
+		}
+	}
+	hints := []overlay.Hint{
+		hint("new_window", "new", overlay.HintEssential),
+		hint("split_vertical", "split right", overlay.HintOptional),
+		hint("split_horizontal", "split down", overlay.HintOptional),
+		hint("close_window", "close", overlay.HintOptional),
+		hint("help", "help", overlay.HintEssential),
+	}
+	out := hints[:0]
+	for _, h := range hints {
+		if h.Key != "" {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
 // hintsLegend is hints mode's legend. Ctrl and a label is left out when the
 // config turns opening off, since it only copies then.
 func (m *OS) hintsLegend() []overlay.Hint {

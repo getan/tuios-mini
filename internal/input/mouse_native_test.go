@@ -80,6 +80,9 @@ func TestTerminalModeRightClickWithSelectionOpensMenu(t *testing.T) {
 func TestTerminalModeRightClickWithoutSelectionPassesThrough(t *testing.T) {
 	o := twoPaneOS(t)
 	o.Mode = app.TerminalMode
+	// This is the app-owns-the-button opt-out; the shipped default opens the
+	// pane menu, which TestTerminalModeRightClickOpensPaneMenu covers.
+	o.Settings.RightClickOpensMenu = false
 
 	o, _ = handleMouseClick(tea.MouseClickMsg{X: 10, Y: 10, Button: tea.MouseRight}, o)
 	if o.ContextMenuActive() {
@@ -90,6 +93,25 @@ func TestTerminalModeRightClickWithoutSelectionPassesThrough(t *testing.T) {
 	}
 	if o.Mode != app.TerminalMode {
 		t.Error("right-click without a selection left terminal mode")
+	}
+}
+
+func TestTerminalModeRightClickOpensPaneMenu(t *testing.T) {
+	o := twoPaneOS(t)
+	o.Mode = app.TerminalMode
+
+	o, _ = handleMouseClick(tea.MouseClickMsg{X: 10, Y: 10, Button: tea.MouseRight}, o)
+	if !o.ContextMenuActive() {
+		t.Fatal("the default plain right-click did not open the pane menu")
+	}
+	seen := map[string]bool{}
+	for _, it := range o.ContextMenu.Items {
+		seen[it.Action] = true
+	}
+	for _, action := range []string{"split_vertical", "split_horizontal"} {
+		if !seen[action] {
+			t.Errorf("pane menu is missing the %q row", action)
+		}
 	}
 }
 

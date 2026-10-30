@@ -213,9 +213,9 @@ func TestFastPathPaintAllocatesOnlyTheFrame(t *testing.T) {
 	m.Settings.Background = surfaceHex
 	box := m.renderWindowBox(win, 0, true, color.White)
 	dock, _ := m.renderDockString()
-	_ = m.paintFullscreenFrame(win, box, dock, "bottom")
+	_ = m.paintFullscreenFrame(win, box, dock, "", "bottom")
 	if n := testing.AllocsPerRun(50, func() {
-		_ = m.paintFullscreenFrame(win, box, dock, "bottom")
+		_ = m.paintFullscreenFrame(win, box, dock, "", "bottom")
 	}); n > 1 {
 		t.Errorf("painting the frame allocates %.0f times, want 1 (the frame)", n)
 	}

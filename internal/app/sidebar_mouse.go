@@ -479,6 +479,10 @@ func (m *OS) sidebarClick(x, y int, right bool) bool {
 		m.queueSidebarCmd(m.SetProjectTab(1))
 	case sidebarRowGitEntry:
 		m.queueSidebarCmd(m.ActivateGitEntry(hit.WindowIndex))
+	case sidebarRowGitHistory:
+		m.queueSidebarCmd(m.OpenGitHistoryKind(hit.WindowIndex))
+	case sidebarRowGitCommit:
+		m.SidebarGitCommitPrompt()
 	case sidebarRowDivider:
 		// A press arms the split drag; a second press inside the double-click
 		// window resets the split instead.
@@ -675,6 +679,10 @@ func (m *OS) sidebarActivateRow(hit sidebarRowHit) {
 		m.queueSidebarCmd(m.SetProjectTab(1))
 	case sidebarRowGitEntry:
 		m.queueSidebarCmd(m.ActivateGitEntry(hit.WindowIndex))
+	case sidebarRowGitHistory:
+		m.queueSidebarCmd(m.OpenGitHistoryKind(hit.WindowIndex))
+	case sidebarRowGitCommit:
+		m.SidebarGitCommitPrompt()
 	case sidebarRowSession:
 		m.sidebarSwitchSession(hit.SessionID)
 	}

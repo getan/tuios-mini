@@ -905,9 +905,10 @@ func (m *OS) calculateDockRightWidth() int {
 	parts := m.dockMeterParts()
 	custom := m.dockCustomWidth(m.dockPlan.Right)
 	if len(parts) == 0 {
-		return custom
+		return max(custom, modeLegendWidth(m.dockModeLegend()))
 	}
-	return custom + lipgloss.Width(strings.Join(parts, " ")) + dockSysInfoMargin
+	width := custom + lipgloss.Width(strings.Join(parts, " ")) + dockSysInfoMargin
+	return max(width, modeLegendWidth(m.dockModeLegend()))
 }
 
 // dockMeterParts is the readouts the right block would draw, in the order they

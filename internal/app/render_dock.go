@@ -650,7 +650,7 @@ func (m *OS) renderDockString() (string, int) {
 
 	// A compact dock is the bar alone. The rule, and the burn a message draws
 	// on it, are not drawn.
-	dockbarYPos := m.GetRenderHeight() - m.Settings.DockHeight()
+	dockbarYPos := m.GetRenderHeight() - m.Settings.DockHeight() - keyBarHeight
 	dockbarParts := []string{separator, dockBar}
 	if m.Settings.DockCompact {
 		dockbarParts = dockbarParts[1:]

@@ -77,8 +77,9 @@ func fastPaintFits(window *terminal.Window) bool {
 
 // paintFullscreenFrame builds the fast path's frame with the pane, chrome and
 // dock grounds painted in. box is the pane's box as renderWindowBox drew it,
-// dock the dock's rows, placed by dockPos ("top", "bottom" or "hidden").
-func (m *OS) paintFullscreenFrame(window *terminal.Window, box, dock, dockPos string) string {
+// dock the dock's rows, placed by dockPos ("top", "bottom" or "hidden"), and
+// keybar the fixed bottom hint row.
+func (m *OS) paintFullscreenFrame(window *terminal.Window, box, dock, keybar, dockPos string) string {
 	pane := m.surfaceGround(surfacePane)
 	chrome := m.surfaceGround(surfaceChrome)
 	dockGround := m.surfaceGround(surfaceDock)
@@ -117,6 +118,14 @@ func (m *OS) paintFullscreenFrame(window *terminal.Window, box, dock, dockPos st
 	if dockPos != "top" && dockPos != "hidden" {
 		p.out = append(p.out, '\n')
 		p.block(dock, &dockGround)
+	}
+	if keybar != "" {
+		p.out = append(p.out, '\n')
+		// The keybar is already a styled, screen-width line. Appending it
+		// directly keeps its key/label inks exactly as the compositor drew
+		// them; painting it as an unstyled block would leave the two frames
+		// disagreeing on every hint cell.
+		p.out = append(p.out, keybar...)
 	}
 	return string(p.out)
 }

@@ -339,7 +339,7 @@ type AppearanceConfig struct {
 	FocusFollowsMouse        *bool                   `toml:"focus_follows_mouse"`          // Focus the pane under the cursor as the mouse moves (default: false)
 	FocusFollowsMousePause   string                  `toml:"focus_follows_mouse_pause"`    // The key that pauses focus_follows_mouse while held: ctrl, alt, off (default: off)
 	AltDrag                  *bool                   `toml:"alt_drag"`                     // Alt + left-drag moves a pane (default: true)
-	RightClickOpensMenu      *bool                   `toml:"right_click_opens_menu"`       // A plain right-click on a pane in terminal mode opens the pane menu (default: false)
+	RightClickOpensMenu      *bool                   `toml:"right_click_opens_menu"`       // A plain right-click on a pane in terminal mode opens the pane menu (default: true)
 	KittyPlaceholders        string                  `toml:"kitty_placeholders"`           // Draw kitty Unicode placeholder images: auto, on, off (default: auto)
 	ImageSymbols             string                  `toml:"image_symbols"`                // Draw pane images as block glyphs on a terminal without graphics: auto, octant, sextant, quadrant, half, off (default: auto)
 	NewWindowInheritCwd      *bool                   `toml:"new_window_inherit_cwd"`       // A new window starts in the focused pane's working directory (default: true)

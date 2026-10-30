@@ -87,6 +87,7 @@ func TestTouchLongPressOpensThePaneMenuWhileTyping(t *testing.T) {
 func TestAPointerRightClickWhileTypingStillOpensNothing(t *testing.T) {
 	o, wa, wb := twoPaneBSP(t)
 	o.Mode = app.TerminalMode
+	o.Settings.RightClickOpensMenu = false
 	left, _ := leftPaneOf(wa, wb)
 
 	x, y := left.X+left.Width/2, left.Y+left.Height/2

@@ -539,7 +539,10 @@ type Settings struct {
 	// client has no modifier and opens the menu with a long press regardless.
 	// Turning this on is how someone makes the menu's Paste row one plain click
 	// away, without selecting anything first.
-	// Set via appearance.right_click_opens_menu config.
+	// Set via appearance.right_click_opens_menu config. The shipped default is
+	// on: Herdr-style right-click menus are the mouse-first path to split,
+	// close and create panes. A pane's application that tracks the mouse still
+	// receives the button; only the non-mouse path opens the menu.
 	RightClickOpensMenu bool
 
 	// KittyPlaceholders decides whether images an application positions with
@@ -911,7 +914,7 @@ func DefaultSettings() Settings {
 		NewWindowInheritCwd:         true,
 		KittyPlaceholders:           KittyPlaceholdersAuto,
 		ImageSymbols:                ImageSymbolsAuto,
-		RightClickOpensMenu:         false,
+		RightClickOpensMenu:         true,
 		AutoEnterTerminalOnFocus:    AutoEnterTerminalOff,
 		WordCharacters:              `@-./_~?&=%+#`,
 		NiriReverseScroll:           false,

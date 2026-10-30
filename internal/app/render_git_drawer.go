@@ -61,5 +61,16 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		Body:  strings.Join(body, "\n"),
 		Hints: hints,
 	}.Render(pal)
-	return content, geo, nil
+	var rows []overlayRowHit
+	if !d.loading && d.err == "" && len(d.rows) > 0 {
+		end := min(d.scroll+visible, len(d.rows))
+		for i := d.scroll; i < end; i++ {
+			rowY := geo.BodyY + (i - d.scroll)
+			rows = append(rows, overlayRowHit{
+				Rect: overlay.Rect{X0: 0, Y0: rowY, X1: geo.Width, Y1: rowY + 1},
+				Idx:  i,
+			})
+		}
+	}
+	return content, geo, rows
 }

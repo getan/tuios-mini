@@ -114,7 +114,7 @@ const (
 var (
 	DockbarPositions     = []string{"bottom", "top", "hidden"}
 	SidebarPositions     = []string{"left", "right", "hidden"}
-	WhichKeyPositions    = []string{"bottom-right", "bottom-left", "top-right", "top-left", "center"}
+	WhichKeyPositions    = []string{"bottom-right", "bottom-left", "top-right", "top-left", "center", "popup"}
 	WindowTitlePositions = []string{"bottom", "top", "hidden"}
 	// DockPrefixIndicators are where an armed leader shows: on the dock's
 	// mode pill, or on the floating badge it had before the pill could.
@@ -255,7 +255,7 @@ var optionSpecs = []Option{
 	{
 		Path: "appearance.right_click_opens_menu", Type: OptionBool, Section: "appearance",
 		Description: "A plain right-click on a pane in terminal mode opens the pane menu, for pasting without selecting first",
-		Default:     "false",
+		Default:     "true",
 	},
 	{
 		Path: "appearance.kitty_placeholders", Type: OptionString, Section: "appearance",

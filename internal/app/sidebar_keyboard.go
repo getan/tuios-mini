@@ -289,6 +289,10 @@ func (m *OS) SidebarActivateCursor() bool {
 		m.queueSidebarCmd(m.SetProjectTab(1 - m.projectTab))
 	case sidebarRowGitEntry:
 		m.queueSidebarCmd(m.ActivateGitEntry(row.WindowIndex))
+	case sidebarRowGitHistory:
+		m.queueSidebarCmd(m.OpenGitHistoryKind(row.WindowIndex))
+	case sidebarRowGitCommit:
+		m.SidebarGitCommitPrompt()
 	case sidebarRowDivider:
 		// Enter on the divider is the keyboard's double-click: the split goes
 		// back to the layout's own share.
