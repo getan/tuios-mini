@@ -279,13 +279,13 @@ func (m *OS) DocPreviewKey(msg tea.KeyPressMsg) (*OS, tea.Cmd) {
 		return m, nil
 	}
 	key := msg.String()
-	if key != "esc" {
+	if key != "esc" && key != "ctrl+c" {
 		d.confirm = false
 	}
 	// The ctrl chords first: a document may contain the letters, so the bare
 	// letter must never be read as a command while the caret is live.
 	switch key {
-	case "esc":
+	case "esc", "ctrl+c":
 		if d.confirm || d.buf == nil || !d.buf.Dirty() {
 			m.CloseDocPreview(true)
 		} else {
@@ -556,7 +556,7 @@ func (m *OS) renderDocPreview() string {
 	}
 	body := m.renderDocBody(width, height-3, pal)
 	lines = append(lines, body...)
-	footer := " arrows move / type to edit / ctrl+s save / ctrl+z undo / esc close"
+	footer := " arrows move / type to edit / ctrl+s save / ctrl+z undo / esc/ctrl+c close"
 	if d.note != "" {
 		footer = " " + d.note
 	}

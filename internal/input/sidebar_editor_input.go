@@ -16,7 +16,7 @@ func handleSectionEditorInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd)
 		return o, nil
 	}
 	switch keyStr := msg.String(); keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		// Closes, keeping the layout. Every edit here was applied and saved as
 		// it was made, so there is nothing pending for Esc to abandon.
 		o.CloseSectionEditor()

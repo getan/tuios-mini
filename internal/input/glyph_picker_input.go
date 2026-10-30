@@ -12,7 +12,7 @@ func handleGlyphPickerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 	switch msg.String() {
-	case "esc":
+	case "esc", "ctrl+c":
 		return o, o.CancelGlyphPicker()
 	case "enter":
 		return o, o.GlyphPickerApplySelection()

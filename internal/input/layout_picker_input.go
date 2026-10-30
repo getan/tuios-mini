@@ -23,7 +23,7 @@ func handleLayoutPickerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) 
 // handleLayoutSaveInput handles input for the layout save name prompt.
 func handleLayoutSaveInput(keyStr string, o *app.OS) (*app.OS, tea.Cmd) {
 	switch keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.ShowLayoutPicker = false
 		o.LayoutSaveBuffer = ""
 		return o, nil
@@ -71,7 +71,7 @@ func handleLayoutLoadInput(msg tea.KeyPressMsg, keyStr string, o *app.OS) (*app.
 	}
 
 	switch keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.ShowLayoutPicker = false
 		o.LayoutPickerQuery = ""
 		o.LayoutPickerSelected = 0

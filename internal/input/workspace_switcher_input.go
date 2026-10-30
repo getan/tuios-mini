@@ -19,7 +19,7 @@ func handleWorkspaceSwitcherInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.
 	}
 
 	switch keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.CloseWorkspaceSwitcher()
 		return o, nil
 

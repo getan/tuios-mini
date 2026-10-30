@@ -62,7 +62,7 @@ func handleNavigatorInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 	switch key {
-	case "esc", "q":
+	case "esc", "q", "ctrl+c":
 		if key == "esc" && o.NavigatorQuery() != "" {
 			o.NavigatorSetQuery("")
 			return o, nil

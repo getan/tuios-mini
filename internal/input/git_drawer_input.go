@@ -24,7 +24,7 @@ func handleGitDrawerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		o.GitDrawerEdge(true)
 	case "enter":
 		return o, o.GitDrawerActivate()
-	case "esc", "q":
+	case "esc", "q", "ctrl+c":
 		o.GitDrawerClose()
 	}
 	return o, nil

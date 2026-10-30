@@ -42,7 +42,7 @@ func handleThemePickerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 	switch msg.String() {
-	case "esc":
+	case "esc", "ctrl+c":
 		return o, o.CancelThemePicker()
 	case "enter":
 		return o, o.ThemePickerApplySelection()
@@ -60,7 +60,7 @@ func handlePresetPickerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) 
 		return o, nil
 	}
 	switch msg.String() {
-	case "esc", "q":
+	case "esc", "q", "ctrl+c":
 		o.ClosePresetPicker()
 	case "enter":
 		return o, o.PresetPickerApply()

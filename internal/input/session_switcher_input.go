@@ -36,7 +36,7 @@ func handleSessionSwitcherInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cm
 	}
 
 	switch keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.ShowSessionSwitcher = false
 		o.SessionSwitcherQuery = ""
 		o.SessionSwitcherSelected = 0

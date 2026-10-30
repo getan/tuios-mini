@@ -17,7 +17,7 @@ func handleLauncherInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, o.LauncherIconWork()
 	}
 	switch msg.String() {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.CloseLauncher()
 		return o, nil
 

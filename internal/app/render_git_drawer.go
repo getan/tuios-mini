@@ -50,7 +50,7 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 	}
 	hints := []overlay.Hint{
 		{Key: "j/k", Label: "move"},
-		{Key: "esc", Label: "close"},
+		{Key: "esc/ctrl+c", Label: "close"},
 	}
 	if d.kind == "repos" {
 		hints = append([]overlay.Hint{{Key: "enter", Label: "focus pane"}}, hints...)

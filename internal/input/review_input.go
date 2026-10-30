@@ -39,7 +39,7 @@ func handleReviewInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		switch key {
 		case "enter":
 			return o, o.ReviewEditorSubmit()
-		case "esc":
+		case "esc", "ctrl+c":
 			o.ReviewEditorCancel()
 		case "backspace", "ctrl+h":
 			o.ReviewEditorBackspace()
@@ -73,7 +73,7 @@ func handleReviewInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			o.ReviewCompareVerifyPrompt()
 		case "K":
 			o.ReviewCompareKeep()
-		case "esc", "q", "w":
+		case "esc", "q", "w", "ctrl+c":
 			return o, o.ReviewCompareBack()
 		}
 		return o, nil
@@ -135,7 +135,7 @@ func handleReviewInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, o.ReviewCompare()
 	case "r":
 		return o, o.ReviewReload()
-	case "esc", "q":
+	case "esc", "q", "ctrl+c":
 		return o, o.ReviewClose()
 	}
 	return o, nil

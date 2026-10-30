@@ -13,7 +13,7 @@ func handleThemeEditorInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		switch key {
 		case "enter":
 			o.ThemeEditorCommitTyping()
-		case "esc":
+		case "esc", "ctrl+c":
 			o.ThemeEditorEscape()
 		case "tab":
 			o.ThemeEditorComplete()
@@ -36,7 +36,7 @@ func handleThemeEditorInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, o.ThemeEditorFlash()
 	}
 	switch key {
-	case "esc", "q":
+	case "esc", "q", "ctrl+c":
 		o.ThemeEditorEscape()
 	case "enter":
 		o.ThemeEditorPick()

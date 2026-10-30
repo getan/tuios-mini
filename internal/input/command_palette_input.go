@@ -14,7 +14,7 @@ func handleCommandPaletteInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd
 	}
 
 	switch keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.CloseCommandPalette()
 		return o, nil
 

@@ -17,7 +17,7 @@ import (
 // it takes the step and hands it over.
 func handleAccentPickerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.CloseAccentPicker()
 		return o, nil
 	case "enter":

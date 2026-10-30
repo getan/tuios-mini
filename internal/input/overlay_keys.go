@@ -81,7 +81,7 @@ func handleHelpOverlayKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	}
 
 	switch key {
-	case "esc":
+	case "esc", "ctrl+c":
 		if o.HelpSearchMode {
 			o.HelpSearchMode = false
 			o.HelpSearchQuery = ""

@@ -1117,7 +1117,7 @@ func (m *OS) reviewKeyHints() []overlay.Hint {
 	if r.backToCompare {
 		add("esc", "back")
 	} else {
-		add("esc", "close")
+		add("esc/ctrl+c", "close")
 	}
 	return hints
 }

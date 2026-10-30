@@ -18,7 +18,7 @@ func handleEffectPickerInput(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) 
 		return o, moved
 	}
 	switch keyStr := msg.String(); keyStr {
-	case "esc":
+	case "esc", "ctrl+c":
 		o.CancelEffectPicker()
 	case "enter":
 		return o, o.EffectPickerApplySelection()
