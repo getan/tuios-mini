@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/getan/tuios-mini/internal/config"
+	"github.com/getan/tuios-mini/internal/terminal"
 )
 
 func keybarTestOS(t *testing.T, client ClientKind) *OS {
@@ -44,6 +45,21 @@ func TestKeybarChangesWithThePrefixLayer(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(line), "switch") {
 		t.Fatalf("workspace keybar lost its keys: %q", line)
+	}
+}
+
+func TestKeybarShowsPrefixHelpWhenThePaneOwnsInput(t *testing.T) {
+	m := keybarTestOS(t, ClientLocal)
+	w := newTestWindow(t, "agent-input", 80, 20)
+	w.Workspace = 1
+	m.Windows = []*terminal.Window{w}
+	m.CurrentWorkspace, m.FocusedWindow = 1, 0
+	line := ansi.Strip(m.keybarLine())
+	if !strings.Contains(line, "INPUT") || !strings.Contains(line, "ctrl+b") {
+		t.Fatalf("a focused pane should point at the prefix key, got %q", line)
+	}
+	if strings.Contains(line, "split right") {
+		t.Fatalf("pane input still advertised window management: %q", line)
 	}
 }
 

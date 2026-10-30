@@ -64,6 +64,13 @@ func (m *OS) normalModeLegend() []overlay.Hint {
 			{Key: "?", Label: "help", Priority: overlay.HintEssential},
 		}
 	}
+	if m.FocusedPaneOwnsInput() {
+		return []overlay.Hint{{
+			Key:      m.keybarLeaderKey(),
+			Label:    "menu",
+			Priority: overlay.HintEssential,
+		}}
+	}
 	hints := []overlay.Hint{
 		hint("new_window", "new", overlay.HintEssential),
 		hint("split_vertical", "split right", overlay.HintOptional),

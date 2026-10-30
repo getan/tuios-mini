@@ -71,11 +71,27 @@ func (m *OS) keybarHints() (string, []overlay.Hint) {
 		}
 		return label, all
 	}
+	if m.FocusedPaneOwnsInput() {
+		return "INPUT", []overlay.Hint{{
+			Key:      m.keybarLeaderKey(),
+			Label:    "menu",
+			Priority: overlay.HintEssential,
+		}}
+	}
 	label := "KEYS"
 	if m.SidebarFocused {
 		label = "SIDEBAR"
 	}
 	return label, m.normalModeLegend()
+}
+
+func (m *OS) keybarLeaderKey() string {
+	if m.KeybindRegistry != nil {
+		if cfg := m.KeybindRegistry.GetConfig(); cfg != nil && cfg.Keybindings.LeaderKey != "" {
+			return cfg.Keybindings.LeaderKey
+		}
+	}
+	return config.DefaultLeaderKey
 }
 
 func (m *OS) renderKeybar() *lipgloss.Layer {
