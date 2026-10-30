@@ -468,6 +468,7 @@ func Run(ctx context.Context, opts Options) error {
 
 	// The terminal this client drew to, not this process's stdout: a host that
 	// handed over a pty must not find escape sequences on its own output.
+	drainLateKeyboardReply(in)
 	_ = terminal.WriteReset(out)
 
 	if runErr != nil {

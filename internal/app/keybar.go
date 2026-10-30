@@ -52,24 +52,46 @@ func (m *OS) keybarHints() (string, []overlay.Hint) {
 		if label == "PREFIX" {
 			label = "PREFIX"
 		}
-		var preferred, all []overlay.Hint
+		var submenus, palette, rest []overlay.Hint
 		for _, g := range groups {
 			for _, b := range g.Bindings {
 				h := overlay.Hint{
 					Key:   m.printableClientRunes(b.Key),
 					Label: m.printableClientRunes(b.Description),
 				}
-				all = append(all, h)
 				if b.Submenu {
 					h.Label = "+" + h.Label
-					preferred = append(preferred, h)
+					submenus = append(submenus, h)
+					continue
 				}
+				if b.Action == "prefix_command_palette" {
+					h.Priority = overlay.HintEssential
+					palette = append(palette, h)
+					continue
+				}
+				rest = append(rest, h)
 			}
 		}
-		if len(preferred) > 0 {
-			return label, preferred
+		// Zellij's rule: the first layer is the coarse mode list, not every
+		// action. A submenu opens the next layer; the command palette is the
+		// one global action kept beside those modes. Menus without submenus
+		// (Workspace, Window, ...) are already the narrow layer, so they show
+		// their own actions.
+		if len(submenus) > 0 {
+			return label, append(submenus, palette...)
 		}
-		return label, all
+		return label, append(palette, rest...)
+	}
+	if label, hints, ok := m.keybarPanelHints(); ok {
+		return label, hints
+	}
+	if hints := m.modeLegend(); len(hints) > 0 {
+		return "MODE", hints
+	}
+	if m.InputOverlayOpen() {
+		return "PANEL", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}
 	}
 	if m.FocusedPaneOwnsInput() {
 		return "INPUT", []overlay.Hint{{
@@ -83,6 +105,152 @@ func (m *OS) keybarHints() (string, []overlay.Hint) {
 		label = "SIDEBAR"
 	}
 	return label, m.normalModeLegend()
+}
+
+// keybarPanelHints brings the open panel's own footer into the one keybar.
+// The panel keeps its footer for reading next to its content; the keybar is
+// the same keys in the same order, so the two cannot drift.
+func (m *OS) keybarPanelHints() (string, []overlay.Hint, bool) {
+	switch {
+	case m.GitDrawerOpen():
+		return "GIT", m.gitDrawerKeyHints(), true
+	case m.ReviewOpen():
+		return "REVIEW", m.reviewKeyHints(), true
+	case m.DocPreviewFocused():
+		return "PREVIEW", []overlay.Hint{{Key: "esc/ctrl+c", Label: "close", Priority: overlay.HintEssential}}, true
+	case m.ShowCommandPalette:
+		return "PALETTE", m.paletteFooter(), true
+	case m.ShowHelp:
+		return "HELP", helpHints(m.HelpSearchMode), true
+	case m.ShowSettings:
+		return "SETTINGS", m.currentSettingsHints(), true
+	case m.FilePromptOpen():
+		return "DIALOG", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: m.filePromptSubmitLabel(), Priority: overlay.HintEssential},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.Renaming():
+		return "RENAME", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "save", Priority: overlay.HintEssential},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.CaptureActive():
+		return "CAPTURE", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "copy", Priority: overlay.HintEssential},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowScrollbackBrowser:
+		return "SCROLLBACK", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowTapeManager:
+		return "TAPES", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowTapeReview:
+		return "TAPE REVIEW", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowCacheStats:
+		return "CACHE", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowThemePicker:
+		return "THEME", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "apply"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowLayoutPicker:
+		return "LAYOUT", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "apply"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowHostPicker:
+		return "HOSTS", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "open"},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowGlyphPicker:
+		return "GLYPHS", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "apply"},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowEffectPicker:
+		return "EFFECTS", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "apply"},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowAccentPicker:
+		return "ACCENT", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "choose"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowDockEditor:
+		return "DOCK", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowSectionEditor:
+		return "SIDEBAR", []overlay.Hint{
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowKeybindManager:
+		return "KEYS", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "edit"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowInbox:
+		return "INBOX", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "open"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowAgentMail:
+		return "MAIL", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "open"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowAggregateView:
+		return "PANES", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "focus"},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowLogs:
+		return "LOGS", []overlay.Hint{
+			{Key: "q", Label: "close", Priority: overlay.HintEssential},
+			{Key: "esc", Label: "close", Priority: overlay.HintEssential},
+		}, true
+	case m.ShowLauncher:
+		return "LAUNCHER", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "run"},
+			{Key: "tab", Label: "type"},
+			{Key: "esc", Label: "close"},
+		}, true
+	case m.ShowWorkspaceSwitcher:
+		return "WORKSPACES", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "open"},
+			{Key: "esc", Label: "close"},
+		}, true
+	case m.ShowSessionSwitcher:
+		return "SESSIONS", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "open"},
+			{Key: "esc", Label: "close"},
+		}, true
+	case m.ShowQuitMenu:
+		return "QUIT", []overlay.Hint{
+			{Key: "q", Label: "quit"},
+			{Key: "esc", Label: "cancel"},
+		}, true
+	case m.ShowSessionClose:
+		return "CLOSE", []overlay.Hint{
+			{Key: "y", Label: "close", Priority: overlay.HintEssential},
+			{Key: "esc", Label: "cancel", Priority: overlay.HintEssential},
+		}, true
+	case m.ContextMenuActive():
+		return "MENU", []overlay.Hint{
+			{Key: overlay.EnterKey(), Label: "choose"},
+			{Key: "esc", Label: "close"},
+		}, true
+	}
+	return "", nil, false
 }
 
 func (m *OS) keybarLeaderKey() string {

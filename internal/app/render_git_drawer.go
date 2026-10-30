@@ -49,19 +49,7 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 				width, bg))
 		}
 	}
-	hints := []overlay.Hint{
-		{Key: "j/k", Label: "move"},
-		{Key: "esc/ctrl+c", Label: "close"},
-	}
-	if gitDrawerHasDetail(d.kind) {
-		hints = append([]overlay.Hint{{Key: "enter", Label: "open"}}, hints...)
-	}
-	if d.kind == review.HistoryRepos {
-		hints = append([]overlay.Hint{{Key: "enter", Label: "select repo"}}, hints...)
-	}
-	if gitDrawerIsDetail(d.kind) {
-		hints[len(hints)-1].Label = "back"
-	}
+	hints := m.gitDrawerKeyHints()
 	content, geo := overlay.Dialog{
 		Title: "git · " + d.title,
 		Width: width,
@@ -80,6 +68,24 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 		}
 	}
 	return content, geo, rows
+}
+
+func (m *OS) gitDrawerKeyHints() []overlay.Hint {
+	d := &m.gitDrawer
+	hints := []overlay.Hint{
+		{Key: "j/k", Label: "move"},
+		{Key: "esc/ctrl+c", Label: "close"},
+	}
+	if gitDrawerHasDetail(d.kind) {
+		hints = append([]overlay.Hint{{Key: "enter", Label: "open"}}, hints...)
+	}
+	if d.kind == review.HistoryRepos {
+		hints = append([]overlay.Hint{{Key: "enter", Label: "select repo"}}, hints...)
+	}
+	if gitDrawerIsDetail(d.kind) {
+		hints[len(hints)-1].Label = "back"
+	}
+	return hints
 }
 
 func gitDrawerHasDetail(kind review.HistoryKind) bool {

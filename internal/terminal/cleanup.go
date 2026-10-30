@@ -14,6 +14,8 @@ import (
 // also drop the whole scrollback on it. DECSTR, the soft reset, puts the modes, margins, pen and
 // character sets back without touching a cell.
 const ResetSequence = "\033[!p" + // DECSTR: soft reset, which clears nothing
+	"\033[=0;1u" + // Clear Kitty keyboard protocol flags
+	"\033[>4m" + // Reset xterm modifyOtherKeys
 	"\033[?1000l" + // Disable normal mouse tracking
 	"\033[?1002l" + // Disable button event tracking
 	"\033[?1003l" + // Disable all motion tracking
