@@ -361,9 +361,6 @@ func Run(ctx context.Context, opts Options) error {
 	trace.mark("session.attach")
 
 	prw := app.NewPostRenderWriter(out)
-	if sshTerminalEnvironment() {
-		prw.SetFilterKittyQuery(true)
-	}
 	initialOS := app.NewOS(app.OSOptions{
 		Client:          app.ClientLocal,
 		KeybindRegistry: keybindRegistry,
