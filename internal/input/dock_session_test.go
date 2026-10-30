@@ -38,7 +38,7 @@ func dockSessionOS(t *testing.T, daemon bool) *app.OS {
 // control, or -1. It reads the rects the renderer recorded, which the app
 // package's own test already ties to the cells that were drawn.
 func dockSessionColumn(o *app.OS, want app.DockSessionAction) int {
-	y := o.Height - 1
+	y := o.GetDockbarContentYPosition()
 	for x := range o.Width {
 		if o.DockSessionActionAt(x, y) == want {
 			return x
@@ -57,7 +57,7 @@ func TestDockCloseAlwaysConfirms(t *testing.T) {
 			t.Fatalf("daemon %v: the dock drew no close control", daemon)
 		}
 
-		o, cmd := handleMouseClick(clickAt(x, o.Height-1), o)
+		o, cmd := handleMouseClick(clickAt(x, o.GetDockbarContentYPosition()), o)
 		if !o.ShowSessionClose {
 			t.Errorf("daemon %v: clicking close did not raise the confirmation", daemon)
 		}
