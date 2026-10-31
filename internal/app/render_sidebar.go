@@ -2763,9 +2763,6 @@ func (m *OS) sidebarFooter(variant, cw int, pal overlay.Palette,
 		return nil, nil
 	}
 
-	keyHints := m.gitTabKeyHintLines(cw, pal)
-	hoverLine -= len(keyHints)
-
 	stepW := lipgloss.Width(stepGlyph)
 
 	type placed struct {
@@ -2833,10 +2830,7 @@ func (m *OS) sidebarFooter(variant, cw int, pal overlay.Palette,
 	for i, row := range cells {
 		lines[i] = sidebarFit(strings.Join(row, ""), cw, nil)
 	}
-	for i := range zones {
-		zones[i].Line += len(keyHints)
-	}
-	return append(keyHints, lines...), zones
+	return lines, zones
 }
 
 // windowIndexByID returns the index of the window with the given ID in m.Windows,

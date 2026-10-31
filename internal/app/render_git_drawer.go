@@ -49,12 +49,22 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 				width, bg))
 		}
 	}
-	hints := m.gitDrawerKeyHints()
+	// Mouse controls replace the key legend, including while loading or after
+	// an error. Keep them in the body so they have real click targets.
+	controlsY := len(body)
+	controls := "[close]"
+	if d.parent != nil {
+		if width >= 16 {
+			controls = "[back]  [close]"
+		} else {
+			body = append(body, dialogBodyLine("[back]", width, pal.AccentBright, bg))
+		}
+	}
+	body = append(body, dialogBodyLine(controls, width, pal.AccentBright, bg))
 	content, geo := overlay.Dialog{
 		Title: "git · " + d.title,
 		Width: width,
 		Body:  strings.Join(body, "\n"),
-		Hints: hints,
 	}.Render(pal)
 	var rows []overlayRowHit
 	if !d.loading && d.err == "" && len(d.rows) > 0 {
@@ -67,41 +77,21 @@ func (m *OS) renderGitDrawer() (string, overlay.Geometry, []overlayRowHit) {
 			})
 		}
 	}
+	y := geo.BodyY + controlsY
+	x := geo.BodyX + 1
+	if d.parent != nil {
+		rows = append(rows, overlayRowHit{Rect: overlay.Rect{X0: x, Y0: y, X1: x + 6, Y1: y + 1}, Idx: gitDrawerBackRow})
+		if width >= 16 {
+			x += 8
+		} else {
+			y++
+		}
+	}
+	rows = append(rows, overlayRowHit{Rect: overlay.Rect{X0: x, Y0: y, X1: min(x+7, geo.Width-1), Y1: y + 1}, Idx: gitDrawerCloseRow})
 	return content, geo, rows
 }
 
-func (m *OS) gitDrawerKeyHints() []overlay.Hint {
-	d := &m.gitDrawer
-	hints := []overlay.Hint{
-		{Key: "j/k", Label: "move"},
-		{Key: "esc/ctrl+c", Label: "close"},
-	}
-	if gitDrawerHasDetail(d.kind) {
-		hints = append([]overlay.Hint{{Key: "enter", Label: "open"}}, hints...)
-	}
-	if d.kind == review.HistoryRepos {
-		hints = append([]overlay.Hint{{Key: "enter", Label: "select repo"}}, hints...)
-	}
-	if gitDrawerIsDetail(d.kind) {
-		hints[len(hints)-1].Label = "back"
-	}
-	return hints
-}
-
-func gitDrawerHasDetail(kind review.HistoryKind) bool {
-	switch kind {
-	case review.HistoryCommits, review.HistoryGraph, review.HistoryBranches,
-		review.HistoryTags, review.HistoryStashes, review.HistoryRemotes, review.HistoryFile:
-		return true
-	}
-	return false
-}
-
-func gitDrawerIsDetail(kind review.HistoryKind) bool {
-	switch kind {
-	case review.HistoryCommit, review.HistoryBranch, review.HistoryTag,
-		review.HistoryStash, review.HistoryRemote:
-		return true
-	}
-	return false
-}
+const (
+	gitDrawerBackRow  = -1
+	gitDrawerCloseRow = -2
+)

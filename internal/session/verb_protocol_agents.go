@@ -207,8 +207,9 @@ func agentWorkVerbs() map[string]verbEntry {
 			params: []verbParam{
 				sessionParam,
 				windowParam,
-				{Name: "kind", Type: "string", Required: true, Description: "commits, graph, branches, tags, stashes, remotes, file or repos.", Accepted: []string{"commits", "graph", "branches", "tags", "stashes", "remotes", "file", "repos"}},
+				{Name: "kind", Type: "string", Required: true, Description: "A list (commits, graph, branches, tags, stashes, remotes, file, repos) or a detail (commit, branch, tag, stash, remote). Details need ref.", Accepted: []string{"commits", "graph", "branches", "tags", "stashes", "remotes", "file", "repos", "commit", "branch", "tag", "stash", "remote"}},
 				{Name: "path", Type: "string", Description: "For kind file: the file, relative to the repository root."},
+				{Name: "ref", Type: "string", Description: "For a detail: the commit, branch, tag, stash ref or remote name selected from its list."},
 				{Name: "limit", Type: "int", Description: "Rows to read, 1 to 500. Default 100.", Default: "100"},
 			},
 			returns: []verbParam{

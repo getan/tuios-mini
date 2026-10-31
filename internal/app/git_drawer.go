@@ -189,11 +189,14 @@ func (m *OS) GitDrawerEdge(last bool) {
 
 // GitDrawerClose closes the drawer and invalidates an answer still in flight.
 func (m *OS) GitDrawerClose() {
+	gen := m.gitDrawer.gen + 1
 	if parent := m.gitDrawer.parent; parent != nil {
 		m.gitDrawer = *parent
+		// Never reuse the cancelled detail's generation when another row opens.
+		m.gitDrawer.gen = gen
 		return
 	}
-	m.gitDrawer = gitDrawerState{gen: m.gitDrawer.gen + 1}
+	m.gitDrawer = gitDrawerState{gen: gen}
 }
 
 // GitDrawerActivate selects a repository or opens the history row under the
@@ -229,7 +232,7 @@ func (m *OS) GitDrawerActivate() tea.Cmd {
 
 func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 	origin := m.gitDrawer.origin
-	if origin.Session == "" {
+	if origin.Session == "" && !origin.External {
 		origin = m.gitStatus.Origin
 	}
 	if origin.Session == "" {
@@ -242,7 +245,7 @@ func (m *OS) openGitDetail(kind review.HistoryKind, ref string) tea.Cmd {
 	gen := m.gitDrawer.gen
 	m.gitDrawer = gitDrawerState{
 		open: true, gen: gen, kind: kind,
-		title: gitDrawerTitle(kind) + " " + ref, loading: true, parent: &parent,
+		title: gitDrawerTitle(kind) + " " + ref, loading: true, parent: &parent, origin: origin,
 	}
 	if origin.External {
 		return m.localGitDetailCmd(gen, kind, ref, origin.Dir)

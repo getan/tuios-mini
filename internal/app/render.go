@@ -1290,7 +1290,7 @@ func (m *OS) flushGraphicsForView() {
 		}
 	}
 
-	// Hide images ONLY during full-screen overlays (help, palette, etc.) and
+	// Hide pane images during opaque dialogs/menus (including rename) and
 	// for the length of a resize gesture. Copy-mode scroll is NOT a reason to
 	// hide: RefreshAllPlacements uses the window's scrollback offset to
 	// reposition images so they scroll naturally with the terminal content.
@@ -1307,11 +1307,12 @@ func (m *OS) flushGraphicsForView() {
 	// been told the new size yet, so it smears across the panes for the length
 	// of the drag. Hiding keeps the image data resident, so the gesture ending
 	// puts it back with no round trip to whatever drew it.
-	hideImages := m.Resizing || m.ShowHelp || m.ShowCommandPalette || m.ShowLauncher || m.ShowSessionSwitcher || m.ShowAgentMail || m.ShowInbox ||
-		m.ShowWorkspaceSwitcher || m.buffers.open || m.navigator.open || m.ShowLayoutPicker || m.ShowHostPicker || m.ShowQuitMenu || m.ShowScrollbackBrowser ||
-		m.ShowLogs || m.msgView.open || m.ShowCacheStats || m.ShowAggregateView ||
-		m.ShowSettings || m.ShowThemePicker || m.themeEditor.open || m.presetPicker.open || m.ShowKeybindManager || m.ShowAccentPicker || m.ShowTapeManager || m.ShowTapeReview ||
-		m.ShotPreview.Open || m.review.open
+	copyPrompt := m.MultiCopy != nil && m.MultiCopy.Save != nil
+	if fw := m.GetFocusedWindow(); fw != nil && fw.CopyMode != nil {
+		copyPrompt = copyPrompt || (fw.CopyMode.Active && fw.CopyMode.State == terminal.CopyModeSearch)
+	}
+	hideImages := m.Resizing || m.opaqueOverlayOpen() || m.whichKeyPopupOpen() || copyPrompt ||
+		(m.screensaver.active && m.screensaver.frame != "")
 	if m.KittyPassthrough != nil {
 		// Self-placed remote video images are hidden/dropped here, not by
 		// HideAllPlacements (they are not in `placements`).
