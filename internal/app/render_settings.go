@@ -98,7 +98,12 @@ func (m *OS) settingsLayout(tabs []string, itemCount int) (width, rows int, hint
 // renderSettings draws the settings overlay and returns the rendered panel, its
 // geometry, and the per-row hit rectangles for mouse routing.
 func (m *OS) renderSettings() (string, overlay.Geometry, []overlayRowHit) {
-	cats := m.settingsCategories()
+	return m.renderSettingsCategories(m.settingsCategories())
+}
+
+// renderSettingsCategories draws a snapshot of the settings page. Keeping the
+// row construction separate lets layout tests reuse it across viewport sizes.
+func (m *OS) renderSettingsCategories(cats []settingsCategory) (string, overlay.Geometry, []overlayRowHit) {
 	if len(cats) == 0 {
 		return "", overlay.Geometry{}, nil
 	}

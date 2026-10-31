@@ -69,12 +69,22 @@ func TestSettingsPanelLinesMatchGeometryWidth(t *testing.T) {
 // end where the panel ends. A description that overruns paints over whatever is
 // behind the overlay, which is the failure this pass was opened for.
 func TestSettingsDescriptionStaysInsideThePanelAtEveryWidth(t *testing.T) {
+	m := newNarrowOS(t, 200, 40)
+	cats := m.settingsCategories()
+	seen := make(map[int]bool)
 	for w := 16; w <= 200; w++ {
-		m := newNarrowOS(t, w, 40)
-		for ci, cat := range m.settingsCategories() {
+		m.Width, m.EffectiveWidth = w, w
+		// The panel stops growing at settingsMaxInnerWidth. Wider terminals
+		// produce the same layout, so render every distinct panel width once.
+		width := m.panelWidth(settingsMaxInnerWidth)
+		if seen[width] {
+			continue
+		}
+		seen[width] = true
+		for ci, cat := range cats {
 			for ii := range cat.Items {
 				m.SettingsCategory, m.SettingsSelected = ci, ii
-				content, geo, _ := m.renderSettings()
+				content, geo, _ := m.renderSettingsCategories(cats)
 				for i, ln := range strings.Split(content, "\n") {
 					if lw := lipgloss.Width(ln); lw != geo.Width {
 						t.Fatalf("w=%d %s[%d]: line %d is %d cells, panel is %d: %q",
