@@ -41,6 +41,15 @@ const (
 // The real index and its lock are never written. An index with a conflict
 // cannot be written as a tree, and remains an error.
 func IndexTree(ctx context.Context, dir string) (string, error) {
+	// The snapshot path is handed to git as GIT_INDEX_FILE. Git resolves a
+	// relative value against cmd.Dir, which is dir itself, so a relative dir
+	// would be joined twice and point at a path that does not exist. Resolve it
+	// once here; every path derived from it is then absolute and independent of
+	// git's working directory.
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("resolve worktree: %w", err)
+	}
 	indexName, err := git(ctx, dir, nil, "rev-parse", "--git-path", "index")
 	if err != nil {
 		return "", err
@@ -50,7 +59,7 @@ func IndexTree(ctx context.Context, dir string) (string, error) {
 		return "", errors.New("git did not name an index")
 	}
 	if !filepath.IsAbs(indexPath) {
-		indexPath = filepath.Join(dir, indexPath)
+		indexPath = filepath.Join(absDir, indexPath)
 	}
 	// A split index resolves its shared base relative to the index directory.
 	// Keep this unique copy beside the real one, but disable split-index writes

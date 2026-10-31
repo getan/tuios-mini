@@ -545,9 +545,7 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		layers = append(layers, scriptLayer)
 	}
 
-	if m.PrefixActive && !m.ShowHelp && m.Settings.WhichKeyEnabled &&
-		m.Settings.WhichKeyPosition == "popup" &&
-		time.Since(m.LastPrefixTime) > config.WhichKeyDelay {
+	if m.whichKeyPopupOpen() {
 		renderedOverlay, overlayWidth, overlayHeight := m.renderWhichKey()
 		var overlayX, overlayY int
 

@@ -85,6 +85,9 @@ func (m *OS) keybarHints() (string, []overlay.Hint) {
 	if label, hints, ok := m.keybarPanelHints(); ok {
 		return label, hints
 	}
+	if m.SidebarFocused && m.GitTabActive() {
+		return "GIT", nil
+	}
 	if hints := m.modeLegend(); len(hints) > 0 {
 		return "MODE", hints
 	}
@@ -113,7 +116,7 @@ func (m *OS) keybarHints() (string, []overlay.Hint) {
 func (m *OS) keybarPanelHints() (string, []overlay.Hint, bool) {
 	switch {
 	case m.GitDrawerOpen():
-		return "GIT", m.gitDrawerKeyHints(), true
+		return "GIT", nil, true
 	case m.ReviewOpen():
 		return "REVIEW", m.reviewKeyHints(), true
 	case m.DocPreviewFocused():

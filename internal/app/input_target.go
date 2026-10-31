@@ -25,8 +25,16 @@ const (
 // panels in AnyOverlayOpen. A surface owns even the keys it does not bind;
 // neither typing nor a paste may fall through to a hidden shell.
 func (m *OS) InputOverlayOpen() bool {
+	return m.opaqueOverlayOpen() || m.CaptureActive() || m.HintsOpen() || m.PaneLabelsOpen()
+}
+
+// opaqueOverlayOpen is shared by input routing and pane-image suppression.
+// Use the panel registry rather than a second list of flags: a new dialog must
+// not take the keyboard while a browser's Kitty image still paints over it.
+// Capture, hints and pane labels need the underlying pane to remain visible.
+func (m *OS) opaqueOverlayOpen() bool {
 	return m.AnyOverlayOpen() || m.ContextMenuActive() || m.ReviewOpen() ||
-		m.Renaming() || m.CaptureActive() || m.HintsOpen() || m.PaneLabelsOpen() ||
+		m.Renaming() ||
 		m.ShowScrollbackBrowser || m.ShowTapeReview || m.ShowTapeManager || m.ShowCacheStats
 }
 

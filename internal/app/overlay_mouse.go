@@ -231,7 +231,9 @@ func (m *OS) overlayRowHover(kind string, idx int) {
 		// crossing the rows on its way somewhere else must not delete a file.
 		m.filePrompt.Selected = idx
 	case "gitdrawer":
-		m.GitDrawerMove(idx - m.gitDrawer.selected)
+		if idx >= 0 {
+			m.GitDrawerMove(idx - m.gitDrawer.selected)
+		}
 	}
 }
 
@@ -306,6 +308,8 @@ func (m *OS) OverlayMouseWheel(x, y int, up bool) bool {
 		m.SessionCloseMove(wheelDelta(up))
 	case "filedialog":
 		m.FileConfirmMove(wheelDelta(up))
+	case "gitdrawer":
+		m.GitDrawerMove(wheelDelta(up))
 	case "accent":
 		// The wheel drives whatever is under it: the strip turns the hue, the
 		// grid steps through lightness.
@@ -516,6 +520,15 @@ func (m *OS) overlayRowClick(kind string, row overlayRowHit, lx, ly int) tea.Cmd
 		m.LogSelected = row.Idx
 		m.LogViewerOpenSelected()
 	case "gitdrawer":
+		if row.Idx == gitDrawerBackRow {
+			m.GitDrawerClose()
+			return nil
+		}
+		if row.Idx == gitDrawerCloseRow {
+			m.gitDrawer.parent = nil
+			m.GitDrawerClose()
+			return nil
+		}
 		m.GitDrawerMove(row.Idx - m.gitDrawer.selected)
 		return m.GitDrawerActivate()
 	}
@@ -647,6 +660,8 @@ func (m *OS) closeOverlay(kind string) {
 		// Same rule, and it matters more here: the ambiguous gesture must never
 		// be the one that removes a file.
 		m.FilePromptCancel()
+	case "gitdrawer":
+		m.GitDrawerClose()
 	case overlayKindLogs:
 		m.CloseLogViewer()
 	case overlayKindMessage:

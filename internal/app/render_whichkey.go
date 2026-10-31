@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -11,6 +12,14 @@ import (
 	"github.com/getan/tuios-mini/internal/overlay"
 	"github.com/getan/tuios-mini/internal/theme"
 )
+
+// whichKeyPopupOpen is the visibility gate for both the text popup and pane
+// graphics. A prefix shown only in the dock must not blank the browser.
+func (m *OS) whichKeyPopupOpen() bool {
+	return m.PrefixActive && !m.ShowHelp && m.Settings.WhichKeyEnabled &&
+		m.Settings.WhichKeyPosition == "popup" &&
+		time.Since(m.LastPrefixTime) > config.WhichKeyDelay
+}
 
 // The which-key panel lays the prefix menu out in sections and columns. The
 // leader's menu is about forty lines, and as one column it was taller than a

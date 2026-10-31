@@ -601,6 +601,9 @@ func (m *OS) gitRowMenu() (string, []ContextMenuItem) {
 	discard := m.item(glyphClose, "Discard changes", "git_discard", false)
 	discard.Warn = true
 	rows = append(rows, discard)
+	for i := range rows {
+		rows[i].Hint = ""
+	}
 	return printableTitle(e.Path), rows
 }
 
