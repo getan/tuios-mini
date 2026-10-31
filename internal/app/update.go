@@ -2168,6 +2168,7 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// will never report its release, so the hold ends here rather than
 		// outliving it.
 		m.EndHold()
+		m.releasePaneKeysDown()
 		// The pointer leaves with the focus, and no motion will say so, so
 		// the message hold ends here too.
 		m.NotifHoldEnd()

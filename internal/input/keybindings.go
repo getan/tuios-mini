@@ -8,6 +8,7 @@ package input
 
 import (
 	"runtime"
+	"strings"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -85,6 +86,9 @@ var functionKeyMap = map[rune][]byte{
 // which determines whether arrow keys send SS3 (ESC O) or CSI (ESC [) sequences.
 func getRawKeyBytesWithMode(msg tea.KeyPressMsg, applicationCursorKeys bool) []byte {
 	key := legacyKey(msg.Key())
+	if text := imeConfirmationText(key); text != "" {
+		return []byte(text)
+	}
 
 	// Mask off any non-modifier bits (Bubble Tea v2 may set additional flags like 128)
 	// Only consider actual modifier keys: Shift=1, Alt=2, Ctrl=4
@@ -222,6 +226,23 @@ func getRawKeyBytesWithMode(msg tea.KeyPressMsg, applicationCursorKeys bool) []b
 	}
 
 	return []byte{}
+}
+
+// imeConfirmationText returns committed text attached to a confirmation key.
+// A terminal in report-all-keys mode can put the selected text alongside the
+// physical Space/Enter event. Plain-text panes need that text, not the key's
+// legacy byte. Reject controls and shortcut modifiers, while allowing Shift,
+// lock state and format characters such as an emoji's zero-width joiner.
+func imeConfirmationText(key tea.Key) string {
+	if key.Text == "" || key.Mod&^(tea.ModShift|tea.ModCapsLock|tea.ModNumLock) != 0 ||
+		strings.IndexFunc(key.Text, unicode.IsControl) >= 0 {
+		return ""
+	}
+	switch key.Code {
+	case tea.KeySpace, tea.KeyEnter, tea.KeyTab, tea.KeyEscape, tea.KeyBackspace:
+		return key.Text
+	}
+	return ""
 }
 
 // handleModifierKeysWithMod handles keys with complex modifier combinations

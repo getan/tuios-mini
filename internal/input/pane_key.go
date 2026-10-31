@@ -31,7 +31,11 @@ func paneKeyBytes(host tea.KeyPressMsg, w *terminal.Window, o *app.OS, focused b
 		modifyOtherKeys = w.Terminal.ModifyOtherKeys()
 	}
 	key := vtKeyFromBubbletea(host)
-	if encoded := vt.EncodePaneKey(key, flags, modifyOtherKeys); encoded != "" {
+	if text := imeConfirmationText(legacyKey(host.Key())); text != "" && flags&ansi.KittyReportAllKeysAsEscapeCodes == 0 {
+		// A plain-text pane must receive the IME commit, even if its physical
+		// confirmation key would otherwise be CSI u or modifyOtherKeys.
+		raw = []byte(text)
+	} else if encoded := vt.EncodePaneKey(key, flags, modifyOtherKeys); encoded != "" {
 		raw = []byte(encoded)
 	}
 	if len(raw) == 0 {

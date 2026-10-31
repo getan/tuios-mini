@@ -30,6 +30,7 @@ func (m *OS) keyboardEnhancements() tea.KeyboardEnhancements {
 	// xkb repeat it until a release arrives, and it is why the request tracks the
 	// focused pane rather than being fixed at startup.
 	paneFlags := m.PaneKeyboardFlags()
+	m.prunePaneKeysDown()
 	if len(m.paneKeysDown) != 0 {
 		// A key pressed in the previous pane still needs its release after a
 		// focus change. Keep requesting releases until the last one comes up.

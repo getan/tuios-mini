@@ -7,6 +7,30 @@ below. Two of them are **not** caught here; that is written down rather than
 papered over, because a suite whose real coverage is unknown is worse than no
 suite.
 
+## IME commits after workspace reattach (2026-10-31)
+
+The embedded client's `workspace/TestIMECommitThroughPTYAfterReattach` drives
+CSI-u reports carrying `你好` on Space, Enter and Shift+Enter through a real
+client, isolated daemon and shell PTY, before and after reattaching. The pane
+writes its actual input to `commit-<attach>-<case>.txt`; verbose test output
+also records the UTF-8 bytes (`e4bda0e5a5bd`). No model or provider is involved.
+
+Negative control: removed the IME text-priority branches from both
+`getRawKeyBytesWithMode` and `paneKeyBytes`, retaining all tests and the release
+cleanup. Both attaches failed on the first commit with `pane read " ", want
+你好`. Restoring those branches passes all six commits. Run from the root:
+
+```sh
+GOWORK=off go test ./workspace -run '^TestIMECommitThroughPTYAfterReattach$' -count=1 -v
+```
+
+The deterministic protocol-state regressions in
+`internal/app/pane_keys_lifecycle_test.go` separately failed before the fix:
+host blur, a disappeared pane, a missing emulator and a pane disabling releases
+all retained a pending press and/or report-all-keys. The fixed tests also keep
+a live owner's release across workspace changes. These checks cover client
+state and input transport, not macOS's native candidate-window UI.
+
 ## Project sidebar: reuse single-file index diffs and review comments
 
 `TestProjectSidebarReusesReviewDiffAndComments` runs a real client attached to
