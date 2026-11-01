@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -89,24 +90,67 @@ func isolateXDG() (dir string, check func() error) {
 // cache dir, which on Linux follows XDG_CACHE_HOME, so both would move with
 // the redirect.
 func pinGoDirs() {
+	cwd, _ := os.Getwd()
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return
 	}
+	if pathInside(cwd, home) {
+		if account, accountErr := user.Current(); accountErr == nil && account.HomeDir != "" && !pathInside(cwd, account.HomeDir) {
+			home = account.HomeDir
+		}
+	}
 	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
+	if goPathNeedsNormalization(gopath, cwd) {
 		gopath = filepath.Join(home, "go")
 		_ = os.Setenv("GOPATH", gopath)
 	}
-	if os.Getenv("GOMODCACHE") == "" {
+	if modCache := os.Getenv("GOMODCACHE"); goDirNeedsNormalization(modCache, cwd) {
 		first, _, _ := strings.Cut(gopath, string(os.PathListSeparator))
 		_ = os.Setenv("GOMODCACHE", filepath.Join(first, "pkg", "mod"))
 	}
-	if os.Getenv("GOCACHE") == "" {
+	if goDirNeedsNormalization(os.Getenv("GOCACHE"), cwd) {
 		if cache, err := os.UserCacheDir(); err == nil {
+			if pathInside(cwd, cache) {
+				switch runtime.GOOS {
+				case "darwin":
+					cache = filepath.Join(home, "Library", "Caches")
+				default:
+					cache = filepath.Join(home, ".cache")
+				}
+			}
 			_ = os.Setenv("GOCACHE", filepath.Join(cache, "go-build"))
 		}
 	}
+}
+
+func goDirNeedsNormalization(path, repository string) bool {
+	return strings.TrimSpace(path) == "" || pathInside(repository, path)
+}
+
+func goPathNeedsNormalization(value, repository string) bool {
+	if strings.TrimSpace(value) == "" {
+		return true
+	}
+	for _, path := range filepath.SplitList(value) {
+		if pathInside(repository, path) {
+			return true
+		}
+	}
+	return false
+}
+
+func pathInside(root, path string) bool {
+	if root == "" || path == "" {
+		return false
+	}
+	root, rootErr := filepath.Abs(root)
+	path, pathErr := filepath.Abs(path)
+	if rootErr != nil || pathErr != nil {
+		return false
+	}
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // stillRedirected reports any XDG base that no longer resolves inside the tree.
