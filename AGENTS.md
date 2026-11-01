@@ -330,6 +330,9 @@ Follow the Testing rules under Testing Approach. For the unit tests that stay:
 - Test file naming: `*_test.go`
 - Benchmarks with `Benchmark*` prefix, and only for a perf budget
 - Use `t.Run()` for subtests
+- Never put `GOPATH`, `GOMODCACHE` or `GOCACHE` under this repository or a
+  worktree. `internal/testutil.RunIsolated` and `just sandbox-env` preserve the
+  shared Go directories before redirecting HOME/XDG; keep that invariant.
 
 ## Testing Approach
 

@@ -48,6 +48,23 @@ daemon_log := if os() == "macos" { env("XDG_STATE_HOME", home_directory() / "Lib
 _isolate := '''
 isolate() {
 	local dir=$1
+	# Capture Go's real shared caches before XDG/HOME-like paths move into the
+	# scratch tree. Without these explicit values, a shell produced by
+	# `sandbox-env` can rebuild/download gigabytes under .dev or /tmp.
+	local repo
+	repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+	local go_path=${GOPATH:-} go_mod_cache=${GOMODCACHE:-} go_cache=${GOCACHE:-}
+	case ":$go_path:" in *":$repo:"*|*":$repo/"*) go_path= ;; esac
+	case "$go_mod_cache" in "$repo"|"$repo"/*) go_mod_cache= ;; esac
+	case "$go_cache" in "$repo"|"$repo"/*) go_cache= ;; esac
+	# `go env` consults these environment variables, so clear the originals
+	# before asking it for defaults after a bad repository-local value.
+	unset GOPATH GOMODCACHE GOCACHE
+	if command -v go >/dev/null 2>&1; then
+		[ -n "$go_path" ] || go_path=$(go env GOPATH)
+		[ -n "$go_mod_cache" ] || go_mod_cache=$(go env GOMODCACHE)
+		[ -n "$go_cache" ] || go_cache=$(go env GOCACHE)
+	fi
 	mkdir -p "$dir"/{run,config/tuios,state,cache,data,tmp}
 	chmod 700 "$dir/run"
 	export XDG_RUNTIME_DIR="$dir/run" XDG_CONFIG_HOME="$dir/config" \
@@ -55,6 +72,9 @@ isolate() {
 		XDG_CACHE_HOME="$dir/cache" XDG_DATA_HOME="$dir/data" TMPDIR="$dir/tmp"
 	unset TUIOS_SESSION TUIOS_PANE_ID TUIOS_PANE_TOKEN TUIOS_WINDOW_ID \
 		TUIOS_SOCKET TUIOS_HOST TUIOS_SSH
+	[ -z "$go_path" ] || export GOPATH="$go_path"
+	[ -z "$go_mod_cache" ] || export GOMODCACHE="$go_mod_cache"
+	[ -z "$go_cache" ] || export GOCACHE="$go_cache"
 	if [ -n "${CONFIG:-}" ]; then
 		cp "$CONFIG" "$dir/config/tuios/config.toml"
 	fi
@@ -176,7 +196,7 @@ sandbox-env:
     set -euo pipefail
     {{ _isolate }}
     isolate {{ quote(scratch / "sandbox") }} >/dev/null
-    for v in XDG_RUNTIME_DIR XDG_CONFIG_HOME XDG_CONFIG_DIRS XDG_STATE_HOME XDG_CACHE_HOME XDG_DATA_HOME TMPDIR; do
+    for v in XDG_RUNTIME_DIR XDG_CONFIG_HOME XDG_CONFIG_DIRS XDG_STATE_HOME XDG_CACHE_HOME XDG_DATA_HOME TMPDIR GOPATH GOMODCACHE GOCACHE; do
         printf 'export %s=%q\n' "$v" "${!v}"
     done
     echo 'unset TUIOS_SESSION TUIOS_PANE_ID TUIOS_PANE_TOKEN TUIOS_WINDOW_ID TUIOS_SOCKET TUIOS_HOST TUIOS_SSH'

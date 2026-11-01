@@ -200,3 +200,35 @@ func TestGoDirsStayOutsideTheTree(t *testing.T) {
 		}
 	}
 }
+
+func TestPinGoDirsReplacesRepositoryLocalCaches(t *testing.T) {
+	repository, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"GOPATH", "GOMODCACHE", "GOCACHE"} {
+		t.Setenv(name, filepath.Join(repository, ".dev", strings.ToLower(name)))
+	}
+	pinGoDirs()
+	for _, name := range []string{"GOPATH", "GOMODCACHE", "GOCACHE"} {
+		if got := os.Getenv(name); got == "" || pathInside(repository, got) {
+			t.Errorf("%s was not normalized out of the repository: %q", name, got)
+		}
+	}
+	outside := t.TempDir()
+	t.Setenv("GOPATH", outside+string(os.PathListSeparator)+filepath.Join(repository, ".dev", "second-gopath"))
+	pinGoDirs()
+	if got := os.Getenv("GOPATH"); goPathNeedsNormalization(got, repository) {
+		t.Errorf("mixed GOPATH retained a repository-local entry: %q", got)
+	}
+	t.Setenv("HOME", filepath.Join(repository, ".dev", "fake-home"))
+	t.Setenv("GOPATH", "")
+	t.Setenv("GOMODCACHE", "")
+	t.Setenv("GOCACHE", "")
+	pinGoDirs()
+	for _, name := range []string{"GOPATH", "GOMODCACHE", "GOCACHE"} {
+		if got := os.Getenv(name); got == "" || pathInside(repository, got) {
+			t.Errorf("%s followed repository-local HOME: %q", name, got)
+		}
+	}
+}
