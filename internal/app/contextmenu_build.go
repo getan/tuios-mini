@@ -46,6 +46,7 @@ const (
 // right-clicking from terminal mode does not kick the user out of it.
 func (m *OS) OpenContextMenu(x, y int) {
 	target, windowIndex, workspace := m.contextMenuTargetAt(x, y)
+	m.menuPaneControl = ""
 
 	if target == CtxTargetPane {
 		m.FocusWindow(windowIndex)
@@ -272,7 +273,7 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 	closeItem := m.item(glyphClose, "Close pane", "close_window", false)
 	closeItem.Warn = true
 
-	return contextMenuWindowName(m, windowIndex, "Pane"), []ContextMenuItem{
+	items := []ContextMenuItem{
 		m.item(glyphCopy, "Copy selection", "copy_selection", !hasSelection),
 		m.item(glyphPaste, "Paste", "paste_clipboard", !canPaste),
 		separator(),
@@ -289,6 +290,8 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 		m.item(glyphMinimize, "Minimize", "minimize_window", scratch),
 		closeItem,
 	}
+	items = append(items, m.paneControlMenuItems(win)...)
+	return contextMenuWindowName(m, windowIndex, "Pane"), items
 }
 
 // dockItemMenu is the menu for one minimized window in the dock.

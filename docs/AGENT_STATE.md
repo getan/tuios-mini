@@ -88,6 +88,30 @@ matches the build.
    attached: an `after-agent-state` hook ([HOOKS.md](HOOKS.md); `tuios --skill
    recipes` has a working one).
 
+### Give an existing pane to one Golder Agent
+
+Golder v1.5.44+ registers every live top-level session beside the tuios daemon.
+Open an ordinary terminal pane's context menu to see **Agent control**. It names
+the current controller and lists only live Agents in this session and workspace
+that are not read-only or waiting on a prompt. Choose:
+
+- **Next action** for one Golder pane operation; or
+- **This Agent session** until that conversation exits, moves workspace, is
+  revoked, or loses the pane identity it was granted.
+
+Only one Agent can hold a pane at a time. Choosing another opens a cancel-first
+transfer confirmation naming both Agents. **Revoke Agent control** invalidates
+queued input before it is sent. Agent panes, approval surfaces and browser panes
+are never offered as terminal-input targets.
+
+This is Golder write-routing authority, not approval of a command and not a
+file/network sandbox. Golder still reviews every operation; an SSH pane still
+needs network authority and keeps its remote execution safeguards. The dynamic
+menu rows cannot be replayed by a project tape or keybinding: only direct menu
+selection carries the authorization token. See
+[Golder's broker permission guide](https://github.com/getan/golder/blob/master/docs/broker-permissions.md)
+for lease lifetime and invalidation details.
+
 ### OpenCode versions
 
 The OpenCode integration supports V1 1.18.29+ and V2. After upgrading tuios,

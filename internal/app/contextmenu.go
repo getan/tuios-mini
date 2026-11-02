@@ -246,8 +246,12 @@ func (m *OS) ContextMenuSelectedAction() string {
 	if cm == nil || !cm.selectable(cm.Selected) {
 		return ""
 	}
+	action := cm.Items[cm.Selected].Action
 	m.carryMenuTarget(cm)
-	return cm.Items[cm.Selected].Action
+	if IsPaneControlAction(action) {
+		m.menuPaneControl = action
+	}
+	return action
 }
 
 // carryMenuTarget hands what the menu was opened on to the dispatch of the row
@@ -276,6 +280,7 @@ func (m *OS) TakeMenuRepo() string { return m.menuRepo }
 // menu row.
 func (m *OS) ClearMenuTarget() {
 	m.menuWorkspace, m.menuSession, m.menuRepo, m.menuFile = 0, "", "", fileMenuTarget{}
+	m.menuPaneControl = ""
 }
 
 // ContextMenuMove moves the selection by delta, skipping separators and dimmed
@@ -314,6 +319,9 @@ func (m *OS) ContextMenuClick(x, y int) (action string, consumed bool) {
 	cm.Selected = idx
 	action = cm.Items[idx].Action
 	m.carryMenuTarget(cm)
+	if IsPaneControlAction(action) {
+		m.menuPaneControl = action
+	}
 	m.CloseContextMenu()
 	return action, true
 }
