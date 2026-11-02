@@ -245,6 +245,14 @@ func paneControlAction(windowID, agentID, scope string, transfer bool) string {
 	return paneControlActionPrefix + strings.Join([]string{"grant", windowID, agentID, scope, strconv.FormatBool(transfer)}, ":")
 }
 
+func paneControlAgentsAction(windowID string) string {
+	return paneControlActionPrefix + "agents:" + windowID
+}
+
+func paneControlAgentAction(windowID, agentID string) string {
+	return paneControlActionPrefix + "agent:" + windowID + ":" + agentID
+}
+
 func paneControlRevokeAction(windowID string) string {
 	return paneControlActionPrefix + "revoke:" + windowID
 }
@@ -299,6 +307,15 @@ func (m *OS) RunPaneControlAction(action string) {
 		return
 	}
 	m.menuPaneControl = ""
+	parts := strings.Split(strings.TrimPrefix(action, paneControlActionPrefix), ":")
+	if len(parts) == 2 && parts[0] == "agents" && parts[1] != "" {
+		m.openPaneControlAgentMenu(parts[1])
+		return
+	}
+	if len(parts) == 3 && parts[0] == "agent" && parts[1] != "" && parts[2] != "" {
+		m.openPaneControlScopeMenu(parts[1], parts[2])
+		return
+	}
 	verb, windowID, agentID, scope, transfer, err := parsePaneControlAction(action)
 	if err != nil {
 		m.ShowNotification(err.Error(), "error", m.Settings.NotificationDuration)
@@ -377,14 +394,94 @@ func (m *OS) RunPaneControlAction(action string) {
 	m.ShowNotification("Write control: "+selected.Label+" ("+scope+")", "success", m.Settings.NotificationDuration)
 }
 
-func (m *OS) openPaneControlTransferMenu(win *terminal.Window, from paneControlLease, to paneControlAgent, scope string) {
-	label := "Transfer from " + from.AgentLabel + " to " + to.Label
+func shortPaneControlLabel(label string) string {
+	label = strings.TrimSpace(label)
+	for _, suffix := range []string{" · Main Agent", " - Main Agent"} {
+		label = strings.TrimSuffix(label, suffix)
+	}
+	return label
+}
+
+func paneControlAgentLabel(agent paneControlAgent) string {
+	label := strings.TrimSpace(agent.Project)
+	if label == "" {
+		label = shortPaneControlLabel(agent.Label)
+	}
+	if agent.Role != "" && agent.Role != "main" {
+		label += " · " + agent.Role
+	}
+	return label
+}
+
+func (m *OS) openPaneControlAgentMenu(windowID string) {
+	win := m.paneControlWindow(windowID)
+	if !paneControlTargetEligible(win) || win.Workspace <= 0 {
+		m.ShowNotification("This pane cannot receive Agent write control", "warning", m.Settings.NotificationDuration)
+		return
+	}
+	agents, err := m.paneControlAgents(win.Workspace)
+	if err != nil {
+		m.ShowNotification("Pane control: "+err.Error(), "error", m.Settings.NotificationDuration)
+		return
+	}
+	items := make([]ContextMenuItem, 0, len(agents)+1)
+	for _, agent := range agents {
+		items = append(items, ContextMenuItem{Label: paneControlAgentLabel(agent), Action: paneControlAgentAction(windowID, agent.ID)})
+	}
+	items = append(items, ContextMenuItem{Label: "Cancel", Action: paneControlActionPrefix + "cancel"})
 	cm := &ContextMenu{
-		Title: "Transfer pane control?", Target: CtxTargetPane, WindowIndex: -1,
+		Title: "Choose Agent", Target: CtxTargetPane, WindowIndex: -1,
+		AnchorX: m.Width / 2, AnchorY: m.Height / 2, Selected: -1, ItemH: 1, Items: items,
+	}
+	cm.Selected = cm.Next(1)
+	m.ContextMenu = cm
+}
+
+func (m *OS) openPaneControlScopeMenu(windowID, agentID string) {
+	win := m.paneControlWindow(windowID)
+	if !paneControlTargetEligible(win) || win.Workspace <= 0 {
+		m.ShowNotification("This pane cannot receive Agent write control", "warning", m.Settings.NotificationDuration)
+		return
+	}
+	agents, err := m.paneControlAgents(win.Workspace)
+	if err != nil {
+		m.ShowNotification("Pane control: "+err.Error(), "error", m.Settings.NotificationDuration)
+		return
+	}
+	var selected paneControlAgent
+	for _, agent := range agents {
+		if agent.ID == agentID {
+			selected = agent
+			break
+		}
+	}
+	if selected.ID == "" {
+		m.ShowNotification("That Agent is no longer available", "warning", m.Settings.NotificationDuration)
+		return
+	}
+	cm := &ContextMenu{
+		Title: paneControlAgentLabel(selected), Target: CtxTargetPane, WindowIndex: -1,
 		AnchorX: m.Width / 2, AnchorY: m.Height / 2, Selected: 0, ItemH: 1,
 		Items: []ContextMenuItem{
+			{Label: "Next action", Action: paneControlAction(windowID, selected.ID, paneControlOnce, false)},
+			{Label: "This conversation", Action: paneControlAction(windowID, selected.ID, paneControlSession, false)},
+			{Label: "Back", Action: paneControlAgentsAction(windowID)},
 			{Label: "Cancel", Action: paneControlActionPrefix + "cancel"},
-			{Label: label, Action: paneControlAction(win.ID, to.ID, scope, true), Warn: true},
+		},
+	}
+	m.ContextMenu = cm
+}
+
+func (m *OS) openPaneControlTransferMenu(win *terminal.Window, from paneControlLease, to paneControlAgent, scope string) {
+	cm := &ContextMenu{
+		Title: "Transfer pane control?", Target: CtxTargetPane, WindowIndex: -1,
+		AnchorX: m.Width / 2, AnchorY: m.Height / 2, Selected: 3, ItemH: 1,
+		Items: []ContextMenuItem{
+			{Label: "From: " + shortPaneControlLabel(from.AgentLabel), Dim: true},
+			{Label: "To: " + paneControlAgentLabel(to), Dim: true},
+			separator(),
+			{Label: "Cancel", Action: paneControlActionPrefix + "cancel"},
+			{Label: "Confirm transfer", Action: paneControlAction(win.ID, to.ID, scope, true), Hint: scope, Warn: true},
 		},
 	}
 	m.ContextMenu = cm
@@ -400,19 +497,22 @@ func (m *OS) paneControlMenuItems(win *terminal.Window) []ContextMenuItem {
 	}
 	lease, controlled, _ := m.paneControlLease(win.ID)
 	items := []ContextMenuItem{separator()}
-	status := "Agent control: none"
+	status := "Agent: none"
 	if controlled {
-		status = "Agent control: " + lease.AgentLabel + " (" + lease.Scope + ")"
+		status = "Agent: " + shortPaneControlLabel(lease.AgentLabel)
 	}
-	items = append(items, ContextMenuItem{Label: status, Dim: true})
+	statusItem := ContextMenuItem{Label: status, Dim: true}
+	if controlled {
+		statusItem.Hint = lease.Scope
+	}
+	items = append(items, statusItem)
 	if !paneControlTargetEligible(win) {
 		return items
 	}
-	for _, agent := range agents {
-		items = append(items,
-			ContextMenuItem{Label: agent.Label + " · Next action", Action: paneControlAction(win.ID, agent.ID, paneControlOnce, false)},
-			ContextMenuItem{Label: agent.Label + " · This Agent session", Action: paneControlAction(win.ID, agent.ID, paneControlSession, false)},
-		)
+	if len(agents) > 0 {
+		items = append(items, ContextMenuItem{Label: "Agent control…", Action: paneControlAgentsAction(win.ID)})
+	} else {
+		items = append(items, ContextMenuItem{Label: "No eligible Agents", Dim: true})
 	}
 	if controlled {
 		items = append(items, ContextMenuItem{Label: "Revoke Agent control", Action: paneControlRevokeAction(win.ID), Warn: true})

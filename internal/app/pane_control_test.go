@@ -28,8 +28,9 @@ func paneControlTestOS(t *testing.T) (*OS, string, *terminal.Window) {
 }
 
 func paneControlTestAgent(id, label string) paneControlAgent {
+	project, _, _ := strings.Cut(label, " · ")
 	return paneControlAgent{
-		ID: id, Label: label, Project: label, Role: "main", ConversationID: "conversation-" + id,
+		ID: id, Label: label, Project: project, Role: "main", ConversationID: "conversation-" + id,
 		SessionID: "work", PaneID: "agent-" + id, Workspace: 1, Mode: "ask", PID: 42, UpdatedAt: time.Now().UTC(),
 	}
 }
@@ -102,9 +103,8 @@ func TestPaneControlMenuListsOnlyEligibleAgentsAndCurrentOwner(t *testing.T) {
 	addPaneControlAgentWindows(m, a, blocked, readOnly, other)
 
 	items := m.paneControlMenuItems(win)
-	if !menuHasLabel(items, "annotation-workbench · Main Agent · Next action") ||
-		!menuHasLabel(items, "annotation-workbench · Main Agent · This Agent session") {
-		t.Fatalf("eligible Agent rows missing: %+v", items)
+	if !menuHasLabel(items, "Agent control…") || menuHasLabel(items, "Main Agent") {
+		t.Fatalf("first-level Agent row is missing or still verbose: %+v", items)
 	}
 	for _, absent := range []string{"blocked ·", "reader ·", "other-workspace ·"} {
 		if menuHasLabel(items, absent) {
@@ -112,10 +112,29 @@ func TestPaneControlMenuListsOnlyEligibleAgentsAndCurrentOwner(t *testing.T) {
 		}
 	}
 
+	runPaneControlTestAction(m, paneControlAgentsAction(win.ID))
+	if m.ContextMenu == nil || m.ContextMenu.Title != "Choose Agent" || !menuHasLabel(m.ContextMenu.Items, "annotation-workbench") {
+		t.Fatalf("Agent picker = %+v", m.ContextMenu)
+	}
+	for _, absent := range []string{"blocked", "reader", "other-workspace"} {
+		if menuHasLabel(m.ContextMenu.Items, absent) {
+			t.Fatalf("Agent picker offered %q: %+v", absent, m.ContextMenu.Items)
+		}
+	}
+	runPaneControlTestAction(m, paneControlAgentAction(win.ID, a.ID))
+	if m.ContextMenu == nil || m.ContextMenu.Title != "annotation-workbench" ||
+		!menuHasLabel(m.ContextMenu.Items, "Next action") || !menuHasLabel(m.ContextMenu.Items, "This conversation") {
+		t.Fatalf("scope picker = %+v", m.ContextMenu)
+	}
 	runPaneControlTestAction(m, paneControlAction(win.ID, a.ID, paneControlSession, false))
 	items = m.paneControlMenuItems(win)
-	if !menuHasLabel(items, "Agent control: "+a.Label+" (session)") || !menuHasLabel(items, "Revoke Agent control") {
+	if !menuHasLabel(items, "Agent: annotation-workbench") || !menuHasLabel(items, "Revoke Agent control") {
 		t.Fatalf("current controller was not visible: %+v", items)
+	}
+	for _, item := range items {
+		if strings.Contains(item.Label, "Agent: annotation-workbench") && item.Hint != paneControlSession {
+			t.Fatalf("controller scope hint = %q", item.Hint)
+		}
 	}
 }
 
@@ -142,13 +161,13 @@ func TestPaneControlGrantTransferConfirmationAndRevoke(t *testing.T) {
 	if lease.AgentID != a.ID {
 		t.Fatalf("first transfer click changed controller to %q", lease.AgentID)
 	}
-	if m.ContextMenu == nil || m.ContextMenu.Title != "Transfer pane control?" || m.ContextMenu.Selected != 0 || len(m.ContextMenu.Items) != 2 {
+	if m.ContextMenu == nil || m.ContextMenu.Title != "Transfer pane control?" || m.ContextMenu.Selected != 3 || len(m.ContextMenu.Items) != 5 {
 		t.Fatalf("transfer confirmation = %+v", m.ContextMenu)
 	}
-	if !strings.Contains(m.ContextMenu.Items[1].Label, a.Label) || !strings.Contains(m.ContextMenu.Items[1].Label, b.Label) {
-		t.Fatalf("transfer row does not name both controllers: %+v", m.ContextMenu.Items[1])
+	if !strings.Contains(m.ContextMenu.Items[0].Label, "annotation-workbench") || !strings.Contains(m.ContextMenu.Items[1].Label, "label-studio") || m.ContextMenu.Items[4].Label != "Confirm transfer" {
+		t.Fatalf("transfer rows do not show both controllers clearly: %+v", m.ContextMenu.Items)
 	}
-	runPaneControlTestAction(m, m.ContextMenu.Items[1].Action)
+	runPaneControlTestAction(m, m.ContextMenu.Items[4].Action)
 	lease, _, _ = m.paneControlLease(win.ID)
 	if lease.AgentID != b.ID || lease.Scope != paneControlSession || lease.Uses != 0 {
 		t.Fatalf("confirmed transfer = %+v", lease)
