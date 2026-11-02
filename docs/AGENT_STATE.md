@@ -91,12 +91,12 @@ matches the build.
 ### Give an existing pane to one Golder Agent
 
 Golder v1.5.44+ registers every live top-level session beside the tuios daemon.
-Open an ordinary terminal pane's context menu to see **Agent control**. It names
-the current controller and lists only live Agents in this session and workspace
-that are not read-only or waiting on a prompt. Choose:
+Open an ordinary terminal pane's context menu to see the current controller and
+**Agent control…**. Enter it, choose a live Agent in this session/workspace, then
+choose a scope. Read-only Agents and Agents waiting on a prompt are omitted:
 
 - **Next action** for one Golder pane operation; or
-- **This Agent session** until that conversation exits, moves workspace, is
+- **This conversation** until that conversation exits, moves workspace, is
   revoked, or loses the pane identity it was granted.
 
 Only one Agent can hold a pane at a time. Choosing another opens a cancel-first
