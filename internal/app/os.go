@@ -1913,6 +1913,11 @@ type OS struct {
 	// menuFile carries the listing row a files-section menu was opened on, the
 	// same way menuSession carries a session row's. See fileMenuTarget.
 	menuFile fileMenuTarget
+	// menuPaneControl is the exact dynamic Agent-control row most recently
+	// selected by the person. Dynamic action names are otherwise forgeable by a
+	// tape or keybinding, so RunPaneControlAction consumes this carry before it
+	// may change a lease.
+	menuPaneControl string
 
 	// UserConfig is the loaded user configuration. The settings page mutates
 	// it in place and persists it so live changes survive a restart. May be

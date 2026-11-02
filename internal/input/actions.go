@@ -338,6 +338,15 @@ func (d *ActionDispatcher) Register(action string, handler ActionHandler) {
 // Dispatch executes the handler for a given action
 func (d *ActionDispatcher) Dispatch(action string, msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	handler, ok := d.handlers[action]
+	paneControl := app.IsPaneControlAction(action)
+	if !ok && paneControl {
+		handler, ok = func(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+			if action != "pane_control:cancel" {
+				o.RunPaneControlAction(action)
+			}
+			return o, nil
+		}, true
+	}
 	// A [[keybindings.command]] entry is an action of its own, named after
 	// the entry. It has no handler in the table: the entry says what to run.
 	if !ok && strings.HasPrefix(action, config.CommandActionPrefix) {
@@ -345,7 +354,9 @@ func (d *ActionDispatcher) Dispatch(action string, msg tea.KeyPressMsg, o *app.O
 	}
 	if ok {
 		// Record the action if tape recording is active
-		if o.TapeRecorder != nil && o.TapeRecorder.IsRecording() {
+		// Agent-control rows are direct operator authorization and must never
+		// become replayable project tape actions.
+		if !paneControl && o.TapeRecorder != nil && o.TapeRecorder.IsRecording() {
 			o.TapeRecorder.RecordAction(action)
 		}
 		// And record it for a crash report, which needs the same fact and
@@ -373,7 +384,7 @@ func (d *ActionDispatcher) Dispatch(action string, msg tea.KeyPressMsg, o *app.O
 // HasAction checks if an action is registered
 func (d *ActionDispatcher) HasAction(action string) bool {
 	_, ok := d.handlers[action]
-	return ok || strings.HasPrefix(action, config.CommandActionPrefix)
+	return ok || app.IsPaneControlAction(action) || strings.HasPrefix(action, config.CommandActionPrefix)
 }
 
 // handleCommandBinding runs the [[keybindings.command]] entry behind action.
