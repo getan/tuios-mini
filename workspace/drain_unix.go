@@ -5,8 +5,9 @@ package workspace
 import (
 	"errors"
 	"os"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // drainLateKeyboardReply removes the tail of a Kitty keyboard-protocol query
@@ -19,24 +20,40 @@ func drainLateKeyboardReply(in *os.File) {
 	if in == nil || !sshTerminalEnvironment() {
 		return
 	}
-	fd := int(in.Fd())
-	if err := syscall.SetNonblock(fd, true); err != nil {
+	raw, err := in.SyscallConn()
+	if err != nil {
 		return
 	}
-	defer func() { _ = syscall.SetNonblock(fd, false) }()
-
-	buf := make([]byte, 256)
-	deadline := time.Now().Add(150 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		n, err := in.Read(buf)
-		if n > 0 {
-			continue
-		}
+	// Fd() can itself switch an os.File to blocking mode. Control keeps the
+	// descriptor valid while preserving the caller's original flags.
+	_ = raw.Control(func(rawFD uintptr) {
+		fd := int(rawFD)
+		flags, err := unix.FcntlInt(rawFD, unix.F_GETFL, 0)
 		if err != nil {
-			if !errors.Is(err, syscall.EAGAIN) && !errors.Is(err, syscall.EWOULDBLOCK) {
-				break
-			}
+			return
 		}
-		time.Sleep(5 * time.Millisecond)
-	}
+		if flags&unix.O_NONBLOCK == 0 {
+			if err := unix.SetNonblock(fd, true); err != nil {
+				return
+			}
+			defer func() { _ = unix.SetNonblock(fd, false) }()
+		}
+
+		buf := make([]byte, 256)
+		deadline := time.Now().Add(150 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			// os.File.Read may wait in Go's poller after EAGAIN, defeating the
+			// deadline even though the descriptor is nonblocking.
+			n, err := unix.Read(fd, buf)
+			if n > 0 {
+				continue
+			}
+			if err != nil {
+				if !errors.Is(err, unix.EAGAIN) && !errors.Is(err, unix.EWOULDBLOCK) && !errors.Is(err, unix.EINTR) {
+					break
+				}
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	})
 }
