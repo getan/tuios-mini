@@ -1290,8 +1290,10 @@ func (m *OS) flushGraphicsForView() {
 		}
 	}
 
-	// Hide pane images during opaque dialogs/menus (including rename) and
-	// for the length of a resize gesture. Copy-mode scroll is NOT a reason to
+	// Hide pane images during opaque dialogs/menus (including rename), document
+	// previews, and for the length of a resize gesture. A document preview is
+	// not a modal input overlay: the user can still focus the sidebar.
+	// Copy-mode scroll is NOT a reason to
 	// hide: RefreshAllPlacements uses the window's scrollback offset to
 	// reposition images so they scroll naturally with the terminal content.
 	//
@@ -1311,7 +1313,7 @@ func (m *OS) flushGraphicsForView() {
 	if fw := m.GetFocusedWindow(); fw != nil && fw.CopyMode != nil {
 		copyPrompt = copyPrompt || (fw.CopyMode.Active && fw.CopyMode.State == terminal.CopyModeSearch)
 	}
-	hideImages := m.Resizing || m.opaqueOverlayOpen() || m.whichKeyPopupOpen() || copyPrompt ||
+	hideImages := m.Resizing || m.DocPreviewOpen() || m.opaqueOverlayOpen() || m.whichKeyPopupOpen() || copyPrompt ||
 		(m.screensaver.active && m.screensaver.frame != "")
 	if m.KittyPassthrough != nil {
 		// Self-placed remote video images are hidden/dropped here, not by

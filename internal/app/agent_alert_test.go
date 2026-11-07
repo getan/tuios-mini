@@ -249,8 +249,10 @@ func TestAgentAlertSuppressesTheFocusedPane(t *testing.T) {
 
 func TestAgentAlertQuietHoursSilenceEverything(t *testing.T) {
 	cfg := zeroSettle()
-	// A window covering the whole day, so the test does not depend on the clock.
-	cfg.QuietHours = "00:00-23:59"
+	// The end is exclusive, so 00:00-23:59 misses the last minute of the day.
+	// Bracket the current time instead, including when the interval crosses midnight.
+	now := time.Now()
+	cfg.QuietHours = now.Add(-time.Hour).Format("15:04") + "-" + now.Add(time.Hour).Format("15:04")
 	m := alertOS(t, cfg)
 	host := captureHost(t, m)
 

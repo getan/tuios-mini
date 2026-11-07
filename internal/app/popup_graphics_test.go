@@ -67,6 +67,7 @@ func TestOpaquePopupsProtectAgainstBrowserGraphics(t *testing.T) {
 		{"rename-workspace", func(m *OS) { m.BeginRenameWorkspace(1) }},
 		{"context-menu", func(m *OS) { m.ContextMenu = &ContextMenu{} }},
 		{"review", func(m *OS) { m.review.open = true }},
+		{"document-preview", func(m *OS) { m.docPreview.open = true }},
 		{"scrollback", func(m *OS) { m.ShowScrollbackBrowser = true }},
 		{"tape-manager", func(m *OS) { m.ShowTapeManager = true }},
 		{"tape-review", func(m *OS) { m.ShowTapeReview = true }},
