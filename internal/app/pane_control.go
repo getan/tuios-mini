@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getan/tuios-mini/internal/overlay"
 	"github.com/getan/tuios-mini/internal/session"
 	"github.com/getan/tuios-mini/internal/terminal"
 )
@@ -36,6 +37,7 @@ type paneControlAgent struct {
 	Project        string    `json:"project"`
 	Role           string    `json:"role"`
 	ConversationID string    `json:"conversation_id"`
+	Preview        string    `json:"preview,omitempty"`
 	SessionID      string    `json:"session_id"`
 	PaneID         string    `json:"pane_id"`
 	Workspace      int       `json:"workspace"`
@@ -413,6 +415,69 @@ func paneControlAgentLabel(agent paneControlAgent) string {
 	return label
 }
 
+// paneControlShortID takes runes rather than bytes so malformed or non-ASCII
+// metadata cannot split a character. Conversation IDs end in the unique part;
+// pane IDs use the same first eight characters as tuios list-windows.
+func paneControlShortID(id string, limit int, suffix bool) string {
+	runes := []rune(strings.TrimSpace(id))
+	if len(runes) == 0 {
+		return "?"
+	}
+	if len(runes) > limit {
+		if suffix {
+			runes = runes[len(runes)-limit:]
+		} else {
+			runes = runes[:limit]
+		}
+	}
+	return string(runes)
+}
+
+// paneControlDisplayLabels keeps distinct project labels short. For duplicate
+// names, put the identifiers first: the menu has a width cap, so a long project
+// name must not hide the part that distinguishes security-sensitive choices.
+func paneControlDisplayLabels(agents []paneControlAgent) map[string]string {
+	baseCounts := make(map[string]int, len(agents))
+	for _, agent := range agents {
+		baseCounts[paneControlAgentLabel(agent)]++
+	}
+	labels := make(map[string]string, len(agents))
+	labelCounts := make(map[string]int, len(agents))
+	for _, agent := range agents {
+		label := paneControlAgentLabel(agent)
+		if baseCounts[label] > 1 {
+			label = fmt.Sprintf("[pane:%s chat:%s] %s", paneControlShortID(agent.PaneID, 8, false), paneControlShortID(agent.ConversationID, 6, true), label)
+		}
+		labels[agent.ID] = label
+		labelCounts[label]++
+	}
+	// Pane and conversation abbreviations can collide. Include the Agent ID's
+	// distinct suffix first, and use an ordinal if even that suffix collides.
+	for _, agent := range agents {
+		label := labels[agent.ID]
+		if labelCounts[label] > 1 {
+			labels[agent.ID] = fmt.Sprintf("[%s] %s", paneControlShortID(agent.ID, 8, true), label)
+		}
+	}
+	labelCounts = make(map[string]int, len(agents))
+	for _, agent := range agents {
+		labelCounts[labels[agent.ID]]++
+	}
+	for i, agent := range agents {
+		if labelCounts[labels[agent.ID]] > 1 {
+			labels[agent.ID] = fmt.Sprintf("[%d] %s", i+1, labels[agent.ID])
+		}
+	}
+	return labels
+}
+
+// A preview is untrusted display text, never an action or an identity. Keep it
+// on its own dim row so the pane ID remains visible even for a long prompt.
+func paneControlPreview(agent paneControlAgent) string {
+	text := printableTitle(strings.Join(strings.Fields(agent.Preview), " "))
+	return overlay.Truncate(text, 28)
+}
+
 func (m *OS) openPaneControlAgentMenu(windowID string) {
 	win := m.paneControlWindow(windowID)
 	if !paneControlTargetEligible(win) || win.Workspace <= 0 {
@@ -424,9 +489,13 @@ func (m *OS) openPaneControlAgentMenu(windowID string) {
 		m.ShowNotification("Pane control: "+err.Error(), "error", m.Settings.NotificationDuration)
 		return
 	}
+	labels := paneControlDisplayLabels(agents)
 	items := make([]ContextMenuItem, 0, len(agents)+1)
 	for _, agent := range agents {
-		items = append(items, ContextMenuItem{Label: paneControlAgentLabel(agent), Action: paneControlAgentAction(windowID, agent.ID)})
+		items = append(items, ContextMenuItem{Label: labels[agent.ID], Action: paneControlAgentAction(windowID, agent.ID)})
+		if preview := paneControlPreview(agent); preview != "" {
+			items = append(items, ContextMenuItem{Label: "  " + preview, Dim: true})
+		}
 	}
 	items = append(items, ContextMenuItem{Label: "Cancel", Action: paneControlActionPrefix + "cancel"})
 	cm := &ContextMenu{
@@ -459,30 +528,52 @@ func (m *OS) openPaneControlScopeMenu(windowID, agentID string) {
 		m.ShowNotification("That Agent is no longer available", "warning", m.Settings.NotificationDuration)
 		return
 	}
+	items := []ContextMenuItem{
+		{Label: "Next action", Action: paneControlAction(windowID, selected.ID, paneControlOnce, false)},
+		{Label: "This conversation", Action: paneControlAction(windowID, selected.ID, paneControlSession, false)},
+	}
+	if preview := paneControlPreview(selected); preview != "" {
+		items = append(items, ContextMenuItem{Label: preview, Dim: true})
+	}
+	items = append(items, ContextMenuItem{Label: "Back", Action: paneControlAgentsAction(windowID)}, ContextMenuItem{Label: "Cancel", Action: paneControlActionPrefix + "cancel"})
 	cm := &ContextMenu{
-		Title: paneControlAgentLabel(selected), Target: CtxTargetPane, WindowIndex: -1,
+		Title: paneControlDisplayLabels(agents)[selected.ID], Target: CtxTargetPane, WindowIndex: -1,
 		AnchorX: m.Width / 2, AnchorY: m.Height / 2, Selected: 0, ItemH: 1,
-		Items: []ContextMenuItem{
-			{Label: "Next action", Action: paneControlAction(windowID, selected.ID, paneControlOnce, false)},
-			{Label: "This conversation", Action: paneControlAction(windowID, selected.ID, paneControlSession, false)},
-			{Label: "Back", Action: paneControlAgentsAction(windowID)},
-			{Label: "Cancel", Action: paneControlActionPrefix + "cancel"},
-		},
+		Items: items,
 	}
 	m.ContextMenu = cm
 }
 
+func (m *OS) paneControlLeaseAgent(from paneControlLease) paneControlAgent {
+	previous := paneControlAgent{ID: from.AgentID, Label: from.AgentLabel, Role: "main", ConversationID: from.ConversationID}
+	// The lease itself has the controller ID and conversation, but its pane ID
+	// lives in the registry. A missing or changed record must not be mistaken for
+	// the current controller: keep the lease's identity as the fallback.
+	_ = m.withPaneControl(false, func(st *paneControlFile) error {
+		if agent, ok := st.Agents[from.AgentID]; ok && agent.ConversationID == from.ConversationID {
+			previous = agent
+		}
+		return nil
+	})
+	return previous
+}
+
 func (m *OS) openPaneControlTransferMenu(win *terminal.Window, from paneControlLease, to paneControlAgent, scope string) {
+	previous := m.paneControlLeaseAgent(from)
+	labels := paneControlDisplayLabels([]paneControlAgent{previous, to})
+	items := []ContextMenuItem{{Label: "From: " + labels[previous.ID], Dim: true}}
+	if preview := paneControlPreview(previous); preview != "" {
+		items = append(items, ContextMenuItem{Label: "  " + preview, Dim: true})
+	}
+	items = append(items, ContextMenuItem{Label: "To: " + labels[to.ID], Dim: true})
+	if preview := paneControlPreview(to); preview != "" {
+		items = append(items, ContextMenuItem{Label: "  " + preview, Dim: true})
+	}
+	items = append(items, separator(), ContextMenuItem{Label: "Cancel", Action: paneControlActionPrefix + "cancel"},
+		ContextMenuItem{Label: "Confirm transfer", Action: paneControlAction(win.ID, to.ID, scope, true), Hint: scope, Warn: true})
 	cm := &ContextMenu{
 		Title: "Transfer pane control?", Target: CtxTargetPane, WindowIndex: -1,
-		AnchorX: m.Width / 2, AnchorY: m.Height / 2, Selected: 3, ItemH: 1,
-		Items: []ContextMenuItem{
-			{Label: "From: " + shortPaneControlLabel(from.AgentLabel), Dim: true},
-			{Label: "To: " + paneControlAgentLabel(to), Dim: true},
-			separator(),
-			{Label: "Cancel", Action: paneControlActionPrefix + "cancel"},
-			{Label: "Confirm transfer", Action: paneControlAction(win.ID, to.ID, scope, true), Hint: scope, Warn: true},
-		},
+		AnchorX: m.Width / 2, AnchorY: m.Height / 2, Selected: len(items) - 2, ItemH: 1, Items: items,
 	}
 	m.ContextMenu = cm
 }
@@ -499,13 +590,25 @@ func (m *OS) paneControlMenuItems(win *terminal.Window) []ContextMenuItem {
 	items := []ContextMenuItem{separator()}
 	status := "Agent: none"
 	if controlled {
-		status = "Agent: " + shortPaneControlLabel(lease.AgentLabel)
+		labels := paneControlDisplayLabels(agents)
+		if labels[lease.AgentID] == "" {
+			// The controller may be blocked on an approval and therefore absent
+			// from the eligible list, even though its lease still exists.
+			withOwner := append(append([]paneControlAgent(nil), agents...), m.paneControlLeaseAgent(lease))
+			labels = paneControlDisplayLabels(withOwner)
+		}
+		status = "Agent: " + labels[lease.AgentID]
 	}
 	statusItem := ContextMenuItem{Label: status, Dim: true}
 	if controlled {
 		statusItem.Hint = lease.Scope
 	}
 	items = append(items, statusItem)
+	if controlled {
+		if preview := paneControlPreview(m.paneControlLeaseAgent(lease)); preview != "" {
+			items = append(items, ContextMenuItem{Label: "  " + preview, Dim: true})
+		}
+	}
 	if !paneControlTargetEligible(win) {
 		return items
 	}

@@ -200,3 +200,122 @@ func TestPaneControlRefusesAgentAndMarksSSHIdentity(t *testing.T) {
 		t.Fatalf("SSH identity = %+v ok=%v err=%v", lease, ok, err)
 	}
 }
+
+// Identical project names must not make a security-sensitive grant or transfer
+// ambiguous, even when the Agents happen to share a conversation ID.
+func TestPaneControlSameProjectAgentsRemainDistinguishable(t *testing.T) {
+	m, socket, win := paneControlTestOS(t)
+	a := paneControlTestAgent("golder-main-1111111111111111", "golder · Main Agent")
+	b := paneControlTestAgent("golder-main-2222222222222222", "golder · Main Agent")
+	a.PaneID, b.PaneID = "12345678-aaaa", "abcdef12-bbbb"
+	a.ConversationID, b.ConversationID = "20261110-120000-123456", "20261110-120000-123456"
+	writePaneControlTestState(t, socket, a, b)
+	addPaneControlAgentWindows(m, a, b)
+
+	runPaneControlTestAction(m, paneControlAgentsAction(win.ID))
+	if m.ContextMenu == nil || len(m.ContextMenu.Items) != 3 {
+		t.Fatalf("Agent picker = %+v", m.ContextMenu)
+	}
+	first, second := m.ContextMenu.Items[0], m.ContextMenu.Items[1]
+	if first.Label == second.Label || !strings.Contains(first.Label, "12345678") || !strings.Contains(second.Label, "abcdef12") ||
+		!strings.Contains(first.Label, "123456") || !strings.Contains(second.Label, "123456") {
+		t.Fatalf("ambiguous Agent choices: %+v", m.ContextMenu.Items)
+	}
+	if first.Action != paneControlAgentAction(win.ID, a.ID) || second.Action != paneControlAgentAction(win.ID, b.ID) {
+		t.Fatalf("display changed grant identities: %+v", m.ContextMenu.Items)
+	}
+	rendered, _ := m.renderContextMenu()
+	if !strings.Contains(rendered, "12345678") || !strings.Contains(rendered, "abcdef12") {
+		t.Fatalf("Agent identities were clipped in the actual menu: %q", rendered)
+	}
+
+	runPaneControlTestAction(m, paneControlAgentAction(win.ID, a.ID))
+	if !strings.Contains(m.ContextMenu.Title, "12345678") {
+		t.Fatalf("scope picker hides selected Agent: %+v", m.ContextMenu)
+	}
+	runPaneControlTestAction(m, paneControlAction(win.ID, a.ID, paneControlSession, false))
+	if !menuHasLabel(m.paneControlMenuItems(win), "12345678") {
+		t.Fatal("current controller is ambiguous")
+	}
+	// A controller waiting on an approval is excluded from the picker, but it
+	// still holds the lease and must remain identifiable as the current owner.
+	if err := m.withPaneControl(true, func(st *paneControlFile) error {
+		entry := st.Agents[a.ID]
+		entry.State = "needs_input"
+		st.Agents[a.ID] = entry
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !menuHasLabel(m.paneControlMenuItems(win), "12345678") {
+		t.Fatal("blocked current controller is ambiguous")
+	}
+	if err := m.withPaneControl(true, func(st *paneControlFile) error {
+		entry := st.Agents[a.ID]
+		entry.State = "idle"
+		st.Agents[a.ID] = entry
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runPaneControlTestAction(m, paneControlAction(win.ID, b.ID, paneControlSession, false))
+	if m.ContextMenu == nil || len(m.ContextMenu.Items) != 5 ||
+		!strings.Contains(m.ContextMenu.Items[0].Label, "12345678") ||
+		!strings.Contains(m.ContextMenu.Items[1].Label, "abcdef12") {
+		t.Fatalf("ambiguous transfer confirmation: %+v", m.ContextMenu)
+	}
+	lease, ok, err := m.paneControlLease(win.ID)
+	if err != nil || !ok || lease.AgentID != a.ID {
+		t.Fatalf("transfer occurred before confirmation: %+v, %v, %v", lease, ok, err)
+	}
+}
+
+func TestPaneControlCollisionDoesNotHideAgentIdentity(t *testing.T) {
+	m, socket, win := paneControlTestOS(t)
+	a := paneControlTestAgent("golder-main-1111111111111111", "golder · Main Agent")
+	b := paneControlTestAgent("golder-main-2222222222222222", "golder · Main Agent")
+	a.PaneID, b.PaneID = "12345678-aaaa", "12345678-bbbb"
+	a.ConversationID, b.ConversationID = "20261110-120000-123456", "20261110-120000-123456"
+	writePaneControlTestState(t, socket, a, b)
+	addPaneControlAgentWindows(m, a, b)
+	runPaneControlTestAction(m, paneControlAgentsAction(win.ID))
+	if m.ContextMenu == nil || m.ContextMenu.Items[0].Label == m.ContextMenu.Items[1].Label {
+		t.Fatalf("colliding short identities: %+v", m.ContextMenu)
+	}
+	runPaneControlTestAction(m, paneControlAction(win.ID, a.ID, paneControlSession, false))
+	runPaneControlTestAction(m, paneControlAction(win.ID, b.ID, paneControlSession, false))
+	if m.ContextMenu == nil || m.ContextMenu.Items[0].Label == strings.Replace(m.ContextMenu.Items[1].Label, "To:", "From:", 1) {
+		t.Fatalf("colliding transfer identities: %+v", m.ContextMenu)
+	}
+}
+
+// The preview is display-only: it cannot become an action, replace the exact
+// Agent ID, or obscure which controller a transfer affects.
+func TestPaneControlShowsConversationPreviews(t *testing.T) {
+	m, socket, win := paneControlTestOS(t)
+	a := paneControlTestAgent("a", "golder · Main Agent")
+	b := paneControlTestAgent("b", "golder · Main Agent")
+	a.Preview = "修复登录按钮，并且处理非常非常非常非常非常长的错误提示"
+	b.Preview = "检查缓存失效问题"
+	writePaneControlTestState(t, socket, a, b)
+	addPaneControlAgentWindows(m, a, b)
+	runPaneControlTestAction(m, paneControlAgentsAction(win.ID))
+	items := m.ContextMenu.Items
+	if len(items) != 5 || !items[1].Dim || !items[3].Dim || items[1].Action != "" ||
+		!strings.Contains(items[1].Label, "修复登录按钮") || !strings.Contains(items[1].Label, "…") ||
+		!strings.Contains(items[3].Label, "检查缓存失效问题") || items[0].Action != paneControlAgentAction(win.ID, a.ID) {
+		t.Fatalf("preview rows or identity: %+v", items)
+	}
+	if m.ContextMenu.Next(1) != 2 {
+		t.Fatal("keyboard navigation did not skip the preview row")
+	}
+	runPaneControlTestAction(m, paneControlAction(win.ID, a.ID, paneControlSession, false))
+	if !menuHasLabel(m.paneControlMenuItems(win), "修复登录按钮") {
+		t.Fatal("current controller preview is missing")
+	}
+	runPaneControlTestAction(m, paneControlAction(win.ID, b.ID, paneControlSession, false))
+	if m.ContextMenu == nil || !menuHasLabel(m.ContextMenu.Items, "修复登录按钮") ||
+		!menuHasLabel(m.ContextMenu.Items, "检查缓存失效问题") || m.ContextMenu.Items[m.ContextMenu.Selected].Label != "Cancel" {
+		t.Fatalf("transfer preview or safe default: %+v", m.ContextMenu)
+	}
+}
