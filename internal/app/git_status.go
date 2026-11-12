@@ -365,6 +365,11 @@ func (m *OS) gitTabRows() []fileRowSpec {
 		Key:  "commit",
 		Name: "Commit changes",
 	})
+	pullLabel := "Pull (fast-forward only)"
+	if m.gitPullPending {
+		pullLabel = "Pulling…"
+	}
+	rows = append(rows, fileRowSpec{Kind: sidebarRowGitPull, Key: "pull", Name: pullLabel})
 	add := func(title, side string, entries []gitstatus.Entry) {
 		if len(entries) == 0 {
 			return

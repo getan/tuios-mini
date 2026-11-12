@@ -34,3 +34,15 @@ func Sync(ctx context.Context, dir string) (SyncResult, error) {
 	}
 	return SyncResult{Upstream: upstream, Pull: pull, Push: push}, nil
 }
+
+// PullFFOnly never rewrites local commits or silently stashes work. Git refuses
+// divergence and conflicting dirty files. Remote-tracking refs may still change
+// on failure or timeout; callers must inspect before retrying.
+func PullFFOnly(ctx context.Context, dir string) (string, string, error) {
+	upstream, err := git(ctx, dir, nil, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	if err != nil {
+		return "", "", errors.New("this branch has no upstream; configure one before pulling")
+	}
+	output, err := git(ctx, dir, []string{"GIT_TERMINAL_PROMPT=0"}, "pull", "--ff-only", "--no-rebase", "--no-autostash")
+	return strings.TrimSpace(upstream), output, err
+}

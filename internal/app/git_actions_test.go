@@ -173,6 +173,35 @@ func TestSidebarGitSyncSendsTheVerb(t *testing.T) {
 	}
 }
 
+func TestSidebarGitPullUsesExactPaneAndHumanNonce(t *testing.T) {
+	m, origin := gitActionsOS(t)
+	m.gitStatus.asked = origin
+	var params map[string]any
+	m.SetInboxVerbCaller(func(verb string, p map[string]any, _ time.Duration) (json.RawMessage, error) {
+		if verb != "review-pull" {
+			t.Fatalf("unexpected verb %q", verb)
+		}
+		params = p
+		return json.RawMessage(`{}`), nil
+	}, func() string { return "nonce" })
+	cmd := m.SidebarGitPull()
+	if cmd == nil {
+		t.Fatal("no pull command")
+	}
+	if m.SidebarGitPull() != nil {
+		t.Fatal("duplicate pull was queued while one was in flight")
+	}
+	msg := cmd().(gitActionMsg)
+	if msg.Err != "" || params["session"] != origin.Session || params["window"] != origin.Window || params["human_nonce"] != "nonce" || params["worktree"] != "/repo" {
+		t.Fatalf("pull target or result: %+v %v", msg, params)
+	}
+	m.HandleGitAction(msg)
+	m.gitStatus.asked.Window = "different"
+	if m.SidebarGitPull() != nil {
+		t.Fatal("stale origin was used")
+	}
+}
+
 func TestGitRowMenuFollowsTheSide(t *testing.T) {
 	m, _ := gitActionsOS(t)
 	_, items := m.gitRowMenu()

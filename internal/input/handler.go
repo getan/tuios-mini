@@ -84,6 +84,9 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 			return handleCaptureMouseMotion(msg, o)
 		}
 		if o.DocPreviewOpen() {
+			if !o.OverlayActive() && !o.ReviewOpen() && msg.Button != tea.MouseNone {
+				o.DocPreviewDrag(msg.X, msg.Y)
+			}
 			return o, nil
 		}
 		if o.ReviewOpen() {
@@ -98,6 +101,11 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		return handleMouseMotion(msg, o)
 	case tea.MouseReleaseMsg:
 		if o.DocPreviewOpen() {
+			if !o.OverlayActive() && !o.ReviewOpen() {
+				if cmd, handled := o.DocPreviewRelease(msg.X, msg.Y); handled {
+					return o, cmd
+				}
+			}
 			return o, nil
 		}
 		if o.CaptureActive() {

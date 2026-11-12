@@ -112,3 +112,36 @@ func TestARightClickOnTheSheetMissesIt(t *testing.T) {
 			ansi.Strip(o.GetCanvas(true).Render()))
 	}
 }
+
+func TestPreviewMouseDragRoutesMotionAndCopiesOnRelease(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "brief.txt"), []byte("hello from preview\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o := filesRailOS(t, dir, "")
+	_ = o.View()
+	x, y := fileRowCell(t, o, "brief.txt")
+	_, cmd := handleMouseClick(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}, o)
+	if cmd == nil {
+		t.Fatal("preview did not open")
+	}
+	o.Update(cmd())
+	_ = o.View()
+	frame := strings.Split(ansi.Strip(o.GetCanvas(true).Render()), "\n")
+	x, y = -1, -1
+	for row, line := range frame {
+		if col := strings.Index(line, "hello from preview"); col >= 0 {
+			x, y = col, row
+			break
+		}
+	}
+	if x < 0 {
+		t.Fatal("preview content not visible")
+	}
+	HandleInput(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}, o)
+	HandleInput(tea.MouseMotionMsg{X: x + 5, Y: y, Button: tea.MouseLeft}, o)
+	_, copyCmd := HandleInput(tea.MouseReleaseMsg{X: x + 5, Y: y, Button: tea.MouseLeft}, o)
+	if copyCmd == nil {
+		t.Fatal("mouse release did not route the selected text to clipboard")
+	}
+}

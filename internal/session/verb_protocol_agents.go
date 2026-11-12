@@ -201,6 +201,20 @@ func agentWorkVerbs() map[string]verbEntry {
 			},
 			handler: (*Daemon).verbReviewSync,
 		},
+		"review-pull": {
+			description: "Pull the pane's upstream with fast-forward only, without push, rebase or autostash.",
+			params: []verbParam{sessionParam, windowParam, humanNonce,
+				{Name: "worktree", Type: "string", Required: true, Description: "Exact repository root shown to the person."}},
+			returns: []verbParam{
+				{Name: "session", Type: "string", Description: "The session of the pane."},
+				{Name: "window", Type: "string", Description: "The pane, by id."},
+				{Name: "worktree", Type: "string", Description: "The worktree pulled."},
+				{Name: "upstream", Type: "string", Description: "The configured upstream."},
+				{Name: "pull", Type: "string", Description: "Git output, capped at 4 KiB."},
+			},
+			examples: []string{`{"id":1,"verb":"review-pull","params":{"session":"work","window":"build","worktree":"/repo"}}`},
+			handler:  (*Daemon).verbReviewPull,
+		},
 		// verb_review_history.go
 		"review-history": {
 			description: "Read one read-only Git drawer: commits, graph, branches, tags, stashes, remotes, one file's history, or the repositories the session's panes are in.",

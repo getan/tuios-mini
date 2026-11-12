@@ -105,6 +105,8 @@ const (
 	// sidebarRowGitCommit is the Git tab's clickable commit control. It opens
 	// the same commit prompt the keyboard shortcut does.
 	sidebarRowGitCommit
+	// sidebarRowGitPull is the explicit fast-forward-only pull control.
+	sidebarRowGitPull
 	// sidebarRowHostSession is one session on another machine. Activating it
 	// opens that session in this client over the link, and on a host that is
 	// not up it asks for the link first (host_open.go). It carries the host
@@ -2447,7 +2449,7 @@ func sidebarFileRowIndex(nav []sidebarNavRow, name string) (int, bool) {
 		if r.Kind != sidebarRowFileUp && r.Kind != sidebarRowFileEntry &&
 			r.Kind != sidebarRowProjectFiles && r.Kind != sidebarRowProjectGit &&
 			r.Kind != sidebarRowGitEntry && r.Kind != sidebarRowGitHistory &&
-			r.Kind != sidebarRowGitCommit {
+			r.Kind != sidebarRowGitCommit && r.Kind != sidebarRowGitPull {
 			continue
 		}
 		if first < 0 {

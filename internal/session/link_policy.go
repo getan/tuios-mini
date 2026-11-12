@@ -266,6 +266,7 @@ var verbCapabilities = map[string][]string{
 	"review-commit":  {config.LinkAllowWrite},
 	"review-discard": {config.LinkAllowWrite},
 	"review-sync":    {config.LinkAllowWrite},
+	"review-pull":    {config.LinkAllowWrite},
 	"review-history": nil,
 	"queue-prompt":   {config.LinkAllowWrite},
 	"cancel-queued":  {config.LinkAllowWrite},

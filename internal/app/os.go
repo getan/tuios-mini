@@ -1569,7 +1569,8 @@ type OS struct {
 	projectTab int
 	// gitStatus is the changed-path reading the Git tab draws. Refreshed on the
 	// git section's beat, off the render path. See git_status.go.
-	gitStatus gitStatusView
+	gitStatus      gitStatusView
+	gitPullPending bool
 	// gitTarget is the repository the Git tab was explicitly pointed at. It is
 	// independent of pane focus and workspace: choosing a repository in the
 	// Repositories drawer keeps the tab there until another is chosen. Zero
