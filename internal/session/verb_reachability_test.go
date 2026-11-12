@@ -96,6 +96,7 @@ var exampleOutcomes = map[string]exampleOutcome{
 	// review/discard_test.go.
 	"review-commit#0": {errCode: ErrVerbGitFailed, why: "the fixture's worktree has nothing staged"},
 	"review-sync#0":   {errCode: ErrVerbGitFailed, why: "the fixture's branch has no upstream"},
+	"review-pull#0":   {errCode: ErrVerbInvalidParams, why: "example root is not the fixture worktree"},
 	"remove-push#0":   {errCode: ErrVerbNotHuman, why: "only the person may remove a phone, with a live nonce"},
 	"run-command#0":   {errCode: ErrVerbNeedsClient, why: "ToggleZoom is a client command"},
 	"set-layout#0":    {errCode: ErrVerbNeedsClient, why: "tiling is the client's arithmetic"},

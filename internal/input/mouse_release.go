@@ -63,6 +63,9 @@ func handleMouseRelease(msg tea.MouseReleaseMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	if cmd, handled := o.DocPreviewRelease(msg.Mouse().X, msg.Mouse().Y); handled {
 		return o, cmd
 	}
+	if o.DocPreviewContains(msg.X, msg.Y) && !o.DockWorkspaceDragActive() && !o.SidebarDragActive() && !o.SidebarEdgeActive() && !o.SidebarSplitActive() {
+		return o, nil
+	}
 
 	// A rail session's tracked mouse click needs its matching release. The
 	// center pane must not receive a release for a press it never saw.

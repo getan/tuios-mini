@@ -2,7 +2,7 @@ module github.com/getan/tuios-mini
 
 go 1.26.6
 
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
 	charm.land/bubbletea/v2 v2.0.8

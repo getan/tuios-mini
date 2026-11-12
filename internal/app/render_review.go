@@ -561,10 +561,11 @@ func (m *OS) renderReview() string {
 	listLines := m.reviewListLines(listW, paneH, pal)
 	defer func() { r.frameRows, r.frameRowsSet = nil, false }()
 	diffLines := m.reviewDiffLines(diffW, paneH, look)
+	r.selection.record(diffLines, 1+1+listW+3, 3, diffW)
 	sp := reviewSpaces(1, pal.Surface)
 	sep := sp + reviewInk(vtGlyph(), pal.FgMute, pal.Surface) + sp
 	for i := range paneH {
-		body = append(body, sp+listLines[i]+sep+diffLines[i]+sp)
+		body = append(body, sp+listLines[i]+sep+r.selection.draw(diffLines[i], i)+sp)
 	}
 	body = append(body, m.reviewStatusRule(inner, pal), m.reviewFooter(inner, pal))
 	return reviewFrame(w, h, "", body, pal.Accent, pal.Surface)

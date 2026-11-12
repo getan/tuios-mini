@@ -12,8 +12,9 @@ import (
 
 // gitActionMsg is one finished stage, unstage or commit.
 type gitActionMsg struct {
-	OK  string
-	Err string
+	OK   string
+	Err  string
+	Pull bool
 }
 
 // gitExternalReadOnly says why an action that needs a pane is unavailable in
@@ -260,6 +261,37 @@ func (m *OS) SidebarGitSync() tea.Cmd {
 	}
 }
 
+// SidebarGitPull is a person-initiated fast-forward-only pull; it never pushes,
+// rebases, stashes, or changes a different repository as a fallback.
+func (m *OS) SidebarGitPull() tea.Cmd {
+	if m.gitExternalReadOnly() {
+		return nil
+	}
+	if m.gitPullPending {
+		m.ShowNotification("A pull is already in progress.", "info", m.Settings.NotificationDuration)
+		return nil
+	}
+	origin := m.gitStatus.Origin
+	root := m.gitStatus.Status.Root
+	if origin.Session == "" || origin.Window == "" || root == "" || origin != m.gitStatus.asked {
+		m.ShowNotification("No current pane repository to pull.", "warning", m.Settings.NotificationDuration)
+		return nil
+	}
+	call, nonce := m.inboxCaller(), m.inboxNonce()
+	m.gitPullPending = true
+	m.ShowNotification("Pulling upstream (fast-forward only)…", "info", m.Settings.NotificationDuration)
+	return func() tea.Msg {
+		params := map[string]any{"session": origin.Session, "window": origin.Window, "worktree": root}
+		if nonce != "" {
+			params["human_nonce"] = nonce
+		}
+		if _, err := call("review-pull", params, 120*time.Second); err != nil {
+			return gitActionMsg{Err: err.Error(), Pull: true}
+		}
+		return gitActionMsg{OK: "Pull complete (fast-forward only).", Pull: true}
+	}
+}
+
 // commitStagedCmd sends the message to the pane's repository. The daemon
 // commits the index only, so the commit holds exactly the Staged section.
 func (m *OS) commitStagedCmd(origin gitStatusOrigin, message string) tea.Cmd {
@@ -294,9 +326,18 @@ func (m *OS) commitStagedCmd(origin gitStatusOrigin, message string) tea.Cmd {
 // than waiting for the refresh interval: the row the key acted on has moved,
 // and the next key must find the new side.
 func (m *OS) HandleGitAction(msg gitActionMsg) tea.Cmd {
+	if msg.Pull {
+		m.gitPullPending = false
+	}
 	m.filePrompt.Busy = false
 	if msg.Err != "" {
 		m.ShowNotification(msg.Err, "error", m.Settings.NotificationDuration)
+		if msg.Pull {
+			// Fetch may have updated remote-tracking refs even when pull failed.
+			m.gitStatus.inFlight = false
+			m.gitStatus.at = time.Time{}
+			return m.GitStatusSyncCmd()
+		}
 		return nil
 	}
 	if msg.OK != "" {

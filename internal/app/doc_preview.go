@@ -37,6 +37,10 @@ import (
 // docPreviewState is the open document, if any. Zero when closed.
 type docPreviewState struct {
 	open bool
+	// A sheet belongs to the workspace and session where it was opened. It is
+	// hidden, not discarded, while the person works in another one.
+	workspace int
+	session   string
 	// focus says the sheet has the keyboard. A click on the rail beside it
 	// takes the focus away without closing the document, so the rail's keys
 	// work again; a click on the sheet brings it back.
@@ -96,12 +100,15 @@ type docSaveMsg struct {
 	Err      error
 }
 
-// DocPreviewOpen reports whether the preview owns the content region.
-func (m *OS) DocPreviewOpen() bool { return m.docPreview.open }
+// DocPreviewOpen reports whether the preview owns this workspace's content.
+func (m *OS) DocPreviewOpen() bool {
+	d := &m.docPreview
+	return d.open && (d.workspace == 0 || (d.workspace == m.CurrentWorkspace && d.session == m.SessionName))
+}
 
 // DocPreviewFocused reports whether the sheet has the keyboard.
 func (m *OS) DocPreviewFocused() bool {
-	return m.docPreview.open && m.docPreview.focus
+	return m.DocPreviewOpen() && m.docPreview.focus
 }
 
 // BlurDocPreview gives the keyboard back to the rail or dock without closing
@@ -110,7 +117,7 @@ func (m *OS) BlurDocPreview() { m.docPreview.focus = false }
 
 // DocPreviewEditing reports whether the document takes text.
 func (m *OS) DocPreviewEditing() bool {
-	return m.docPreview.open && m.docPreview.edit && m.docPreview.doc.Editable
+	return m.DocPreviewOpen() && m.docPreview.edit && m.docPreview.doc.Editable
 }
 
 // DocPreviewPath is the open document's repo-relative path.
@@ -137,7 +144,7 @@ func (m *OS) OpenDocPreview(root, rel string, edit bool) tea.Cmd {
 	}
 	gen := m.docPreview.gen + 1
 	m.docPreview = docPreviewState{
-		gen: gen, open: true, focus: true, root: root,
+		gen: gen, open: true, focus: true, root: root, workspace: m.CurrentWorkspace, session: m.SessionName,
 		rel: filepath.ToSlash(rel), edit: edit, note: "reading...",
 	}
 	return func() tea.Msg {
@@ -414,7 +421,7 @@ func (m *OS) DocPreviewWheel(delta int) {
 // DocPreviewContains reports whether a screen cell is on the sheet, so a click
 // on the rail beside it still reaches the rail.
 func (m *OS) DocPreviewContains(x, y int) bool {
-	if !m.docPreview.open {
+	if !m.DocPreviewOpen() {
 		return false
 	}
 	return x >= m.GetLeftMargin() && x < m.GetLeftMargin()+m.GetContentWidth() &&
@@ -446,7 +453,7 @@ func (m *OS) DocPreviewClick(x, y int) {
 // the document, which is what a drag past the last line should select.
 func (m *OS) DocPreviewDrag(x, y int) bool {
 	d := &m.docPreview
-	if !d.open || !d.selecting || d.buf == nil {
+	if !m.DocPreviewOpen() || !d.selecting || d.buf == nil {
 		return false
 	}
 	if pos, ok := m.docPreviewPos(x, y, true); ok {
@@ -460,7 +467,7 @@ func (m *OS) DocPreviewDrag(x, y int) bool {
 // the same button-up to a pane behind the sheet.
 func (m *OS) DocPreviewRelease(x, y int) (tea.Cmd, bool) {
 	d := &m.docPreview
-	if !d.selecting {
+	if !m.DocPreviewOpen() || !d.selecting {
 		return nil, false
 	}
 	d.selecting = false
@@ -529,7 +536,7 @@ func docByteAtColumn(line string, col int) int {
 // document rows so a click can name a line without redoing the layout.
 func (m *OS) renderDocPreview() string {
 	d := &m.docPreview
-	if !d.open {
+	if !m.DocPreviewOpen() {
 		return ""
 	}
 	width, height := m.GetContentWidth(), m.GetUsableHeight()
