@@ -67,6 +67,9 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		// The review covers the screen: a click must not land on a pane or
 		// a panel under it.
 		if o.ReviewOpen() {
+			if msg.Button == tea.MouseLeft {
+				o.ReviewMousePress(msg.X, msg.Y)
+			}
 			return o, nil
 		}
 		if o.ShowScrollbackBrowser {
@@ -83,13 +86,10 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 			// Motion never syncs to the daemon, the same as the browser's.
 			return handleCaptureMouseMotion(msg, o)
 		}
-		if o.DocPreviewOpen() {
-			if !o.OverlayActive() && !o.ReviewOpen() && msg.Button != tea.MouseNone {
-				o.DocPreviewDrag(msg.X, msg.Y)
-			}
-			return o, nil
-		}
 		if o.ReviewOpen() {
+			if msg.Button == tea.MouseLeft {
+				o.ReviewMouseDrag(msg.X, msg.Y)
+			}
 			return o, nil
 		}
 		if o.ShowScrollbackBrowser {
@@ -100,13 +100,8 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		// Don't sync on motion: too frequent
 		return handleMouseMotion(msg, o)
 	case tea.MouseReleaseMsg:
-		if o.DocPreviewOpen() {
-			if !o.OverlayActive() && !o.ReviewOpen() {
-				if cmd, handled := o.DocPreviewRelease(msg.X, msg.Y); handled {
-					return o, cmd
-				}
-			}
-			return o, nil
+		if o.ReviewOpen() && !o.CaptureActive() {
+			return o, o.ReviewMouseRelease(msg.X, msg.Y)
 		}
 		if o.CaptureActive() {
 			result, cmd = handleCaptureMouseRelease(o)
@@ -540,7 +535,7 @@ func routeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	}
 	// A review can open over an existing document. Its comments, not the
 	// hidden editable buffer, must receive the keys above.
-	if o.DocPreviewFocused() {
+	if o.DocPreviewFocused() && !o.PrefixActive && !isLeaderKey(msg, &o.Settings, o.HostBaseCode(msg)) {
 		return o.DocPreviewKey(msg)
 	}
 

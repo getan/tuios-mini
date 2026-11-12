@@ -145,3 +145,64 @@ func TestPreviewMouseDragRoutesMotionAndCopiesOnRelease(t *testing.T) {
 		t.Fatal("mouse release did not route the selected text to clipboard")
 	}
 }
+
+func TestPreviewDoesNotSwallowWorkspaceTabRelease(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "brief.txt"), []byte("body\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o := filesRailOS(t, dir, "")
+	o.WorkspaceNames = map[int]string{2: "other"}
+	o.Windows[1].Workspace = 2
+	_ = o.View()
+	x, y := fileRowCell(t, o, "brief.txt")
+	_, cmd := handleMouseClick(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}, o)
+	if cmd == nil {
+		t.Fatal("preview did not open")
+	}
+	o.Update(cmd())
+	HandleKeyPress(tea.KeyPressMsg{Code: 'X', Text: "X"}, o)
+	_ = o.View()
+	x, y = -1, -1
+	for row := 0; row < o.Height; row++ {
+		for col := 0; col < o.Width; col++ {
+			if o.DockWorkspacePillAt(col, row) == 2 {
+				x, y = col, row
+				break
+			}
+		}
+		if x >= 0 {
+			break
+		}
+	}
+	if x < 0 {
+		t.Fatal("workspace 2 tab not visible")
+	}
+	HandleInput(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}, o)
+	HandleInput(tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft}, o)
+	if o.CurrentWorkspace != 2 {
+		t.Fatalf("workspace = %d, want 2", o.CurrentWorkspace)
+	}
+	if o.DocPreviewOpen() {
+		t.Fatal("preview still obscures the other workspace")
+	}
+	o.SwitchToWorkspace(1)
+	if !o.DocPreviewOpen() {
+		t.Fatal("returning did not restore the preview")
+	}
+	_, save := HandleKeyPress(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}, o)
+	if save == nil {
+		t.Fatal("returning could not save the preview")
+	}
+	o.Update(save())
+	content, err := os.ReadFile(filepath.Join(dir, "brief.txt"))
+	if err != nil || !strings.Contains(string(content), "X") {
+		t.Fatalf("switching lost the unsaved preview edit: %q, %v", content, err)
+	}
+	o = pressRun(t, o, "ctrl+b")
+	o = pressRun(t, o, "w")
+	o = pressRun(t, o, "2")
+	if o.CurrentWorkspace != 2 {
+		t.Fatalf("keyboard workspace switch = %d, want 2", o.CurrentWorkspace)
+	}
+}

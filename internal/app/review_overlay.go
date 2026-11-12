@@ -205,6 +205,7 @@ type reviewState struct {
 	scroll     int
 	listScroll int
 	editor     *reviewEditor
+	selection  reviewMouseSelection
 	// fan is the pane's fan, nil when it is not in one.
 	fan     *reviewFanResult
 	compare *reviewCompare

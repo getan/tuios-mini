@@ -100,6 +100,9 @@ func handleMouseMotion(msg tea.MouseMotionMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		if o.OverlayMouseMotion(mouse.X, mouse.Y) {
 			return o, nil
 		}
+		if o.DocPreviewContains(mouse.X, mouse.Y) {
+			return o, nil
+		}
 		// A docked session is a real pane, not a list of sidebar rows. Send
 		// tracking motion to its guest before the rail hover path consumes it.
 		if w := o.SidebarSessionPaneAt(mouse.X, mouse.Y); w != nil {
