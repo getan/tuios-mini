@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"image/color"
+	"path/filepath"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -310,6 +311,18 @@ func windowTitleText(window *terminal.Window, markState string, position int, ma
 	} else if t := window.Title(); t != "" && !isDefaultTitle(t, window.ID) {
 		// Only show terminal-set title if it's not the default "Terminal <id>" format
 		windowName = printableTitle(t)
+	}
+	// This is display-only: an explicit pane name wins, and two projects with
+	// the same basename keep their independent IDs. A shell-set title is not a
+	// useful default for a Golder process that is now running in that shell.
+	if window.CustomName == "" && window.AgentHarness == "golder" {
+		cwd := window.Cwd
+		if cwd == "" {
+			cwd = window.CWD()
+		}
+		if cwd != "" {
+			windowName = printableTitle(filepath.Base(filepath.Clean(cwd)))
+		}
 	}
 
 	if windowName != "" || s.WindowTitleFormat != "" {

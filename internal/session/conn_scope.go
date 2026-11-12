@@ -314,6 +314,7 @@ var verbScopes = map[string]scopeKind{
 	"review-commit":  scopeDeny,
 	"review-discard": scopeDeny,
 	"review-sync":    scopeDeny,
+	"review-pull":    scopeDeny,
 	"review-history": scopeRead,
 
 	// From the checkpoint work (verb_checkpoint.go). Listing and reading a

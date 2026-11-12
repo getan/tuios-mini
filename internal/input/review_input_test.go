@@ -2,9 +2,12 @@ package input
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/getan/tuios-mini/internal/app"
 	"github.com/getan/tuios-mini/internal/config"
 	"github.com/getan/tuios-mini/internal/review"
@@ -73,4 +76,31 @@ func TestReviewKeyOnAnOlderDaemonReachesThePane(t *testing.T) {
 	if string(*typed) != "" {
 		t.Fatalf("unsupported workspace command leaked into the pane: %q", *typed)
 	}
+}
+
+func TestReviewMouseSelectionRoutesWithoutReachingPane(t *testing.T) {
+	o, typed, _ := reviewInputOS(t)
+	cmd, handled := o.ReviewFocusedPane()
+	if !handled || cmd == nil {
+		t.Fatal("review did not start")
+	}
+	o.Update(cmd())
+	_ = o.View()
+	frame := strings.Split(ansi.Strip(o.GetCanvas(true).Render()), "\n")
+	for y, line := range frame {
+		if index := strings.Index(line, "package a"); index >= 0 {
+			x := ansi.StringWidth(line[:index])
+			HandleInput(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}, o)
+			HandleInput(tea.MouseMotionMsg{X: x + 7, Y: y, Button: tea.MouseLeft}, o)
+			_, copied := HandleInput(tea.MouseReleaseMsg{X: x + 7, Y: y, Button: tea.MouseLeft}, o)
+			if copied == nil {
+				t.Fatal("review drag did not copy")
+			}
+			if len(*typed) != 0 {
+				t.Fatalf("mouse leaked to pane: %q", *typed)
+			}
+			return
+		}
+	}
+	t.Fatal("review diff text not visible")
 }
